@@ -1,0 +1,787 @@
+#!/usr/bin/env python3
+"""
+Multi-AI Orchestrator Engine.
+
+Launches 7 AI platforms in parallel, injects a user-provided prompt,
+waits for responses, extracts results, and saves them to the output directory.
+
+This engine is generic — it accepts any pre-built prompt and has no
+domain-specific or task-type-specific logic.
+
+Usage:
+    python3 orchestrator.py \
+        --prompt-file /tmp/research-prompt.md \
+        --mode REGULAR \
+        --output-dir ../reports/
+
+Dependencies are auto-installed on first run. To install manually:
+    pip install -r requirements.txt
+    playwright install chromium
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import importlib.util
+import json
+import logging
+import os
+import shutil
+import subprocess
+import sys
+
+from datetime import datetime
+from pathlib import Path
+
+# Ensure the engine directory is on the path
+_ENGINE_DIR = Path(__file__).resolve().parent       # .../skills/orchestrator/engine/
+_PROJECT_ROOT = _ENGINE_DIR.parent.parent.parent    # .../multi-ai-skills/
+_DEFAULT_OUTPUT_DIR = str(_PROJECT_ROOT / "reports")
+
+sys.path.insert(0, str(_ENGINE_DIR))
+
+
+# ---------------------------------------------------------------------------
+# .env loader — reads <project-root>/.env into os.environ (stdlib only,
+# no dotenv dependency required).  Existing env vars are never overwritten.
+# ---------------------------------------------------------------------------
+def _load_dotenv() -> None:
+    env_file = _PROJECT_ROOT / ".env"
+    if not env_file.exists():
+        return
+    with env_file.open(encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+_load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# Dependency bootstrap — auto-install on first run
+# ---------------------------------------------------------------------------
+
+def _ensure_venv() -> None:
+    """Ensure we're running inside a virtual environment.
+
+    Homebrew / PEP 668 Python blocks pip install outside a venv.
+    If we're not in one, create .venv/ beside this script and re-exec.
+    """
+    if sys.prefix != sys.base_prefix:
+        return  # Already inside a venv — nothing to do
+
+    venv_dir = Path(__file__).parent / ".venv"
+    if sys.platform == "win32":
+        venv_python = venv_dir / "Scripts" / "python.exe"
+    else:
+        venv_python = venv_dir / "bin" / "python3"
+
+    if not venv_python.exists():
+        print("  Creating virtual environment (.venv/)...")
+        subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+
+    # Re-exec with the venv python — replaces the current process
+    print("  Activating virtual environment...")
+    os.execv(str(venv_python), [str(venv_python)] + sys.argv)
+
+
+def _ensure_dependencies() -> None:
+    """Auto-install required Python packages and browser binaries on first use."""
+    installed = False
+
+    # 1. Mandatory: playwright
+    if importlib.util.find_spec("playwright") is None:
+        print("  Installing playwright...")
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "--quiet", "playwright>=1.40.0"],
+            )
+        except subprocess.CalledProcessError:
+            print("  ERROR: Failed to install playwright. Install manually:")
+            print("    pip install playwright>=1.40.0")
+            sys.exit(1)
+        print("  Installing Chromium browser (one-time download, ~130 MB)...")
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "playwright", "install", "chromium"],
+            )
+        except subprocess.CalledProcessError:
+            print("  ERROR: Failed to install Chromium. Install manually:")
+            print("    python3 -m playwright install chromium")
+            sys.exit(1)
+        installed = True
+
+    # 2. Optional: browser-use + langchain-anthropic (only when ANTHROPIC_API_KEY is set)
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        optional = []
+        if importlib.util.find_spec("browser_use") is None:
+            optional.append("browser-use>=0.2.0")
+        if importlib.util.find_spec("langchain_anthropic") is None:
+            optional.append("langchain-anthropic>=0.3.0")
+        if optional:
+            print(f"  Installing Agent fallback packages: {', '.join(optional)}")
+            try:
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "--quiet"] + optional,
+                )
+            except subprocess.CalledProcessError:
+                print(f"  WARNING: Failed to install optional packages: {', '.join(optional)}")
+                print("  Agent fallback will be disabled. To install manually:")
+                print(f"    pip install {' '.join(optional)}")
+                # Don't exit — these are optional
+            else:
+                installed = True
+
+    if installed:
+        print("  All dependencies ready.\n")
+
+
+_ensure_venv()            # Create .venv/ and re-exec if not already in a venv
+_ensure_dependencies()    # pip install missing packages (safe inside venv)
+
+# ---------------------------------------------------------------------------
+# External imports (safe after bootstrap)
+# ---------------------------------------------------------------------------
+
+from playwright.async_api import async_playwright, BrowserContext  # noqa: E402
+
+from agent_fallback import AgentFallbackManager  # noqa: E402
+from config import (  # noqa: E402
+    AGENT_MAX_STEPS,
+    CDP_PORT,
+    GLOBAL_TIMEOUT_DEEP,
+    GLOBAL_TIMEOUT_REGULAR,
+    PLATFORM_DISPLAY_NAMES,
+    STAGGER_DELAY,
+    STATUS_FAILED,
+    STATUS_ICONS,
+    STATUS_RATE_LIMITED,
+    STATUS_TIMEOUT,
+    detect_chrome_executable,
+    detect_chrome_user_data_dir,
+)
+from platforms import ALL_PLATFORMS  # noqa: E402
+from prompt_echo import auto_extract_prompt_sigs  # noqa: E402
+from rate_limiter import RateLimiter  # noqa: E402
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-7s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("orchestrator")
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Multi-AI Orchestrator Engine")
+
+    # Prompt input (mutually exclusive, one required)
+    prompt_group = p.add_mutually_exclusive_group(required=True)
+    prompt_group.add_argument("--prompt", help="Literal prompt text")
+    prompt_group.add_argument("--prompt-file", help="Path to pre-built prompt file")
+
+    # Optional condensed prompt for constrained platforms
+    condensed_group = p.add_mutually_exclusive_group()
+    condensed_group.add_argument("--condensed-prompt", default="",
+                                 help="Condensed prompt text for constrained platforms")
+    condensed_group.add_argument("--condensed-prompt-file", default="",
+                                 help="Path to condensed prompt file")
+
+    # Optional explicit prompt signatures (escape hatch)
+    p.add_argument("--prompt-sigs", default="",
+                   help="Comma-separated prompt-echo detection signatures (auto-detected if not set)")
+
+    # Mode and platform selection
+    p.add_argument("--mode", choices=["DEEP", "REGULAR"], default="REGULAR",
+                   type=str.upper,
+                   help="Orchestration mode (default: REGULAR)")
+    p.add_argument("--task-name", default="",
+                   help="Short name for this run — output goes to reports/{task-name}/ (recommended)")
+    p.add_argument("--output-dir", default=_DEFAULT_OUTPUT_DIR,
+                   help="Output directory for raw responses (default: <project-root>/reports/). "
+                        "Overridden by --task-name if both are supplied.")
+    p.add_argument("--chrome-profile", default="Default",
+                   help="Chrome profile directory name (default: Default)")
+    p.add_argument("--headless", action="store_true",
+                   help="Run browsers headlessly (not recommended — some platforms block headless)")
+    p.add_argument("--platforms", default="all",
+                   help="Comma-separated platform names to run, or 'all' (default: all)")
+    p.add_argument("--fresh", action="store_true",
+                   help="Force launch a new Chrome (kill any existing). Default: reuse running Chrome.")
+
+    # Rate limiting
+    p.add_argument("--tier", choices=["free", "paid"], default="free",
+                   help="Subscription tier for rate limit budgets (default: free)")
+    p.add_argument("--skip-rate-check", action="store_true",
+                   help="Bypass rate limit pre-flight checks (dangerous)")
+    p.add_argument("--budget", action="store_true",
+                   help="Show rate limit budget summary and exit")
+    p.add_argument("--stagger-delay", type=int, default=STAGGER_DELAY,
+                   help=f"Seconds between staggered platform launches (default: {STAGGER_DELAY})")
+
+    return p.parse_args()
+
+
+# ---------------------------------------------------------------------------
+# Prompt loading
+# ---------------------------------------------------------------------------
+
+def load_prompts(args: argparse.Namespace) -> tuple[str, str, list[str]]:
+    """Load full prompt, condensed prompt, and auto-extract echo signatures.
+
+    Returns:
+        (full_prompt, condensed_prompt, prompt_sigs)
+    """
+    # Load full prompt
+    if args.prompt:
+        full_prompt = args.prompt
+    else:
+        path = Path(args.prompt_file)
+        if not path.exists():
+            log.error(f"Prompt file not found: {args.prompt_file}")
+            sys.exit(1)
+        full_prompt = path.read_text(encoding="utf-8")
+
+    # Load condensed prompt (optional — falls back to full prompt)
+    if args.condensed_prompt:
+        condensed_prompt = args.condensed_prompt
+    elif args.condensed_prompt_file:
+        path = Path(args.condensed_prompt_file)
+        if not path.exists():
+            log.error(f"Condensed prompt file not found: {args.condensed_prompt_file}")
+            sys.exit(1)
+        condensed_prompt = path.read_text(encoding="utf-8")
+    else:
+        condensed_prompt = full_prompt
+
+    # Extract prompt-echo detection signatures
+    if args.prompt_sigs:
+        prompt_sigs = [s.strip() for s in args.prompt_sigs.split(",") if s.strip()]
+    else:
+        prompt_sigs = auto_extract_prompt_sigs(full_prompt)
+
+    log.info(f"Full prompt: {len(full_prompt)} chars | Condensed: {len(condensed_prompt)} chars | Sigs: {prompt_sigs}")
+    return full_prompt, condensed_prompt, prompt_sigs
+
+
+# ---------------------------------------------------------------------------
+# Platform runner
+# ---------------------------------------------------------------------------
+
+async def run_single_platform(
+    platform_name: str,
+    context: BrowserContext,
+    full_prompt: str,
+    condensed_prompt: str,
+    prompt_sigs: list[str],
+    mode: str,
+    output_dir: str,
+    agent_manager: AgentFallbackManager | None = None,
+) -> dict:
+    """Create a page, instantiate the platform class, and run it."""
+    cls = ALL_PLATFORMS[platform_name]
+    platform = cls()
+    platform.agent_manager = agent_manager
+    platform.prompt_sigs = prompt_sigs
+
+    # All platforms use full prompt
+    prompt = full_prompt
+
+    page = await context.new_page()
+    try:
+        result = await platform.run(page, prompt, mode, output_dir)
+        return {
+            "platform": result.platform,
+            "display_name": result.display_name,
+            "status": result.status,
+            "chars": result.chars,
+            "file": result.file,
+            "mode_used": result.mode_used,
+            "error": result.error,
+            "duration_s": round(result.duration_s, 1),
+        }
+    except Exception as exc:
+        log.exception(f"[{platform.display_name}] Unhandled error: {exc}")
+        return {
+            "platform": platform_name,
+            "display_name": platform.display_name,
+            "status": STATUS_FAILED,
+            "chars": 0,
+            "file": "",
+            "mode_used": "",
+            "error": str(exc),
+            "duration_s": 0,
+        }
+    finally:
+        pass  # Leave tab open so the user can inspect results after the run
+
+
+# ---------------------------------------------------------------------------
+# Rate-limited staggered runner
+# ---------------------------------------------------------------------------
+
+async def _staggered_run(
+    platform_name: str,
+    delay_seconds: float,
+    context: BrowserContext,
+    full_prompt: str,
+    condensed_prompt: str,
+    prompt_sigs: list[str],
+    mode: str,
+    output_dir: str,
+    agent_manager: AgentFallbackManager | None,
+    limiter: RateLimiter,
+) -> dict:
+    """Wait for stagger delay, then run platform and record usage."""
+    if delay_seconds > 0:
+        log.info(f"[{PLATFORM_DISPLAY_NAMES.get(platform_name, platform_name)}] Stagger delay: {delay_seconds:.0f}s")
+        await asyncio.sleep(delay_seconds)
+
+    result = await run_single_platform(
+        platform_name, context, full_prompt, condensed_prompt,
+        prompt_sigs, mode, output_dir, agent_manager,
+    )
+
+    # Record usage for rate tracking
+    limiter.record_usage(
+        platform=platform_name,
+        mode=mode,
+        status=result["status"],
+        duration_s=result.get("duration_s", 0),
+    )
+    return result
+
+
+def show_budget(args: argparse.Namespace) -> None:
+    """Print rate limit budget summary and exit."""
+    limiter = RateLimiter(tier=args.tier)
+    limiter.load_state()
+    summary = limiter.get_budget_summary(args.mode)
+
+    print(f"\n  Rate Limit Budget Summary (tier: {args.tier}, mode: {args.mode})")
+    print("=" * 72)
+    print(f"  {'Platform':<20} {'Used':>6} {'Budget':>8} {'Next Available':>16} {'Cooldown':>10}")
+    print("-" * 72)
+
+    for _platform_name, info in summary.items():
+        used = info["total"] - info["remaining"]
+        budget_str = f"{used}/{info['total']}"
+        remaining_str = f"{info['remaining']} left"
+        avail = "now" if info["next_available_in"] == 0 else f"in {info['next_available_in']}s"
+        cooldown_m = info["cooldown"] // 60
+        cooldown_str = f"{cooldown_m}m" if cooldown_m > 0 else f"{info['cooldown']}s"
+        print(f"  {info['display_name']:<20} {budget_str:>6} {remaining_str:>8} {avail:>16} {cooldown_str:>10}")
+
+    print("=" * 72)
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Main orchestrator
+# ---------------------------------------------------------------------------
+
+def _ensure_playwright_data_dir(real_chrome_dir: str, profile_name: str) -> str:
+    """Create a persistent non-default data dir with COPIED login files.
+
+    WHY: Chrome blocks --remote-debugging-pipe (used by Playwright) and
+    --remote-debugging-port when user_data_dir IS Chrome's actual default
+    profile path.  By using a different directory, Chrome sees a "non-default"
+    path.  We COPY essential login files (Cookies, Login Data, Local Storage,
+    etc.) from the real profile so that existing sessions are available on
+    first launch.  Chrome gets its own cache/GPU/shader space, avoiding
+    corruption from pkill'd sessions.
+
+    The macOS keychain key ("Chrome Safe Storage") is user-scoped, not
+    path-scoped, so cookie decryption works from any data directory.
+
+    The directory is PERSISTENT (not temp) so Chrome can be left running
+    between orchestrator runs, preserving session cookies and logins.
+    """
+    pw_dir = Path.home() / ".chrome-playwright"
+    pw_dir.mkdir(parents=True, exist_ok=True)
+
+    profile_dst = pw_dir / profile_name
+    profile_src = Path(real_chrome_dir) / profile_name
+
+    # If Default is a stale symlink (from old code), remove it and start fresh
+    if profile_dst.is_symlink():
+        log.info("Removing stale profile symlink — switching to copy-based approach")
+        profile_dst.unlink()
+
+    profile_dst.mkdir(parents=True, exist_ok=True)
+
+    # Essential login/auth files to copy from the real Chrome profile.
+    _LOGIN_FILES = [
+        "Cookies",
+        "Cookies-journal",
+        "Login Data",
+        "Login Data-journal",
+        "Web Data",
+        "Web Data-journal",
+        "Extension Cookies",
+        "Extension Cookies-journal",
+        "Preferences",
+        "Secure Preferences",
+    ]
+    _LOGIN_DIRS = [
+        "Local Storage",
+        "Session Storage",
+        "IndexedDB",
+    ]
+
+    for fname in _LOGIN_FILES:
+        src = profile_src / fname
+        dst = profile_dst / fname
+        if not src.exists():
+            continue
+        if fname.startswith("Cookies"):
+            if not dst.exists() or os.path.getmtime(str(src)) > os.path.getmtime(str(dst)):
+                shutil.copy2(str(src), str(dst))
+                log.debug(f"Copied {fname} from real profile")
+        else:
+            if not dst.exists():
+                shutil.copy2(str(src), str(dst))
+                log.debug(f"Copied {fname} from real profile (first run)")
+
+    for dname in _LOGIN_DIRS:
+        src = profile_src / dname
+        dst = profile_dst / dname
+        if src.is_dir() and not dst.exists():
+            shutil.copytree(str(src), str(dst), dirs_exist_ok=True)
+            log.debug(f"Copied {dname}/ from real profile (first run)")
+
+    ls_src = os.path.join(real_chrome_dir, "Local State")
+    ls_dst = pw_dir / "Local State"
+    if os.path.exists(ls_src):
+        if not ls_dst.exists() or os.path.getmtime(ls_src) > os.path.getmtime(str(ls_dst)):
+            shutil.copy2(ls_src, str(ls_dst))
+
+    return str(pw_dir)
+
+
+async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> list[dict]:
+    """Launch Chrome, run all platforms in parallel, return results."""
+    full_prompt, condensed_prompt, prompt_sigs = load_prompts(args)
+
+    # Determine which platforms to run
+    if args.platforms == "all":
+        platform_names = list(ALL_PLATFORMS.keys())
+    else:
+        platform_names = [p.strip() for p in args.platforms.split(",")]
+        for name in platform_names:
+            if name not in ALL_PLATFORMS:
+                log.error(f"Unknown platform: {name}. Available: {', '.join(ALL_PLATFORMS)}")
+                sys.exit(1)
+
+    # Create output directory
+    output_dir = Path(effective_output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Detect Chrome paths
+    chrome_exe = detect_chrome_executable()
+    user_data = detect_chrome_user_data_dir()
+    log.info(f"Chrome: {chrome_exe}")
+    log.info(f"Profile: {user_data}/{args.chrome_profile}")
+
+    # Fix "Restore pages?" dialog — reset exit_type to Normal before launch.
+    prefs_path = Path(user_data) / args.chrome_profile / "Preferences"
+    if prefs_path.exists():
+        try:
+            prefs = json.loads(prefs_path.read_text(encoding="utf-8"))
+            if prefs.get("profile", {}).get("exit_type") != "Normal":
+                prefs.setdefault("profile", {})["exit_type"] = "Normal"
+                prefs_path.write_text(json.dumps(prefs, ensure_ascii=False), encoding="utf-8")
+                log.info("Fixed Chrome exit_type → Normal (prevents 'Restore pages?' dialog)")
+        except Exception as exc:
+            log.warning(f"Could not fix Chrome exit_type: {exc}")
+
+    # Create persistent non-default data dir with copied profile
+    pw_data_dir = _ensure_playwright_data_dir(user_data, args.chrome_profile)
+    log.info(f"Playwright data dir: {pw_data_dir}")
+
+    global_timeout = GLOBAL_TIMEOUT_DEEP if args.mode == "DEEP" else GLOBAL_TIMEOUT_REGULAR
+    log.info(f"Mode: {args.mode} | Global timeout: {global_timeout}s | Platforms: {len(platform_names)}")
+
+    chrome_proc = None
+
+    async with async_playwright() as p:
+        context = None
+        browser = None
+
+        # Step 1: try CDP connect (reuse running Chrome)
+        if not args.fresh:
+            try:
+                browser = await p.chromium.connect_over_cdp(
+                    f"http://localhost:{CDP_PORT}",
+                    timeout=5000,
+                )
+                context = browser.contexts[0]
+                log.info(f"Connected to existing Chrome via CDP (port {CDP_PORT}) — logins preserved")
+            except Exception as exc:
+                log.info(f"No running Chrome on port {CDP_PORT} ({type(exc).__name__}), will launch new")
+                browser = None
+        else:
+            log.info("--fresh flag: skipping CDP connect, launching new Chrome")
+
+        # Step 2: launch Chrome via subprocess if connect failed
+        if context is None:
+            chrome_args = [
+                chrome_exe,
+                f"--user-data-dir={pw_data_dir}",
+                f"--profile-directory={args.chrome_profile}",
+                f"--remote-debugging-port={CDP_PORT}",
+                "--no-first-run",
+                "--hide-crash-restore-bubble",
+                "--disable-infobars",
+                "--no-default-browser-check",
+                "--disable-search-engine-choice-screen",
+                "about:blank",
+            ]
+            if args.headless:
+                chrome_args.insert(1, "--headless=new")
+
+            log.info("Launching Chrome via subprocess...")
+            chrome_proc = subprocess.Popen(
+                chrome_args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+
+            # Wait for CDP port to become available (max 30s)
+            import urllib.request
+            cdp_url = f"http://localhost:{CDP_PORT}/json/version"
+            for attempt in range(60):
+                await asyncio.sleep(0.5)
+                try:
+                    urllib.request.urlopen(cdp_url, timeout=2)
+                    break
+                except Exception:
+                    if chrome_proc.poll() is not None:
+                        stderr = chrome_proc.stderr.read().decode() if chrome_proc.stderr else ""
+                        raise RuntimeError(f"Chrome exited prematurely (code {chrome_proc.returncode}): {stderr}")
+            else:
+                raise RuntimeError(f"Chrome did not start CDP on port {CDP_PORT} within 30s")
+
+            # Connect Playwright via CDP
+            browser = await p.chromium.connect_over_cdp(
+                f"http://localhost:{CDP_PORT}",
+                timeout=10000,
+            )
+            context = browser.contexts[0]
+            log.info(f"Launched Chrome (pid {chrome_proc.pid}) and connected via CDP")
+
+        # Create Agent fallback manager (uses CDP to share the Chrome instance)
+        agent_mgr = AgentFallbackManager(
+            cdp_url=f"http://localhost:{CDP_PORT}",
+            output_dir=str(output_dir),
+            max_steps=AGENT_MAX_STEPS,
+        )
+
+        # Initialize rate limiter
+        limiter = RateLimiter(tier=args.tier)
+        limiter.load_state()
+
+        # Pre-flight: check which platforms are allowed
+        allowed_platforms = []
+        skipped_platforms = []
+        launched_names = []  # Track names for index-based result mapping
+
+        if not args.skip_rate_check:
+            for name in platform_names:
+                check = limiter.preflight_check(name, args.mode)
+                if check.allowed:
+                    allowed_platforms.append(name)
+                    log.info(
+                        f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] "
+                        f"Pre-flight OK — budget: {check.budget_remaining}/{check.budget_total}"
+                    )
+                else:
+                    skipped_platforms.append((name, check))
+                    log.warning(
+                        f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] "
+                        f"SKIPPED — {check.reason} (wait {check.wait_seconds}s)"
+                    )
+        else:
+            allowed_platforms = list(platform_names)
+            log.info("Rate limit checks bypassed (--skip-rate-check)")
+
+        log.info(
+            f"Browser ready — running {len(allowed_platforms)} platforms "
+            f"({len(skipped_platforms)} skipped by rate limiter)"
+        )
+
+        # Get staggered launch order
+        launch_order = limiter.get_staggered_order(
+            allowed_platforms, args.mode, stagger_delay=args.stagger_delay,
+        )
+
+        # Launch with stagger delays
+        async_tasks = []
+        for name, delay in launch_order:
+            launched_names.append(name)
+            task = asyncio.create_task(
+                _staggered_run(
+                    name, delay, context, full_prompt, condensed_prompt,
+                    prompt_sigs, args.mode, str(output_dir), agent_mgr, limiter,
+                ),
+                name=name,
+            )
+            async_tasks.append(task)
+
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*async_tasks, return_exceptions=True),
+                timeout=global_timeout,
+            )
+        except asyncio.TimeoutError:
+            log.warning(f"Global timeout ({global_timeout}s) reached — cancelling remaining tasks")
+            for task in async_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*async_tasks, return_exceptions=True)
+            results = []
+            for task in async_tasks:
+                if task.done() and not task.cancelled():
+                    exc = task.exception()
+                    results.append(exc if exc else task.result())
+                else:
+                    results.append(asyncio.TimeoutError("Global timeout"))
+
+        # Add skipped platforms as immediate results
+        final_results = []
+        for name, check in skipped_platforms:
+            final_results.append({
+                "platform": name,
+                "display_name": PLATFORM_DISPLAY_NAMES.get(name, name),
+                "status": STATUS_RATE_LIMITED,
+                "chars": 0,
+                "file": "",
+                "mode_used": "",
+                "error": f"Pre-flight blocked: {check.reason}",
+                "duration_s": 0,
+            })
+
+        # Convert exceptions to error dicts
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                name = launched_names[i]
+                status = STATUS_TIMEOUT if isinstance(r, (asyncio.TimeoutError, asyncio.CancelledError)) else STATUS_FAILED
+                final_results.append({
+                    "platform": name,
+                    "display_name": PLATFORM_DISPLAY_NAMES.get(name, name),
+                    "status": status,
+                    "chars": 0,
+                    "file": "",
+                    "mode_used": "",
+                    "error": str(r),
+                    "duration_s": 0,
+                })
+            else:
+                final_results.append(r)
+
+        # Disconnect Playwright from Chrome (does NOT close Chrome)
+        try:
+            async with asyncio.timeout(10):
+                await browser.close()
+        except (asyncio.TimeoutError, Exception):
+            log.debug("Browser disconnect timed out — continuing")
+        log.info(
+            "Chrome left running (logins preserved for next run). "
+            "Use --fresh to force a new instance, or quit Chrome manually."
+        )
+
+    return final_results
+
+
+# ---------------------------------------------------------------------------
+# Status output
+# ---------------------------------------------------------------------------
+
+def write_status(results: list[dict], output_dir: str, mode: str) -> None:
+    """Write status.json and print summary table."""
+    status_path = Path(output_dir) / "status.json"
+    status_data = {
+        "timestamp": datetime.now().isoformat(),
+        "mode": mode,
+        "platforms": results,
+    }
+    status_path.write_text(json.dumps(status_data, indent=2, ensure_ascii=False), encoding="utf-8")
+    log.info(f"Status written to {status_path}")
+
+    # Print summary table
+    print("\n" + "=" * 80)
+    print(f"  ORCHESTRATION COMPLETE — {mode} mode")
+    print("=" * 80)
+    print(f"  {'Platform':<20} {'Status':<12} {'Chars':>8}  {'Time':>8}  Notes")
+    print("-" * 80)
+    for r in results:
+        icon = STATUS_ICONS.get(r["status"], "?")
+        name = r["display_name"]
+        status = f"{icon} {r['status']}"
+        chars = f"{r['chars']:,}" if r["chars"] else "-"
+        time_s = f"{r['duration_s']:.0f}s" if r["duration_s"] else "-"
+        notes = r.get("error", "") or r.get("mode_used", "")
+        print(f"  {name:<20} {status:<12} {chars:>8}  {time_s:>8}  {notes}")
+    print("=" * 80)
+
+    complete = sum(1 for r in results if r["status"] == "complete")
+    total = len(results)
+    print(f"\n  {complete}/{total} platforms completed successfully.")
+    print(f"  Raw responses saved to: {output_dir}/")
+    print(f"  Status file: {status_path}\n")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def _resolve_output_dir(args: argparse.Namespace) -> str:
+    """Resolve the effective output directory.
+
+    If --task-name is supplied, output goes to <project-root>/reports/<task-name>/.
+    Otherwise falls back to --output-dir (default: <project-root>/reports/).
+    """
+    if args.task_name:
+        # Sanitise task-name: keep letters, numbers, hyphens, underscores, dots, spaces
+        safe = "".join(c if c.isalnum() or c in "-_. " else "-" for c in args.task_name).strip()
+        return str(_PROJECT_ROOT / "reports" / safe)
+    return args.output_dir
+
+
+def main():
+    args = parse_args()
+
+    # Resolve effective output dir (task-name overrides output-dir)
+    effective_output_dir = _resolve_output_dir(args)
+
+    # Budget-only mode: print summary and exit
+    if args.budget:
+        show_budget(args)
+        sys.exit(0)
+
+    results = asyncio.run(orchestrate(args, effective_output_dir))
+    write_status(results, effective_output_dir, args.mode)
+
+    # Collate all raw responses into a single archive .md
+    from collate_responses import collate  # noqa: E402 (imported late — after bootstrap)
+    collate(effective_output_dir, args.task_name or Path(effective_output_dir).name)
+
+    # Exit with non-zero if no platforms completed
+    complete = sum(1 for r in results if r["status"] in ("complete", "partial"))
+    sys.exit(0 if complete > 0 else 1)
+
+
+if __name__ == "__main__":
+    main()

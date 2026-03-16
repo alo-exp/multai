@@ -1,0 +1,13 @@
+[
+  {
+    "timestamp": "2026-03-16T10:13:47.446687",
+    "platform": "copilot",
+    "step": "extract_response",
+    "original_error": "Extraction returned only 190 chars",
+    "agent_task": "On Microsoft Copilot: extract the complete AI response text. Scroll through the entire response and capture all visible text.",
+    "agent_result": "The AI response to the question \"What is the capital of France? Answer in one sentence.\" is: Paris is the capital of France.",
+    "agent_success": true,
+    "playwright_script_path": "",
+    "duration_s": 33.5
+  }
+]

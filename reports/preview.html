@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Preview</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #f6f8fa; color: #24292e; line-height: 1.6; }
+  #sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+             background: #1e2330; color: #c9d1d9; overflow-y: auto; padding: 16px;
+             font-size: 13px; z-index: 100; }
+  #sidebar h3 { color: #58a6ff; margin-bottom: 12px; font-size: 12px;
+                text-transform: uppercase; letter-spacing: 1px; }
+  #sidebar ul { list-style: none; }
+  #sidebar li { margin: 4px 0; }
+  #sidebar a { color: #8b949e; text-decoration: none; display: block;
+               padding: 3px 6px; border-radius: 4px; transition: all .15s; }
+  #sidebar a:hover, #sidebar a.active { color: #f0f6fc; background: #30363d; }
+  #main { margin-left: 260px; padding: 120px 48px 40px; max-width: 1100px; }
+  #content h1 { font-size: 2em; border-bottom: 2px solid #e1e4e8; padding-bottom: 12px;
+                margin: 24px 0 16px; color: #0550ae; }
+  #content h2 { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 8px;
+                margin: 32px 0 12px; color: #0550ae; }
+  #content h3 { font-size: 1.2em; margin: 24px 0 8px; color: #0969da; }
+  #content h4 { font-size: 1em; margin: 16px 0 6px; color: #0969da; }
+  #content p { margin: 0 0 12px; }
+  #content ul, #content ol { margin: 0 0 12px 24px; }
+  #content li { margin: 4px 0; }
+  #content th { border: none; }
+  #content td { border: none; }
+  #content code { background: #f0f3f6; padding: 2px 6px; border-radius: 4px;
+                  font-family: 'SF Mono', Consolas, monospace; font-size: 0.875em; }
+  #content pre { background: #1e2330; color: #c9d1d9; padding: 16px; border-radius: 8px;
+                 overflow-x: auto; margin: 12px 0; }
+  #content pre code { background: none; color: inherit; padding: 0; }
+  #content blockquote { border-left: 4px solid #0969da; padding: 8px 16px;
+                        background: #f0f7ff; margin: 12px 0; color: #444; }
+  #content strong { font-weight: 600; }
+  #content em { font-style: italic; }
+  #content hr { border: none; border-top: 1px solid #e1e4e8; margin: 32px 0; }
+  /* Info cards — Shortlist Profiles & Future Outlook */
+  .info-card { border:1px solid #d0d7de; border-radius:10px; margin:10px 0; overflow:hidden; }
+  .info-card-header { display:flex; align-items:center; justify-content:space-between; padding:11px 16px; background:#f6f8fa; cursor:pointer; font-weight:600; font-size:13.5px; color:#24292f; user-select:none; }
+  .info-card-header:hover { background:#e8f4fd; }
+  .info-card-toggle { font-size:26px; color:#8b949e; flex-shrink:0; padding-left:10px; line-height:1; }
+  .info-card-body { display:none; padding:12px 18px 16px; font-size:14px; }
+  .info-card-body.open { display:block; }
+  #stats { font-size: 11px; color: #6e7681; margin-top: 8px; padding-top: 8px;
+           border-top: 1px solid #30363d; }
+  .chart-frame { background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
+                 padding: 28px 32px; margin: 20px 0 28px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+                 opacity:0; transform:translateY(22px); transition:opacity .55s ease, transform .55s ease;
+                 will-change: opacity, transform; }
+  .chart-frame.in-view { opacity:1; transform:translateY(0); }
+  .chart-title { font-size: 13px; font-weight: 600; text-transform: uppercase;
+                 letter-spacing: .8px; color: #6e7681; margin-bottom: 6px; }
+  .chart-subtitle { font-size: 12px; color: #8b949e; margin-bottom: 20px; }
+  .chart-source-table { margin-top: 20px; }
+  .chart-source-table summary { font-size: 12px; color: #0969da; cursor: pointer; }
+  .chart-source-table table { margin-top: 8px; }
+  .wave-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; }
+  .wave-legend span { display: flex; align-items: center; gap: 5px; }
+  .wave-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+  .vc-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; }
+  .vc-legend span { display: flex; align-items: center; gap: 5px; }
+  .vc-legend i { display: inline-block; width: 28px; height: 3px; border-radius: 2px; }
+  .vc-legend .dashed { border-top: 2px dashed currentColor; background: transparent; height: 0; }
+
+  /* Solution Nav */
+  #solutionNav {
+    position: fixed; top: 0; left: 260px; right: 0; z-index: 10000;
+    background: linear-gradient(180deg, rgba(13,17,23,0.98) 0%, rgba(22,27,34,0.96) 100%);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(48,54,61,0.8);
+    padding: 8px 20px 8px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .snav-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    overflow-x: auto; scrollbar-width: none;
+    padding: 1px 0;
+  }
+  .snav-row::-webkit-scrollbar { display: none; }
+  .snav-label {
+    font-size: 9.5px; font-weight: 700; color: #58a6ff; letter-spacing: 1px;
+    min-width: 90px; flex-shrink: 0; text-transform: uppercase;
+  }
+  .snav-btn {
+    font-size: 10.5px; padding: 4px 11px; border-radius: 14px;
+    border: 1px solid rgba(88,166,255,0.25); background: rgba(88,166,255,0.06);
+    color: #c9d1d9; cursor: pointer; white-space: nowrap;
+    transition: all .2s ease; flex-shrink: 0;
+  }
+  .snav-btn:hover {
+    border-color: rgba(88,166,255,0.5); background: rgba(88,166,255,0.12);
+    color: #e6edf3; box-shadow: 0 0 8px rgba(88,166,255,0.15);
+  }
+  .snav-btn.active {
+    background: linear-gradient(135deg, #1f6feb, #388bfd);
+    border-color: #388bfd; color: #fff; font-weight: 600;
+    box-shadow: 0 2px 8px rgba(56,139,253,0.3);
+  }
+
+  /* Reading Progress Bar */
+  #readProgress { position:fixed; top:82px; left:260px; right:0; height:3px; width:auto; background:transparent; z-index:9999; pointer-events:none; }
+  #readProgressBar { position:absolute; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,#0969da,#1a7f37); transition:width .1s linear; }
+
+  /* Sticky Breadcrumb */
+  #breadcrumb { position:fixed; top:83px; left:260px; right:0; height:32px; background:linear-gradient(180deg,rgba(246,248,250,0.98),rgba(246,248,250,0.95)); backdrop-filter:blur(8px); z-index:9998; display:flex; align-items:center; padding:0 28px; font-size:12px; letter-spacing:0.3px; color:#57606a; border-bottom:1px solid #e1e4e8; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+
+  /* Section Colour Coding — class-based (8 colours) */
+  .sec-color-0 h2, h2.sec-color-0 { border-left:4px solid #0969da; padding-left:10px; }
+  .sec-color-1 h2, h2.sec-color-1 { border-left:4px solid #1a7f37; padding-left:10px; }
+  .sec-color-2 h2, h2.sec-color-2 { border-left:4px solid #9a3412; padding-left:10px; }
+  .sec-color-3 h2, h2.sec-color-3 { border-left:4px solid #6e40c9; padding-left:10px; }
+  .sec-color-4 h2, h2.sec-color-4 { border-left:4px solid #bc4c00; padding-left:10px; }
+  .sec-color-5 h2, h2.sec-color-5 { border-left:4px solid #0550ae; padding-left:10px; }
+  .sec-color-6 h2, h2.sec-color-6 { border-left:4px solid #8250df; padding-left:10px; }
+  .sec-color-7 h2, h2.sec-color-7 { border-left:4px solid #cf222e; padding-left:10px; }
+  a.sec-color-0 { border-left:3px solid #0969da; padding-left:6px; }
+  a.sec-color-1 { border-left:3px solid #1a7f37; padding-left:6px; }
+  a.sec-color-2 { border-left:3px solid #9a3412; padding-left:6px; }
+  a.sec-color-3 { border-left:3px solid #6e40c9; padding-left:6px; }
+  a.sec-color-4 { border-left:3px solid #bc4c00; padding-left:6px; }
+  a.sec-color-5 { border-left:3px solid #0550ae; padding-left:6px; }
+  a.sec-color-6 { border-left:3px solid #8250df; padding-left:6px; }
+  a.sec-color-7 { border-left:3px solid #cf222e; padding-left:6px; }
+  #content h2[class*="sec-color"] { background:linear-gradient(90deg,rgba(246,248,250,0.8),transparent); padding:12px 14px 8px; border-radius:0 6px 6px 0; }
+
+  /* Collapsible Sub-sections */
+  #content h3.collapsible { cursor:pointer; user-select:none; }
+  #content h3.collapsible::before { content:'▴ '; font-size:1.1em; color:#6e7681; }
+  #content h3.collapsible.is-closed::before { content:'▾ '; }
+  .collapsible-body { overflow:hidden; transition:max-height .3s ease; }
+
+  /* Inline Callout Boxes */
+  .callout { border-left:4px solid; border-radius:0 6px 6px 0; padding:10px 16px; margin:14px 0; font-size:14px; }
+  .callout strong:first-child { display:block; font-size:11px; letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px; }
+  .callout-insight { background:#e8f4fd; border-color:#0969da; }
+  .callout-signal  { background:#fff8e6; border-color:#bc4c00; }
+  .callout-risk    { background:#ffebe9; border-color:#cf222e; }
+  .callout-stat    { background:#eafbea; border-color:#1a7f37; }
+  .callout-default { background:#f6f8fa; border-color:#6e7681; }
+
+  /* Trend Cards */
+  .trend-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:8px 0 16px; }
+  .trend-card { background:#f6f8fa; border:1px solid #d0d7de; border-radius:10px; padding:16px 14px; }
+  .trend-card:hover { border-color:#0969da; background:#e8f4fd; transition:all .2s; }
+  .tc-icon { font-size:24px; margin-bottom:8px; }
+  .tc-title { font-size:13px; font-weight:700; color:#24292f; margin-bottom:6px; }
+  .tc-body { font-size:12px; color:#57606a; line-height:1.5; }
+
+  /* Vendor Profile Cards */
+  .vendor-card { border:1px solid #d0d7de; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .vc-header { display:flex; align-items:center; gap:12px; padding:12px 16px; background:#f6f8fa; cursor:pointer; }
+  .vc-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+  .vc-name { font-size:15px; font-weight:700; flex:1; }
+  .vc-toggle { font-size:28px; color:#8b949e; padding:4px 10px; display:inline-block; line-height:1; }
+  .vc-tags { display:flex; gap:6px; flex-wrap:wrap; padding:8px 16px 0; }
+  .vc-tag { font-size:10px; padding:2px 8px; border-radius:12px; background:#e8f4fd; color:#0969da; font-weight:600; }
+  .vc-body { padding:0 16px 16px; }
+  .vc-body.vc-collapsed { display:none; }
+  .vendor-card:hover { border-color:#0969da; box-shadow:0 2px 8px rgba(9,105,218,0.08); transition:all .2s ease; }
+
+  /* Filterable Vendor View */
+  .vfbtn { font-size:11px; padding:4px 12px; border-radius:20px; border:1px solid #d0d7de; background:#fff; cursor:pointer; color:#24292f; }
+  .vfbtn.active { background:#0969da; color:#fff; border-color:#0969da; }
+  .vfbtn:hover:not(.active) { background:#f6f8fa; }
+
+  /* Vendor Name Links */
+  .vname-link { cursor:pointer; text-decoration:underline dotted; color:inherit; }
+
+  /* Export action buttons */
+  #exportBar {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1001;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .export-btn {
+    color: #fff; border: none; padding: 10px 18px; border-radius: 20px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    display: flex; align-items: center; gap: 6px;
+    transition: all .2s ease; white-space: nowrap;
+  }
+  .export-btn:hover { transform: translateY(-1px); }
+  .export-btn:active { transform: translateY(0); }
+  .export-btn .btn-icon { font-size: 15px; }
+  #copyGdocsBtn { background: #4a90d9; }
+  #copyGdocsBtn:hover { box-shadow: 0 4px 14px rgba(74,144,217,.5); background: #3b7fc8; }
+  #pdfExportBtn { background: #4a90d9; }
+  #pdfExportBtn:hover { box-shadow: 0 4px 14px rgba(74,144,217,.5); background: #3b7fc8; }
+
+  /* Toast notification */
+  .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#24292f; color:#e6edf3; padding:8px 16px; border-radius:8px; font-size:13px; z-index:10001; opacity:1; transition:opacity .5s; pointer-events:none; }
+  .toast.fade { opacity:0; }
+
+  /* Vendor Comparison Drawer */
+  #compareBtn { background:#4a90d9; color:#fff; padding:10px 18px; border-radius:20px; cursor:pointer; font-size:13px; font-weight:600; border:none; box-shadow:0 2px 8px rgba(0,0,0,.3); transition:all .2s ease; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  #compareBtn:hover { background:#3b7fc8; box-shadow:0 4px 14px rgba(74,144,217,.5); transform:translateY(-1px); }
+  #compareBadge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#cf222e; border-radius:50%; font-size:10px; margin-left:6px; }
+  .compare-drawer { position:fixed; bottom:72px; right:24px; width:560px; max-height:70vh; overflow-y:auto; background:#fff; border:1px solid #d0d7de; border-radius:12px; padding:20px; z-index:999; box-shadow:0 8px 24px rgba(0,0,0,.15); display:none; }
+  .compare-drawer.open { display:block; }
+
+  /* Pros & Cons Grid */
+  .pros-cons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+    margin: 12px 0;
+  }
+  .pros-col strong, .cons-col strong {
+    display: block; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .pros-col strong { color: #1a7f37; }
+  .cons-col strong { color: #cf222e; }
+  .pros-col ul, .cons-col ul {
+    margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6;
+  }
+
+  /* Polished Table Styling */
+  #content table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+    font-size: 13.5px;
+    display: table;
+  }
+  #content table thead th {
+    background: linear-gradient(180deg, #f6f8fa, #eaeef2);
+    color: #24292f;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 10px 14px;
+    border-bottom: 2px solid #d0d7de;
+    text-align: left;
+    position: sticky;
+    top: 0;
+  }
+  #content table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #eaeef2;
+    color: #24292f;
+    vertical-align: top;
+  }
+  #content table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  #content table tbody tr:nth-child(even) {
+    background: #f6f8fa;
+  }
+  #content table tbody tr:hover {
+    background: #e8f4fd;
+    transition: background .15s;
+  }
+</style>
+</head>
+<body>
+
+<div id="solutionNav">
+  <div class="snav-row" id="snavCommercial"><span class="snav-label">COMMERCIAL</span></div>
+  <div class="snav-row" id="snavOSS"><span class="snav-label">OSS</span></div>
+</div>
+<div id="readProgress"><div id="readProgressBar"></div></div>
+<div id="breadcrumb"><span id="bcSection"></span><span id="bcSep" style="display:none"> › </span><span id="bcSub"></span></div>
+
+<div id="sidebar">
+  <h3>Contents</h3>
+  <ul id="toc"></ul>
+  <div id="stats"></div>
+</div>
+
+<div id="main">
+  <div id="content"><p style="color:#888;padding:40px 0;">Loading report…</p></div>
+</div>
+
+<div id="exportBar">
+  <button id="copyGdocsBtn" class="export-btn"><span class="btn-icon">📋</span> Copy</button>
+  <button id="pdfExportBtn" class="export-btn"><span class="btn-icon">📄</span> PDF</button>
+  <!-- Vendor Comparison Drawer toggle -->
+  <button id="compareBtn">⊕ Compare <span id="compareBadge" style="display:none"></span></button>
+</div>
+<div id="compareDrawer" class="compare-drawer" role="dialog" aria-label="Vendor Comparison">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <strong style="font-size:14px;">Vendor Comparison</strong>
+    <button id="compareCloseBtn" style="background:none;border:none;cursor:pointer;font-size:16px;color:#6e7681;">✕</button>
+  </div>
+  <div id="compareTableWrap"><p style="font-size:12px;color:#8b949e;">Click vendor names in the report to add them here (max 4).</p></div>
+</div>
+
+<script>
+Chart.register(ChartDataLabels);
+marked.setOptions({ breaks: true, gfm: true });
+
+// ─── Chart data ─────────────────────────────────────────────────────────────
+// 3A-1 Primary 2×2: X = Self-Service Maturity (1–10), Y = Platform Simplicity (higher = less burden)
+// Quadrant names are domain-specific, NOT Gartner MQ terminology
+const MQ_DATA = [
+  { label:'Humanitec',          x:8.5, y:8.5,  q:'Full-Platform'      },
+  { label:'Port',               x:9.0, y:9.0,  q:'Full-Platform'      },
+  { label:'Cortex',             x:8.2, y:8.8,  q:'Full-Platform'      },
+  { label:'Qovery',             x:7.8, y:8.2,  q:'Full-Platform'      },
+  { label:'Roadie',             x:7.6, y:5.8,  q:'Developer-Centric'  },
+  { label:'Cycloid',            x:7.9, y:4.8,  q:'Developer-Centric'  },
+  { label:'Compass',            x:6.8, y:6.4,  q:'Developer-Centric'  },
+  { label:'OpsLevel',           x:6.4, y:5.4,  q:'Developer-Centric'  },
+  { label:'Mia-Platform',       x:5.2, y:4.2,  q:'Emerging'           },
+  { label:'Harness',            x:6.2, y:3.6,  q:'Emerging'           },
+  { label:'Northflank',         x:5.6, y:5.8,  q:'Emerging'           },
+  { label:'Crossplane',         x:6.8, y:2.2,  q:'Infra Builders'     },
+  { label:'Backstage (OSS)',    x:7.8, y:1.8,  q:'Infra Builders'     },
+];
+const MQ_COLORS = {
+  'Full-Platform':    '#0969da',
+  'Developer-Centric':'#1a7f37',
+  'Emerging':         '#9a3412',
+  'Infra Builders':   '#6e7681',
+};
+
+// 3A-2 Gartner Magic Quadrant: X = Completeness of Vision, Y = Ability to Execute
+const GMQ_DATA = [
+  // Leaders (top-right: high vision + high execution)
+  { label:'Humanitec',       x:8.5, y:8.8, q:'Leaders'      },
+  { label:'Port',            x:8.8, y:8.5, q:'Leaders'      },
+  { label:'Cortex',          x:8.0, y:8.2, q:'Leaders'      },
+  // Challengers (top-left: lower vision + high execution)
+  { label:'Compass',         x:4.5, y:8.5, q:'Challengers'  },
+  { label:'OpsLevel',        x:4.2, y:7.5, q:'Challengers'  },
+  { label:'Roadie',          x:3.8, y:7.2, q:'Challengers'  },
+  { label:'Cycloid',         x:3.5, y:6.8, q:'Challengers'  },
+  // Visionaries (bottom-right: strong vision + lower execution)
+  { label:'Qovery',          x:7.5, y:4.2, q:'Visionaries'  },
+  { label:'Harness',         x:7.0, y:4.8, q:'Visionaries'  },
+  { label:'Backstage (OSS)', x:8.2, y:2.5, q:'Visionaries'  },
+  { label:'Northflank',      x:6.5, y:3.8, q:'Visionaries'  },
+  // Niche Players (bottom-left)
+  { label:'Mia-Platform',    x:3.8, y:4.5, q:'Niche Players'},
+  { label:'Crossplane',      x:4.5, y:3.2, q:'Niche Players'},
+];
+const GMQ_COLORS = {
+  'Leaders':      '#0969da',
+  'Challengers':  '#6e40c9',
+  'Visionaries':  '#bc4c00',
+  'Niche Players':'#6e7681',
+};
+
+// Forrester Wave: X = Strategy (1–4), Y = Offering (1–4), r = Market Presence
+// Values spread to avoid bubble overlap
+const WAVE_DATA = [
+  { label:'Humanitec', offering:4.0, strategy:4.0, presence:4 },
+  { label:'Port',      offering:3.8, strategy:3.8, presence:3 },
+  { label:'Cortex',    offering:3.7, strategy:3.1, presence:3 },
+  { label:'Cycloid',   offering:3.5, strategy:2.9, presence:2 },
+  { label:'Roadie',    offering:3.1, strategy:3.5, presence:3 },
+  { label:'Qovery',    offering:2.9, strategy:3.3, presence:2 },
+  { label:'OpsLevel',  offering:3.0, strategy:2.8, presence:2 },
+  { label:'Compass',   offering:3.2, strategy:2.1, presence:4 },
+];
+const WAVE_COLORS = [
+  '#0969da','#1a7f37','#9a3412','#6e40c9','#bc4c00','#0550ae','#8250df','#cf222e'
+];
+
+// Blue Ocean Value Curve — KCFs ordered table-stakes → differentiating
+const VC_KCFS = [
+  'Security','Governance','Setup Ease','Infra Abstraction','Portal UX',
+  'Ecosystem','Multi-Cloud','Extensibility','FinOps','AI/GenAI','SMB Scale'
+];
+// Data reordered to match new KCF sequence: [Security,Gov,Setup,Infra,Portal,Eco,MC,Ext,FinOps,AI,SMB]
+const VC_COMMERCIAL = [
+  { label:'Humanitec', data:[5,5,4,5,4,5,4,4,3,4,5], color:'#5ba3f5' },
+  { label:'Port',      data:[4,4,5,3,5,5,4,5,3,4,5], color:'#52c27a' },
+  { label:'Cortex',    data:[4,4,5,3,5,4,3,4,3,3,5], color:'#f07a52' },
+  { label:'Qovery',    data:[4,4,5,4,4,4,3,3,4,2,5], color:'#f5c242' },
+  { label:'Cycloid',   data:[5,5,4,4,4,5,5,5,5,3,4], color:'#a56ef5' },
+];
+const VC_OSS = [
+  { label:'Backstage',  data:[3,3,2,3,4,5,4,5,2,2,3], color:'#45b8c4' },
+  { label:'Crossplane', data:[4,4,2,5,2,4,5,5,3,2,3], color:'#e86da4' },
+  { label:'Argo CD',    data:[5,4,3,4,3,5,4,4,2,2,4], color:'#8fbe5e' },
+  { label:'Terraform',  data:[4,4,3,4,2,5,5,5,3,2,4], color:'#e8923a' },
+  { label:'Score',      data:[3,3,4,5,3,3,3,4,2,2,5], color:'#7ca5d4' },
+];
+
+// ─── Chart registry to destroy on reload ───────────────────────────────────
+const _charts = [];
+function destroyCharts() { _charts.forEach(c => c.destroy()); _charts.length = 0; }
+
+// ─── Hyperlinks ──────────────────────────────────────────────────────────────
+const LINK_PAIRS = [
+  // Long phrases first (prevents partial over-matching)
+  ['Internal Developer Portal',   'https://internaldeveloperplatform.org'],
+  ['Internal Developer Platform', 'https://internaldeveloperplatform.org'],
+  ['Platform Engineering',        'https://platformengineering.org'],
+  ['GitHub Actions',              'https://github.com/features/actions'],
+  // Commercial solutions
+  ['Mia-Platform',  'https://mia-platform.eu'],
+  ['OpsLevel',      'https://www.opslevel.com'],
+  ['Northflank',    'https://northflank.com'],
+  ['Humanitec',     'https://humanitec.com'],
+  ['Cycloid',       'https://www.cycloid.io'],
+  ['Qovery',        'https://www.qovery.com'],
+  ['Cortex',        'https://www.cortex.io'],
+  ['Roadie',        'https://roadie.io'],
+  ['Harness',       'https://www.harness.io'],
+  ['Compass',       'https://www.atlassian.com/software/compass'],
+  ['Port',          'https://www.getport.io'],
+  // OSS solutions
+  ['Backstage',     'https://backstage.io'],
+  ['Crossplane',    'https://www.crossplane.io'],
+  ['Argo CD',       'https://argo-cd.readthedocs.io'],
+  ['ArgoCD',        'https://argo-cd.readthedocs.io'],
+  ['Flux CD',       'https://fluxcd.io'],
+  ['FluxCD',        'https://fluxcd.io'],
+  ['OpenTofu',      'https://opentofu.org'],
+  ['Terraform',     'https://www.terraform.io'],
+  ['Pulumi',        'https://www.pulumi.com'],
+  ['Tekton',        'https://tekton.dev'],
+  ['Helm',          'https://helm.sh'],
+  ['Score',         'https://score.dev'],
+  // Orgs & key concepts
+  ['Kubernetes',    'https://kubernetes.io'],
+  ['HashiCorp',     'https://www.hashicorp.com'],
+  ['Gartner',       'https://www.gartner.com/en/information-technology'],
+  ['Forrester',     'https://www.forrester.com'],
+  ['CNCF',          'https://www.cncf.io'],
+  ['IDC',           'https://www.idc.com'],
+  ['FinOps',        'https://www.finops.org'],
+  ['GitOps',        'https://www.gitops.tech'],
+  ['Grafana',       'https://grafana.com'],
+  ['Prometheus',    'https://prometheus.io'],
+  ['Datadog',       'https://www.datadoghq.com'],
+  ['PagerDuty',     'https://www.pagerduty.com'],
+  ['Vault',         'https://www.vaultproject.io'],
+  ['Jenkins',       'https://www.jenkins.io'],
+  ['Docker',        'https://www.docker.com'],
+  ['GitLab',        'https://about.gitlab.com'],
+  ['AWS',           'https://aws.amazon.com'],
+  ['GCP',           'https://cloud.google.com'],
+  ['Azure',         'https://azure.microsoft.com'],
+];
+function linkify() {
+  const sorted = [...LINK_PAIRS].sort((a, b) => b[0].length - a[0].length);
+  const lu = new Map(sorted.map(([t, u]) => [t, u]));
+  const pat = sorted.map(([t]) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const re = new RegExp(`\\b(${pat})\\b`, 'g');
+  const content = document.getElementById('content');
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      let el = node.parentElement;
+      while (el && el !== content) {
+        if (['A','CODE','PRE','SCRIPT','STYLE','H1','H2','H3','H4'].includes(el.tagName))
+          return NodeFilter.FILTER_REJECT;
+        el = el.parentElement;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  for (const tn of nodes) {
+    const txt = tn.textContent;
+    re.lastIndex = 0;
+    if (!re.test(txt)) continue;
+    re.lastIndex = 0;
+    const html = txt.replace(re, m => {
+      const url = lu.get(m);
+      return url
+        ? `<a href="${url}" target="_blank" rel="noopener" ` +
+          `style="color:inherit;text-decoration-color:rgba(9,105,218,0.4);text-underline-offset:2px;">${m}</a>`
+        : m;
+    });
+    if (html !== txt) {
+      const sp = document.createElement('span');
+      sp.innerHTML = html;
+      tn.parentNode.replaceChild(sp, tn);
+    }
+  }
+}
+
+// ─── 3A: Primary 2×2 + Gartner MQ ───────────────────────────────────────────
+function inject2x2(anchorH3) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-frame';
+  wrap.innerHTML = `
+    <div class="chart-title">3A-1 · Platform Engineering Positioning Matrix</div>
+    <div class="chart-subtitle">
+      X-axis: Developer Self-Service Maturity &nbsp;|&nbsp; Y-axis: Platform-Team Operational Simplicity (higher = lower ops burden)
+    </div>
+    <div style="position:relative;height:480px"><canvas id="mqChart"></canvas></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:12px;">
+      ${Object.entries(MQ_COLORS).map(([q,c])=>`<span style="display:flex;align-items:center;gap:5px">
+        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c}"></span>${q}</span>`).join('')}
+    </div>`;
+
+  // Insert after the existing table (hide the table)
+  const tbl = findNextTable(anchorH3);
+  if (tbl) tbl.style.display = 'none';
+  anchorH3.after(wrap);
+
+  const ctx = document.getElementById('mqChart').getContext('2d');
+  const datasets = Object.keys(MQ_COLORS).map(q => ({
+    label: q,
+    data: MQ_DATA.filter(d => d.q === q).map(d => ({ x: d.x, y: d.y, label: d.label })),
+    backgroundColor: MQ_COLORS[q] + 'cc',
+    borderColor:     MQ_COLORS[q],
+    borderWidth: 1.5,
+    pointRadius: 9,
+    pointHoverRadius: 11,
+  }));
+
+  const c = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20, right: 20, bottom: 20, left: 20 } },
+      scales: {
+        x: {
+          min: 0, max: 10,
+          title: { display: true, text: '← Lower Self-Service Maturity         Higher Self-Service Maturity →',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: '#e1e4e8' },
+          ticks: { display: false },
+        },
+        y: {
+          min: 0, max: 10,
+          title: { display: true, text: '← High Ops Burden         Low Ops Burden (SaaS/Managed) →',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: '#e1e4e8' },
+          ticks: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw.label}  (${ctx.dataset.label})`,
+          }
+        },
+        datalabels: {
+          formatter: (v) => v.label,
+          font: { size: 10, weight: '600' },
+          color: (ctx) => MQ_COLORS[ctx.dataset.label],
+          anchor: 'end', align: 'top', offset: 4,
+          textShadowColor: 'rgba(255,255,255,0.9)',
+          textShadowBlur: 4,
+        },
+        // Quadrant background + labels via beforeDraw
+        beforeDraw: undefined,
+      },
+    },
+    plugins: [{
+      id: 'quadrants',
+      beforeDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom, width, height } } = chart;
+        const mx = left + width  * 0.5;  // midpoint X (value 5)
+        const my = top  + height * 0.5;  // midpoint Y (value 5)
+        const regions = [
+          { x1:mx, y1:top,  x2:right, y2:my,    fill:'#e8f4fd', label:'FULL-PLATFORM',    lx:right-8, ly:top+14,   align:'right' },
+          { x1:mx, y1:my,   x2:right, y2:bottom, fill:'#eafbea', label:'DEVELOPER-CENTRIC', lx:right-8, ly:bottom-8, align:'right' },
+          { x1:left,y1:top, x2:mx,    y2:my,     fill:'#fff8e6', label:'MANAGED PLATFORMS', lx:left+8,  ly:top+14,   align:'left'  },
+          { x1:left,y1:my,  x2:mx,    y2:bottom,  fill:'#f5f0ff', label:'INFRA BUILDERS',   lx:left+8,  ly:bottom-8, align:'left'  },
+        ];
+        regions.forEach(r => {
+          ctx.save();
+          ctx.fillStyle = r.fill;
+          ctx.fillRect(r.x1, r.y1, r.x2-r.x1, r.y2-r.y1);
+          ctx.font = 'bold 10px "Segoe UI", sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.22)';
+          ctx.textAlign = r.align;
+          ctx.fillText(r.label, r.lx, r.ly);
+          ctx.restore();
+        });
+        // Divider lines
+        ctx.save();
+        ctx.setLineDash([5,4]);
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(mx, top); ctx.lineTo(mx, bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(left, my); ctx.lineTo(right, my); ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+  _charts.push(c);
+  window._mqChart = c;
+  // Inject the Gartner MQ as 3A-2, directly after the primary 2×2 frame
+  injectGMQ(wrap);
+}
+
+// ─── 3A-2: Gartner Magic Quadrant ────────────────────────────────────────────
+function injectGMQ(afterEl) {
+  if (document.getElementById('gmqChart')) return;
+
+  const legendHTML = `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;">
+      ${Object.entries(GMQ_COLORS).map(([q,c])=>`
+        <span style="display:flex;align-items:center;gap:5px;">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c}"></span>${q}
+        </span>`).join('')}
+    </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-frame';
+  wrap.innerHTML = `
+    <div class="chart-title">3A-2 · Magic Quadrant (Gartner-style)</div>
+    <div class="chart-subtitle">
+      X-axis: Completeness of Vision &nbsp;|&nbsp; Y-axis: Ability to Execute
+    </div>
+    <div style="position:relative;height:480px"><canvas id="gmqChart"></canvas></div>
+    ${legendHTML}`;
+
+  afterEl.after(wrap);
+
+  const ctx = document.getElementById('gmqChart').getContext('2d');
+  const datasets = Object.keys(GMQ_COLORS).map(q => ({
+    label: q,
+    data: GMQ_DATA.filter(d => d.q === q).map(d => ({ x: d.x, y: d.y, label: d.label })),
+    backgroundColor: GMQ_COLORS[q] + 'cc',
+    borderColor:     GMQ_COLORS[q],
+    borderWidth: 1.5,
+    pointRadius: 9,
+    pointHoverRadius: 11,
+  }));
+
+  const g = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20, right: 20, bottom: 20, left: 20 } },
+      scales: {
+        x: {
+          min: 0, max: 10,
+          title: { display: true, text: '← Less Complete Vision         More Complete Vision →',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: '#e1e4e8' },
+          ticks: { display: false },
+        },
+        y: {
+          min: 0, max: 10,
+          title: { display: true, text: '← Lower Ability to Execute         Higher Ability to Execute →',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: '#e1e4e8' },
+          ticks: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw.label}  (${ctx.dataset.label})`,
+          }
+        },
+        datalabels: {
+          formatter: v => v.label,
+          font: { size: 10, weight: '600' },
+          color: ctx => GMQ_COLORS[ctx.dataset.label],
+          anchor: 'end', align: 'top', offset: 4,
+          textShadowColor: 'rgba(255,255,255,0.9)',
+          textShadowBlur: 4,
+        },
+      },
+    },
+    plugins: [{
+      id: 'gmqQuadrants',
+      beforeDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom, width, height } } = chart;
+        const mx = left + width  * 0.5;
+        const my = top  + height * 0.5;
+        // Gartner MQ exact quadrant positions:
+        // Top-left=Challengers, Top-right=Leaders, Bottom-left=Niche Players, Bottom-right=Visionaries
+        const regions = [
+          { x1:mx, y1:top,  x2:right, y2:my,    fill:'#e8f4fd', label:'LEADERS',      lx:right-8, ly:top+14,   align:'right' },
+          { x1:left,y1:top, x2:mx,    y2:my,     fill:'#f0eaf8', label:'CHALLENGERS',  lx:left+8,  ly:top+14,   align:'left'  },
+          { x1:mx, y1:my,   x2:right, y2:bottom, fill:'#fff3e6', label:'VISIONARIES',  lx:right-8, ly:bottom-8, align:'right' },
+          { x1:left,y1:my,  x2:mx,    y2:bottom, fill:'#f0f0f0', label:'NICHE PLAYERS',lx:left+8,  ly:bottom-8, align:'left'  },
+        ];
+        regions.forEach(r => {
+          ctx.save();
+          ctx.fillStyle = r.fill;
+          ctx.fillRect(r.x1, r.y1, r.x2-r.x1, r.y2-r.y1);
+          ctx.font = 'bold 10px "Segoe UI", sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.22)';
+          ctx.textAlign = r.align;
+          ctx.fillText(r.label, r.lx, r.ly);
+          ctx.restore();
+        });
+        ctx.save();
+        ctx.setLineDash([5,4]);
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(mx, top); ctx.lineTo(mx, bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(left, my); ctx.lineTo(right, my); ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+  _charts.push(g);
+  window._gmqChart = g;
+}
+
+// ─── 3B: Forrester Wave ─────────────────────────────────────────────────────
+function injectWave(anchorH3) {
+  if (document.getElementById('waveChart')) return; // prevent duplicate injection
+
+  const legendHTML = WAVE_DATA.map((d, i) => `
+    <span data-wave-idx="${i}" style="display:flex;align-items:center;gap:5px;font-size:12px;
+          cursor:pointer;padding:3px 7px;border-radius:5px;transition:opacity .15s,background .15s;">
+      <span style="display:inline-block;width:13px;height:13px;border-radius:50%;
+                   background:${WAVE_COLORS[i]};border:2px solid ${WAVE_COLORS[i]}88;"></span>
+      ${d.label}
+    </span>`).join('');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-frame';
+  wrap.innerHTML = `
+    <div class="chart-title">3B · Wave-Style Vendor Assessment (Forrester Wave-style)</div>
+    <div class="chart-subtitle">
+      X-axis: Strength of Strategy &nbsp;|&nbsp; Y-axis: Strength of Offering &nbsp;|&nbsp;
+      Bubble size = Market Presence &nbsp;·&nbsp; Strong=4 · Good=3 · Moderate=2
+    </div>
+    <div style="position:relative;height:480px"><canvas id="waveChart"></canvas></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;">${legendHTML}</div>`;
+
+  const tbl = findNextTable(anchorH3);
+  if (tbl) tbl.style.display = 'none';
+  anchorH3.after(wrap);
+
+  // Forrester convention: X = Strategy, Y = Offering
+  const bubbleR = { 4: 26, 3: 18, 2: 13, 1: 8 };
+  const datasets = WAVE_DATA.map((d, i) => ({
+    label: d.label,
+    data: [{ x: d.strategy, y: d.offering, r: bubbleR[d.presence] }],
+    backgroundColor: WAVE_COLORS[i] + '66',
+    borderColor:     WAVE_COLORS[i],
+    borderWidth: 2,
+  }));
+
+  const ctx = document.getElementById('waveChart').getContext('2d');
+  const c = new Chart(ctx, {
+    type: 'bubble',
+    data: { datasets },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      // Extra top padding so zone labels render above the chart area
+      layout: { padding: { top: 38, right: 20, bottom: 10, left: 10 } },
+      scales: {
+        x: {
+          min: 0.5, max: 4.9,
+          title: { display: true, text: 'Strength of Strategy  (1=Emerging → 4=Strong)',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: 'rgba(100,150,200,0.18)' },
+          ticks: {
+            stepSize: 1,
+            callback: v => (['','Emerging','Moderate','Good','Strong'][v] || ''),
+          },
+        },
+        y: {
+          min: 0.5, max: 4.9,
+          title: { display: true, text: 'Strength of Offering  (1=Emerging → 4=Strong)',
+                   font: { size: 11 }, color: '#6e7681' },
+          grid: { color: 'rgba(100,150,200,0.18)' },
+          ticks: {
+            stepSize: 1,
+            callback: v => (['','Emerging','Moderate','Good','Strong'][v] || ''),
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label} · Strategy:${ctx.raw.x} Offering:${ctx.raw.y}`,
+          }
+        },
+        datalabels: {
+          formatter: (v, ctx) => ctx.dataset.label,
+          font: { size: 10, weight: '600' },
+          color: (ctx) => WAVE_COLORS[ctx.datasetIndex],
+          anchor: 'center', align: 'center',
+          textShadowColor: 'rgba(255,255,255,0.98)',
+          textShadowBlur: 6,
+        },
+      },
+    },
+    plugins: [{
+      id: 'waveArcZones',
+      // Concentric arc zones centred at bottom-left corner, like a real Forrester Wave
+      beforeDraw(chart) {
+        const { ctx, chartArea: { left, top, bottom, width, height } } = chart;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(left, top, width, height);
+        ctx.clip();
+
+        const cx = left, cy = bottom;             // arc origin = bottom-left of plot area
+        const diag = Math.hypot(width, height);
+        const r1 = diag * 0.37;                   // Contenders / Strong Performers boundary
+        const r2 = diag * 0.67;                   // Strong Performers / Leaders boundary
+
+        // Fill entire area = Leaders (deepest blue, upper-right quadrant)
+        ctx.fillStyle = 'rgba(135, 193, 238, 0.30)';
+        ctx.fillRect(left, top, width, height);
+
+        // Overpaint up to r2 = Strong Performers + Contenders (medium blue)
+        ctx.fillStyle = 'rgba(195, 225, 248, 0.44)';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r2, -Math.PI / 2, 0);    // sweep from straight-up to straight-right
+        ctx.closePath();
+        ctx.fill();
+
+        // Overpaint up to r1 = Contenders only (near-white)
+        ctx.fillStyle = 'rgba(230, 244, 253, 0.70)';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r1, -Math.PI / 2, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Arc boundary lines
+        ctx.strokeStyle = 'rgba(75, 145, 200, 0.38)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        for (const r of [r1, r2]) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, -Math.PI / 2, 0);
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+      // Zone labels rendered above the chart area (inside the top padding)
+      afterDraw(chart) {
+        const { ctx, chartArea: { left, top, width } } = chart;
+        ctx.save();
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.fillStyle = 'rgba(20, 85, 145, 0.62)';
+        ctx.textAlign = 'center';
+        ctx.fillText('CONTENDERS',        left + width * 0.14, top - 16);
+        ctx.fillText('STRONG PERFORMERS', left + width * 0.50, top - 16);
+        ctx.fillText('LEADERS',           left + width * 0.86, top - 16);
+        ctx.restore();
+      }
+    }]
+  });
+  _charts.push(c);
+  window._waveChart = c;
+
+  // ── Wave legend hover ──────────────────────────────────────────────────────
+  let _waveHovIdx = -1;
+  function applyWaveHover(idx) {
+    if (idx === _waveHovIdx) return;
+    _waveHovIdx = idx;
+    c.data.datasets.forEach((ds, i) => {
+      if (idx === -1) {
+        ds.backgroundColor = WAVE_COLORS[i] + '66';
+        ds.borderColor     = WAVE_COLORS[i];
+        ds.borderWidth     = 2;
+      } else if (i === idx) {
+        ds.backgroundColor = WAVE_COLORS[i] + 'cc';
+        ds.borderColor     = WAVE_COLORS[i];
+        ds.borderWidth     = 3.5;
+      } else {
+        ds.backgroundColor = WAVE_COLORS[i] + '18';
+        ds.borderColor     = WAVE_COLORS[i] + '44';
+        ds.borderWidth     = 1;
+      }
+    });
+    c.update('none');
+    wrap.querySelectorAll('[data-wave-idx]').forEach(el => {
+      const i = +el.dataset.waveIdx;
+      el.style.opacity    = (idx === -1 || i === idx) ? '1' : '0.3';
+      el.style.fontWeight = (idx !== -1 && i === idx) ? '700' : '400';
+    });
+  }
+  wrap.querySelectorAll('[data-wave-idx]').forEach(el => {
+    el.addEventListener('mouseenter', () => applyWaveHover(+el.dataset.waveIdx));
+    el.addEventListener('mouseleave', () => applyWaveHover(-1));
+  });
+}
+
+// ─── 3C: Blue Ocean Value Curve ─────────────────────────────────────────────
+function injectValueCurve(anchorH3) {
+  if (document.getElementById('vcChart')) return;
+
+  const allSeries = [...VC_COMMERCIAL, ...VC_OSS];
+
+  // Grouped legend: Commercial heading then OSS heading
+  const mkSwatch = s =>
+    `<span style="display:inline-block;width:28px;height:3px;border-radius:2px;background:${s.color}"></span>`;
+  const mkItem = (s, idx) =>
+    `<span data-vc-idx="${idx}" style="display:flex;align-items:center;gap:5px;font-size:11.5px;
+           cursor:pointer;padding:3px 7px;border-radius:5px;transition:opacity .15s,background .15s;">${mkSwatch(s)}${s.label}</span>`;
+  const legendHTML = `
+    <div style="display:flex;flex-direction:column;gap:5px;">
+      <div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;">
+        <span style="font-size:10px;font-weight:700;color:#6e7681;letter-spacing:.6px;min-width:80px;">COMMERCIAL</span>
+        ${VC_COMMERCIAL.map((s, i) => mkItem(s, i)).join('')}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;">
+        <span style="font-size:10px;font-weight:700;color:#6e7681;letter-spacing:.6px;min-width:80px;">OSS</span>
+        ${VC_OSS.map((s, i) => mkItem(s, i + VC_COMMERCIAL.length)).join('')}
+      </div>
+    </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-frame';
+  wrap.innerHTML = `
+    <div class="chart-title">3C · Blue Ocean Value Curve Analysis</div>
+    <div class="chart-subtitle">
+      Hover a line to highlight it · Scale 1–5 across 11 Key Competitive Factors
+    </div>
+    <div style="position:relative;height:440px"><canvas id="vcChart"></canvas></div>
+    <div style="margin-top:14px;">${legendHTML}</div>`;
+
+  const tbl = findNextTable(anchorH3);
+  if (tbl) tbl.style.display = 'none';
+  anchorH3.after(wrap);
+
+  const ctx = document.getElementById('vcChart').getContext('2d');
+  // All lines solid; colours already defined as light palette
+  const datasets = allSeries.map(s => ({
+    label: s.label,
+    data: s.data,
+    borderColor: s.color,
+    backgroundColor: s.color + '14',
+    borderWidth: 2,
+    borderDash: [],
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    pointBackgroundColor: s.color,
+    tension: 0.35,
+    fill: false,
+  }));
+
+  const LEVEL = ['','Weak','Fair','Good','Strong','Best'];
+  const c = new Chart(ctx, {
+    type: 'line',
+    data: { labels: VC_KCFS, datasets },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 10, right: 10 } },
+      scales: {
+        x: {
+          grid: { color: '#e1e4e8' },
+          ticks: { font: { size: 11 }, maxRotation: 30 },
+        },
+        y: {
+          // max=6 adds one unlabelled gridline above "Best" for breathing room
+          min: 1, max: 6,
+          grid: { color: '#e1e4e8' },
+          ticks: {
+            stepSize: 1,
+            font: { size: 11 },
+            callback: v => LEVEL[v] ?? '',
+          },
+          title: { display: true, text: 'Offering Level', font: { size: 11 }, color: '#6e7681' },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false },
+        tooltip: {
+          mode: 'nearest',
+          intersect: false,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${LEVEL[ctx.parsed.y] ?? ctx.parsed.y}`,
+          }
+        },
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+    }
+  });
+  _charts.push(c);
+
+  // ── Hover: highlight hovered line, dim all others ─────────────────────────
+  let _hovIdx = -1;
+  const vcCanvas = document.getElementById('vcChart');
+
+  function applyVcHover(idx) {
+    if (idx === _hovIdx) return;
+    _hovIdx = idx;
+    c.data.datasets.forEach((ds, i) => {
+      const hex = allSeries[i].color;
+      const rv = parseInt(hex.slice(1,3), 16);
+      const gv = parseInt(hex.slice(3,5), 16);
+      const bv = parseInt(hex.slice(5,7), 16);
+      if (idx === -1) {
+        ds.borderColor = hex;
+        ds.borderWidth = 2;
+        ds.pointRadius = 4;
+      } else if (i === idx) {
+        ds.borderColor = hex;
+        ds.borderWidth = 3.5;
+        ds.pointRadius = 6;
+      } else {
+        ds.borderColor = `rgba(${rv},${gv},${bv},0.14)`;
+        ds.borderWidth = 1;
+        ds.pointRadius = 2;
+      }
+    });
+    c.update('none');
+    // Sync legend item opacity + weight with chart highlight state
+    wrap.querySelectorAll('[data-vc-idx]').forEach(el => {
+      const i = +el.dataset.vcIdx;
+      el.style.opacity    = (idx === -1 || i === idx) ? '1' : '0.3';
+      el.style.fontWeight = (idx !== -1 && i === idx) ? '700' : '400';
+    });
+  }
+
+  vcCanvas.addEventListener('mousemove', evt => {
+    const rect = vcCanvas.getBoundingClientRect();
+    const mx = evt.clientX - rect.left;
+    const my = evt.clientY - rect.top;
+    const ca = c.chartArea;
+    if (!ca || mx < ca.left || mx > ca.right || my < ca.top || my > ca.bottom) {
+      applyVcHover(-1); return;
+    }
+    // Find nearest x-column (category tick)
+    const xs = c.scales.x;
+    let nearCol = 0, minDx = Infinity;
+    VC_KCFS.forEach((_, i) => {
+      const d = Math.abs(mx - xs.getPixelForValue(i));
+      if (d < minDx) { minDx = d; nearCol = i; }
+    });
+    // Find dataset whose y at that column is nearest to the mouse
+    const ys = c.scales.y;
+    let nearDs = -1, minDy = Infinity;
+    c.data.datasets.forEach((ds, i) => {
+      const d = Math.abs(my - ys.getPixelForValue(ds.data[nearCol]));
+      if (d < minDy) { minDy = d; nearDs = i; }
+    });
+    applyVcHover(minDy < 40 ? nearDs : -1);
+  });
+  vcCanvas.addEventListener('mouseleave', () => applyVcHover(-1));
+
+  // ── VC legend hover ────────────────────────────────────────────────────────
+  wrap.querySelectorAll('[data-vc-idx]').forEach(el => {
+    el.addEventListener('mouseenter', () => applyVcHover(+el.dataset.vcIdx));
+    el.addEventListener('mouseleave', () => applyVcHover(-1));
+  });
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function findNextTable(el) {
+  let n = el.nextElementSibling;
+  while (n && n.tagName !== 'TABLE' && !['H2','H1'].includes(n.tagName)) {
+    if (n.tagName === 'TABLE') return n;
+    if (n.querySelector('table')) return n.querySelector('table');
+    n = n.nextElementSibling;
+  }
+  return n && n.tagName === 'TABLE' ? n : null;
+}
+
+function injectCharts() {
+  destroyCharts();
+  document.querySelectorAll('#content h3').forEach(h3 => {
+    const t = h3.textContent.trim();
+    if (t.includes('3A') || t.includes('Primary 2×2') || t.includes('2x2')) inject2x2(h3);
+    else if (t.includes('3B') || t.includes('Wave-Style') || t.includes('Wave')) injectWave(h3);
+    else if (t.includes('3C') || t.includes('Value Curve'))                       injectValueCurve(h3);
+  });
+}
+
+// ─── Main load ───────────────────────────────────────────────────────────────
+async function loadFile(path) {
+  destroyCharts();
+  document.getElementById('content').innerHTML = '<p style="color:#888;padding:40px 0;">Loading…</p>';
+  document.getElementById('toc').innerHTML = '';
+  try {
+    const r = await fetch('/' + path);
+    const md = await r.text();
+    document.getElementById('content').innerHTML = marked.parse(md);
+    buildTOC();
+    document.getElementById('stats').textContent =
+      `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
+    window.scrollTo(0, 0);
+    // Inject charts (consolidated report only), then linkify all files
+    if (path.includes('Consolidated Intelligence Report') || path.includes('Market Landscape Report')) {
+      setTimeout(() => {
+        injectCharts();
+        linkify();
+        setTimeout(() => postRender(), 0);
+      }, 0);
+    } else {
+      setTimeout(() => { linkify(); setTimeout(() => postRender(), 0); }, 0);
+    }
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<pre style="color:red">${e}</pre>`;
+  }
+}
+
+function buildTOC() {
+  const toc = document.getElementById('toc');
+  toc.innerHTML = '';
+  document.querySelectorAll('#content h1, #content h2, #content h3').forEach((h, i) => {
+    const id = 'h-' + i; h.id = id;
+    const li = document.createElement('li');
+    const a  = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = (h.tagName==='H1' ? '● ' : h.tagName==='H2' ? '  ○ ' : '    · ') + h.textContent;
+    a.style.fontSize = h.tagName==='H1' ? '13px' : h.tagName==='H2' ? '12px' : '11px';
+    a.onclick = () => { document.querySelectorAll('#sidebar a').forEach(x=>x.classList.remove('active')); a.classList.add('active'); };
+    li.appendChild(a); toc.appendChild(li);
+  });
+}
+
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const report = params.get('report');
+  if (report) {
+    loadFile(decodeURIComponent(report));
+  } else {
+    loadFile('market-landscape-20260315-2128/Platform Engineering Solutions - Market Landscape Report.md');
+  }
+})();
+
+// ─── #6 Progress bar + scroll polling fallback ──────────────────────────────
+let _progressBar = null;
+let _lastScrollY = -1;
+function _onScrollTick() {
+  const y = document.documentElement.scrollTop;
+  if (y === _lastScrollY) return;
+  _lastScrollY = y;
+  // Update progress bar
+  if (_progressBar) {
+    const s = document.documentElement;
+    const pct = s.scrollHeight - s.clientHeight > 0
+      ? (s.scrollTop / (s.scrollHeight - s.clientHeight)) * 100 : 0;
+    _progressBar.style.width = pct + '%';
+  }
+  // Dispatch custom event for breadcrumb (so the IIFE module can listen)
+  window.dispatchEvent(new CustomEvent('scrolltick'));
+}
+// Primary: native scroll events
+window.addEventListener('scroll', _onScrollTick, { passive: true });
+// Fallback: polling at 200ms for environments where scroll events don't fire
+setInterval(_onScrollTick, 200);
+
+document.addEventListener('DOMContentLoaded', () => {
+  _progressBar = document.getElementById('readProgressBar');
+  document.getElementById('compareBtn').addEventListener('click', () => {
+    document.getElementById('compareDrawer').classList.toggle('open');
+  });
+  const closeBtn = document.getElementById('compareCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', () => {
+    document.getElementById('compareDrawer').classList.remove('open');
+  });
+  document.getElementById('copyGdocsBtn').addEventListener('click', copyForGoogleDocs);
+  document.getElementById('pdfExportBtn').addEventListener('click', exportToPDF);
+});
+
+// ─── Copy for Google Docs ──────────────────────────────────────────────────
+async function copyForGoogleDocs() {
+  const btn = document.getElementById('copyGdocsBtn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Preparing…';
+  btn.disabled = true;
+
+  try {
+    // 1. Expand all collapsed vendor cards temporarily
+    const collapsedBodies = document.querySelectorAll('.vc-body.vc-collapsed');
+    collapsedBodies.forEach(b => b.classList.remove('vc-collapsed'));
+
+    // 2. Clone the content
+    const content = document.getElementById('content');
+    const clone = content.cloneNode(true);
+
+    // 3. Convert all canvas elements to inline images
+    const origCanvases = content.querySelectorAll('canvas');
+    const cloneCanvases = clone.querySelectorAll('canvas');
+    origCanvases.forEach((origCanvas, i) => {
+      try {
+        const dataUrl = origCanvas.toDataURL('image/png');
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = 'max-width:100%;height:auto;';
+        img.alt = 'Chart';
+        if (cloneCanvases[i]) {
+          cloneCanvases[i].parentNode.replaceChild(img, cloneCanvases[i]);
+        }
+      } catch(e) { /* canvas tainted — skip */ }
+    });
+
+    // 4. Remove UI-only elements from clone
+    clone.querySelectorAll('#vendorFilterBar, .vc-toggle, .vname-link').forEach(el => {
+      if (el.classList.contains('vname-link')) {
+        // Replace vname-link spans with plain text
+        el.replaceWith(document.createTextNode(el.textContent));
+      } else {
+        el.remove();
+      }
+    });
+
+    // 5. Make vendor cards look expanded in the copy
+    clone.querySelectorAll('.vc-body').forEach(b => {
+      b.style.display = 'block';
+      b.classList.remove('vc-collapsed');
+    });
+
+    // 6. Un-hide the original H3 inside vendor cards and style them
+    clone.querySelectorAll('.vendor-card > h3').forEach(h3 => {
+      h3.style.display = 'block';
+      h3.style.cssText = 'font-size:16pt;color:#0550ae;margin:12px 0 8px;font-weight:bold;';
+    });
+    // Remove the vc-header since h3 is now visible
+    clone.querySelectorAll('.vc-header').forEach(h => h.remove());
+    // Remove vc-tags (not needed in doc)
+    clone.querySelectorAll('.vc-tags').forEach(t => t.remove());
+
+    // 7. Apply inline styles for Google Docs compatibility
+    _inlineStylesForGDocs(clone);
+
+    // 8. Build final HTML with wrapper styles
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:11pt;color:#1a1a1a;line-height:1.6;max-width:800px;">${clone.innerHTML}</div>`;
+
+    // 9. Copy to clipboard as rich HTML
+    const blob = new Blob([html], { type: 'text/html' });
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'text/html': blob })
+    ]);
+
+    // 10. Re-collapse the vendor cards
+    collapsedBodies.forEach(b => b.classList.add('vc-collapsed'));
+
+    btn.innerHTML = '<span class="btn-icon">✅</span> Copied!';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+
+  } catch(e) {
+    console.error('Copy failed:', e);
+    // Re-collapse
+    document.querySelectorAll('.vc-body.vc-collapsed').forEach(b => b.classList.add('vc-collapsed'));
+    btn.innerHTML = '<span class="btn-icon">❌</span> Failed';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+  }
+}
+
+// ─── Export to PDF ──────────────────────────────────────────────────────────
+async function exportToPDF() {
+  const btn = document.getElementById('pdfExportBtn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Building…';
+  btn.disabled = true;
+
+  try {
+    // 1. Expand all collapsed vendor cards
+    const collapsedBodies = document.querySelectorAll('.vc-body.vc-collapsed');
+    collapsedBodies.forEach(b => b.classList.remove('vc-collapsed'));
+
+    // 2. Expand all collapsed subsections
+    const collapsedH3s = document.querySelectorAll('#content h3.collapsible.is-closed');
+    collapsedH3s.forEach(h3 => {
+      const bodyDiv = h3.nextElementSibling;
+      if (bodyDiv && bodyDiv.classList.contains('collapsible-body')) {
+        bodyDiv.style.maxHeight = bodyDiv.scrollHeight + 'px';
+        h3.classList.remove('is-closed');
+        h3.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    // Allow layout to settle
+    await new Promise(r => setTimeout(r, 100));
+
+    // 3. Clone #content
+    const content = document.getElementById('content');
+    const clone = content.cloneNode(true);
+
+    // 4. Convert canvases to images
+    const origCanvases = content.querySelectorAll('canvas');
+    const cloneCanvases = clone.querySelectorAll('canvas');
+    origCanvases.forEach((origCanvas, i) => {
+      try {
+        const dataUrl = origCanvas.toDataURL('image/png', 1.0);
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = 'max-width:100%;height:auto;display:block;margin:8px auto;';
+        if (cloneCanvases[i]) cloneCanvases[i].parentNode.replaceChild(img, cloneCanvases[i]);
+      } catch(e) {}
+    });
+
+    // 5. Remove UI-only elements
+    clone.querySelectorAll('#vendorFilterBar, .vc-toggle').forEach(el => el.remove());
+    clone.querySelectorAll('.vname-link').forEach(el => {
+      const text = document.createTextNode(el.textContent);
+      el.replaceWith(text);
+    });
+
+    // 6. Un-hide H3s inside vendor cards, remove vc-header
+    clone.querySelectorAll('.vendor-card > h3').forEach(h3 => {
+      h3.style.display = 'block';
+    });
+    clone.querySelectorAll('.vc-header').forEach(h => h.remove());
+    clone.querySelectorAll('.vc-tags').forEach(t => t.remove());
+    clone.querySelectorAll('.vc-body').forEach(b => {
+      b.style.display = 'block';
+    });
+
+    // 7. Clean collapsible markers
+    clone.querySelectorAll('h3.collapsible').forEach(h3 => {
+      h3.textContent = h3.textContent.replace(/^[▸▾]\s*/, '');
+    });
+    clone.querySelectorAll('.collapsible-body').forEach(b => {
+      b.style.maxHeight = 'none';
+      b.style.overflow = 'visible';
+    });
+
+    // 8. Build standalone HTML document for printing
+    const printHTML = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>Platform Engineering Solutions — Market Landscape Report</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt; color: #1a1a1a; line-height: 1.55;
+    max-width: 100%; padding: 0;
+  }
+  h1 { font-size: 20pt; color: #0550ae; font-weight: 700; border-bottom: 2px solid #d0d7de;
+       padding-bottom: 8px; margin: 16px 0 10px; page-break-after: avoid; }
+  h2 { font-size: 14pt; color: #0550ae; font-weight: 700; border-bottom: 1px solid #e1e4e8;
+       padding-bottom: 6px; margin: 20px 0 8px; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; color: #0969da; font-weight: 700; margin: 14px 0 5px; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; color: #0969da; font-weight: 700; margin: 10px 0 4px; }
+  p  { margin: 0 0 7px; line-height: 1.55; }
+  ul, ol { margin: 0 0 8px 20px; }
+  li { margin: 2px 0; line-height: 1.5; }
+  strong { font-weight: 700; }
+  a { color: #1a73e8; text-decoration: underline; }
+  hr { border: none; border-top: 1px solid #d0d7de; margin: 16px 0; }
+  code { background: #f0f3f6; padding: 1px 4px; border-radius: 3px; font-family: 'SF Mono', Consolas, monospace; font-size: 9pt; }
+  pre { background: #f6f8fa; padding: 10px; border-radius: 5px; margin: 8px 0; font-size: 9pt; font-family: 'SF Mono', Consolas, monospace; border: 1px solid #d0d7de; overflow-x: auto; white-space: pre-wrap; }
+  pre code { background: none; padding: 0; }
+  blockquote, .callout { border-left: 4px solid #0969da; padding: 8px 14px; margin: 10px 0; background: #f0f7ff; font-size: 10pt; }
+  .callout-signal { background: #fff8e6; border-color: #bc4c00; }
+  .callout-risk   { background: #ffebe9; border-color: #cf222e; }
+  .callout-stat   { background: #eafbea; border-color: #1a7f37; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; page-break-inside: auto; }
+  th { background: #e8eaed; color: #1a1a1a; font-weight: 700; font-size: 8.5pt; text-transform: uppercase;
+       letter-spacing: 0.3px; padding: 7px 8px; border: 1px solid #d0d7de; text-align: left; }
+  td { padding: 6px 8px; border: 1px solid #d0d7de; vertical-align: top; }
+  tbody tr:nth-child(even) { background: #f6f8fa; }
+  img { max-width: 100%; height: auto; display: block; margin: 6px auto; }
+
+  /* Section colours */
+  .sec-color-0 { border-left: 4px solid #0969da; padding-left: 10px; }
+  .sec-color-1 { border-left: 4px solid #1a7f37; padding-left: 10px; }
+  .sec-color-2 { border-left: 4px solid #9a3412; padding-left: 10px; }
+  .sec-color-3 { border-left: 4px solid #6e40c9; padding-left: 10px; }
+  .sec-color-4 { border-left: 4px solid #bc4c00; padding-left: 10px; }
+  .sec-color-5 { border-left: 4px solid #0550ae; padding-left: 10px; }
+  .sec-color-6 { border-left: 4px solid #8250df; padding-left: 10px; }
+  .sec-color-7 { border-left: 4px solid #cf222e; padding-left: 10px; }
+
+  /* Chart frames */
+  .chart-frame { border: 1px solid #d0d7de; border-radius: 8px; padding: 14px 18px; margin: 12px 0; background: #fff;
+                 page-break-inside: avoid; opacity: 1 !important; transform: none !important; }
+  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #5f6368; margin-bottom: 3px; }
+  .chart-subtitle { font-size: 8.5pt; color: #80868b; margin-bottom: 10px; }
+
+  /* Vendor cards */
+  .vendor-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 10px 14px; margin: 10px 0;
+                 page-break-inside: avoid; }
+
+  /* Pros / Cons grid */
+  .pros-cons-grid { display: flex; gap: 16px; margin: 8px 0; }
+  .pros-col, .cons-col { flex: 1; }
+  .pros-col strong { color: #1a7f37; }
+  .cons-col strong { color: #cf222e; }
+  .pros-col ul, .cons-col ul { padding-left: 16px; font-size: 9.5pt; }
+
+  /* Trend cards */
+  .trend-strip { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+  .trend-card { flex: 0 0 calc(25% - 8px); border: 1px solid #d0d7de; border-radius: 6px; padding: 10px; background: #f6f8fa; page-break-inside: avoid; }
+  .tc-icon { font-size: 18pt; margin-bottom: 4px; }
+  .tc-title { font-size: 9pt; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; }
+  .tc-body { font-size: 8.5pt; color: #5f6368; line-height: 1.4; }
+
+  /* Legend styles */
+  .wave-legend, .vc-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 8.5pt; }
+  .wave-legend span, .vc-legend span { display: flex; align-items: center; gap: 4px; }
+  .wave-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+  .vc-legend i { display: inline-block; width: 20px; height: 3px; border-radius: 2px; }
+</style>
+</head><body>${clone.innerHTML}</body></html>`;
+
+    // 9. Open print window
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    printWin.document.write(printHTML);
+    printWin.document.close();
+
+    // Wait for images to load then trigger print
+    printWin.onload = () => {
+      setTimeout(() => {
+        printWin.print();
+      }, 500);
+    };
+    // Fallback if onload doesn't fire
+    setTimeout(() => {
+      try { printWin.print(); } catch(e) {}
+    }, 3000);
+
+    // 10. Re-collapse
+    collapsedBodies.forEach(b => b.classList.add('vc-collapsed'));
+    collapsedH3s.forEach(h3 => {
+      const bodyDiv = h3.nextElementSibling;
+      if (bodyDiv && bodyDiv.classList.contains('collapsible-body')) {
+        bodyDiv.style.maxHeight = '0';
+        h3.classList.add('is-closed');
+        h3.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    btn.innerHTML = '<span class="btn-icon">✅</span> Done';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+
+  } catch(e) {
+    console.error('PDF export failed:', e);
+    collapsedBodies.forEach(b => b.classList.add('vc-collapsed'));
+    btn.innerHTML = '<span class="btn-icon">❌</span> Failed';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+  }
+}
+
+function _inlineStylesForGDocs(root) {
+  // Headings
+  root.querySelectorAll('h1').forEach(el => {
+    el.style.cssText = 'font-size:22pt;color:#0550ae;font-weight:bold;border-bottom:2px solid #d0d7de;padding-bottom:8px;margin:20px 0 12px;';
+  });
+  root.querySelectorAll('h2').forEach(el => {
+    el.style.cssText = 'font-size:16pt;color:#0550ae;font-weight:bold;border-bottom:1px solid #e1e4e8;padding-bottom:6px;margin:24px 0 10px;';
+  });
+  root.querySelectorAll('h3').forEach(el => {
+    if (!el.style.cssText) el.style.cssText = 'font-size:13pt;color:#0969da;font-weight:bold;margin:16px 0 6px;';
+  });
+  root.querySelectorAll('h4').forEach(el => {
+    el.style.cssText = 'font-size:11pt;color:#0969da;font-weight:bold;margin:12px 0 4px;';
+  });
+
+  // Paragraphs
+  root.querySelectorAll('p').forEach(el => {
+    el.style.cssText += ';font-size:11pt;margin:0 0 8px;line-height:1.6;';
+  });
+
+  // Lists
+  root.querySelectorAll('ul,ol').forEach(el => {
+    el.style.cssText = 'margin:0 0 10px 24px;font-size:11pt;';
+  });
+  root.querySelectorAll('li').forEach(el => {
+    el.style.cssText = 'margin:3px 0;line-height:1.5;';
+  });
+
+  // Bold & italic
+  root.querySelectorAll('strong').forEach(el => { el.style.fontWeight = '700'; });
+
+  // Links — make them blue and underlined
+  root.querySelectorAll('a').forEach(el => {
+    el.style.cssText = 'color:#1a73e8;text-decoration:underline;';
+  });
+
+  // Blockquotes / callouts
+  root.querySelectorAll('blockquote, .callout').forEach(el => {
+    el.style.cssText = 'border-left:4px solid #0969da;padding:8px 14px;margin:12px 0;background:#f0f7ff;font-size:11pt;';
+  });
+
+  // HR
+  root.querySelectorAll('hr').forEach(el => {
+    el.style.cssText = 'border:none;border-top:1px solid #d0d7de;margin:20px 0;';
+  });
+
+  // Code
+  root.querySelectorAll('code').forEach(el => {
+    el.style.cssText = 'background:#f0f3f6;padding:1px 4px;border-radius:3px;font-family:Consolas,monospace;font-size:10pt;';
+  });
+  root.querySelectorAll('pre').forEach(el => {
+    el.style.cssText = 'background:#f6f8fa;padding:12px;border-radius:6px;overflow-x:auto;margin:10px 0;font-size:10pt;font-family:Consolas,monospace;border:1px solid #d0d7de;';
+  });
+  root.querySelectorAll('pre code').forEach(el => {
+    el.style.cssText = 'background:none;padding:0;font-family:Consolas,monospace;font-size:10pt;';
+  });
+
+  // Tables — Google Docs needs inline borders on every cell
+  root.querySelectorAll('table').forEach(tbl => {
+    tbl.style.cssText = 'width:100%;border-collapse:collapse;margin:12px 0;font-size:10pt;';
+    tbl.querySelectorAll('th').forEach(th => {
+      th.style.cssText = 'background:#e8eaed;color:#1a1a1a;font-weight:bold;font-size:9pt;text-transform:uppercase;letter-spacing:0.3px;padding:8px 10px;border:1px solid #d0d7de;text-align:left;';
+    });
+    tbl.querySelectorAll('td').forEach(td => {
+      td.style.cssText = 'padding:7px 10px;border:1px solid #d0d7de;vertical-align:top;font-size:10pt;';
+    });
+    // Zebra striping
+    tbl.querySelectorAll('tbody tr').forEach((tr, i) => {
+      if (i % 2 === 1) tr.style.background = '#f6f8fa';
+    });
+  });
+
+  // Pros/cons grid → convert to a simple 2-column table for GDocs (CSS grid won't work)
+  root.querySelectorAll('.pros-cons-grid').forEach(grid => {
+    const prosCol = grid.querySelector('.pros-col');
+    const consCol = grid.querySelector('.cons-col');
+    if (!prosCol || !consCol) return;
+    const tbl = document.createElement('table');
+    tbl.style.cssText = 'width:100%;border-collapse:collapse;margin:10px 0;';
+    tbl.innerHTML = `<tr>
+      <td style="vertical-align:top;width:50%;padding:8px 12px;border:1px solid #d0d7de;">${prosCol.innerHTML}</td>
+      <td style="vertical-align:top;width:50%;padding:8px 12px;border:1px solid #d0d7de;">${consCol.innerHTML}</td>
+    </tr>`;
+    grid.replaceWith(tbl);
+  });
+
+  // Chart frames — remove animation classes, keep clean
+  root.querySelectorAll('.chart-frame').forEach(el => {
+    el.style.cssText = 'border:1px solid #d0d7de;border-radius:8px;padding:16px 20px;margin:16px 0;background:#ffffff;';
+  });
+  root.querySelectorAll('.chart-title').forEach(el => {
+    el.style.cssText = 'font-size:10pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;color:#5f6368;margin-bottom:4px;';
+  });
+  root.querySelectorAll('.chart-subtitle').forEach(el => {
+    el.style.cssText = 'font-size:9pt;color:#80868b;margin-bottom:14px;';
+  });
+
+  // Trend cards → convert to a simple list for GDocs
+  root.querySelectorAll('.trend-strip').forEach(strip => {
+    const cards = strip.querySelectorAll('.trend-card');
+    if (cards.length === 0) return;
+    const tbl = document.createElement('table');
+    tbl.style.cssText = 'width:100%;border-collapse:collapse;margin:12px 0;';
+    let rowHTML = '<tr>';
+    cards.forEach((card, i) => {
+      const icon = card.querySelector('.tc-icon')?.textContent || '';
+      const title = card.querySelector('.tc-title')?.textContent || '';
+      const body = card.querySelector('.tc-body')?.textContent || '';
+      rowHTML += `<td style="vertical-align:top;padding:10px;border:1px solid #d0d7de;width:${Math.floor(100/Math.min(cards.length,4))}%;background:#f6f8fa;">
+        <div style="font-size:16pt;margin-bottom:4px;">${icon}</div>
+        <div style="font-size:10pt;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${title}</div>
+        <div style="font-size:9pt;color:#5f6368;line-height:1.4;">${body}</div>
+      </td>`;
+      // Max 4 per row
+      if ((i + 1) % 4 === 0 && i < cards.length - 1) rowHTML += '</tr><tr>';
+    });
+    rowHTML += '</tr>';
+    tbl.innerHTML = rowHTML;
+    strip.replaceWith(tbl);
+  });
+
+  // Vendor card wrapper — clean border
+  root.querySelectorAll('.vendor-card').forEach(el => {
+    el.style.cssText = 'border:1px solid #d0d7de;border-radius:8px;padding:12px 16px;margin:14px 0;page-break-inside:avoid;';
+  });
+
+  // Remove elements that don't belong in the doc
+  root.querySelectorAll('.collapsible::before, .wave-legend i, .vc-legend i').forEach(el => el.remove());
+
+  // Collapsible indicators — remove ▾/▸ characters from H3 text
+  root.querySelectorAll('h3.collapsible').forEach(h3 => {
+    h3.textContent = h3.textContent.replace(/^[▸▾]\s*/, '');
+  });
+
+  // Section color coding — apply left border inline
+  const SEC_COLORS = ['#0969da','#1a7f37','#9a3412','#6e40c9','#bc4c00','#0550ae','#8250df','#cf222e'];
+  root.querySelectorAll('h2').forEach((h2, i) => {
+    const c = SEC_COLORS[i % 8];
+    h2.style.borderLeft = '4px solid ' + c;
+    h2.style.paddingLeft = '10px';
+  });
+}
+
+// ─── POST-RENDER MODULE ───────────────────────────────────────────────────────
+(function() {
+  'use strict';
+
+  // ── Shared state ─────────────────────────────────────────────────────────────
+  let _bcSection, _bcSep, _bcSub;
+  let _breadcrumbObs = null, _chartObs = null, _snavObs = null;
+  let _compareSet = new Set();
+
+  // ── Vendor sets (exact match) ─────────────────────────────────────────────────
+  const COMMERCIAL_LABELS = new Set(VC_COMMERCIAL.map(s => s.label));
+  const OSS_LABELS        = new Set(VC_OSS.map(s => s.label));
+  const ALL_VENDORS       = new Set([...MQ_DATA.map(d => d.label)]);
+  const LEADER_LABELS     = new Set(GMQ_DATA.filter(d => d.q === 'Leaders').map(d => d.label));
+  const CHALLENGER_LABELS = new Set(GMQ_DATA.filter(d => d.q === 'Challengers').map(d => d.label));
+
+  // ── Colour palette ────────────────────────────────────────────────────────────
+  const PALETTE      = ['#0969da','#1a7f37','#9a3412','#6e40c9','#bc4c00','#0550ae','#8250df','#cf222e'];
+  const AVATAR_COLORS = PALETTE;
+  const TREND_ICONS  = ['🚀','🔀','🤖','☁️','🔐','📊','🔧','⚡','🎯','💡'];
+
+  // ── Score colours for comparison table ───────────────────────────────────────
+  const SCORE_BG = {1:'#ffebe9',2:'#fff8e6',3:'#f6f8fa',4:'#eafbea',5:'#dafbe1'};
+
+  // ── Stored original chart colours for filter restore ─────────────────────────
+  const _origChartColors = new Map();
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  function postRender() {
+    _progressBar = document.getElementById('readProgressBar');
+    _bcSection   = document.getElementById('bcSection');
+    _bcSep       = document.getElementById('bcSep');
+    _bcSub       = document.getElementById('bcSub');
+    _compareSet.clear();
+    _updateCompareBadge();
+
+    removeExtraneousHRs();
+    transformCallouts();
+    buildTrendCards();
+    applySectionColors();
+    buildSolutionNav();    // must run BEFORE buildVendorCards (needs raw h3 elements)
+    buildVendorCards();
+    layoutProsCons();
+    buildInfoCards();
+    setupCollapsibles();
+    insertVendorFilterBar();
+    wrapVendorNameLinks();
+    setupChartObserver();
+    setupBreadcrumbObserver();
+  }
+  window.postRender = postRender;
+
+  // ── #0 removeExtraneousHRs ───────────────────────────────────────────────────
+  function removeExtraneousHRs() {
+    const hrs = [...document.querySelectorAll('#content hr')];
+    // Keep only the last <hr> in content (footer separator before "End of Report")
+    const footerHR = hrs.length > 0 ? hrs[hrs.length - 1] : null;
+    hrs.forEach(hr => {
+      if (hr !== footerHR) hr.remove();
+    });
+  }
+
+  // ── #4 transformCallouts ─────────────────────────────────────────────────────
+  function transformCallouts() {
+    document.querySelectorAll('#content blockquote').forEach(bq => {
+      const strong = bq.querySelector('strong');
+      const typeText = strong ? strong.textContent.toLowerCase().trim() : '';
+      let type = 'default';
+      if (typeText.startsWith('key insight'))    type = 'insight';
+      else if (typeText.startsWith('market signal')) type = 'signal';
+      else if (typeText.startsWith('risk'))       type = 'risk';
+      else if (typeText.startsWith('stat'))       type = 'stat';
+      const div = document.createElement('div');
+      div.className = 'callout callout-' + type;
+      div.innerHTML = bq.innerHTML;
+      bq.parentNode.replaceChild(div, bq);
+    });
+  }
+
+  // ── #5 buildTrendCards ───────────────────────────────────────────────────────
+  function buildTrendCards() {
+    const trendH2 = Array.from(document.querySelectorAll('#content h2'))
+      .find(h => /trend/i.test(h.textContent));
+    if (!trendH2) return;
+
+    const strip = document.createElement('div');
+    strip.className = 'trend-strip';
+    strip.setAttribute('role', 'list');
+
+    // Collect all nodes between this H2 and next H2 — to replace them later
+    const nodesToReplace = [];
+    let sib = trendH2.nextElementSibling;
+
+    // Strategy: collect H3 headings as trend titles + following body paragraphs
+    // Falls back to OL/UL list items if no H3s are found
+    const trendItems = [];  // { title, body }
+    let currentTitle = null, currentBodyParts = [];
+
+    while (sib && sib.tagName !== 'H2') {
+      nodesToReplace.push(sib);
+      if (sib.tagName === 'H3') {
+        // Save previous trend
+        if (currentTitle !== null) {
+          trendItems.push({ title: currentTitle, body: currentBodyParts.join(' ').trim() });
+        }
+        // Strip "Trend N: " prefix if present
+        currentTitle = sib.textContent.trim().replace(/^Trend\s+\d+:\s*/i, '');
+        currentBodyParts = [];
+      } else if (currentTitle !== null && ['P','UL','OL'].includes(sib.tagName)) {
+        currentBodyParts.push(sib.textContent.trim());
+      } else if (sib.tagName === 'LI') {
+        // Fallback: plain list
+        const strong = sib.querySelector('strong');
+        if (strong) {
+          if (currentTitle !== null) trendItems.push({ title: currentTitle, body: currentBodyParts.join(' ').trim() });
+          currentTitle = strong.textContent.trim();
+          currentBodyParts = [sib.textContent.replace(strong.textContent, '').replace(/^[:\s–—]+/, '').trim()];
+        }
+      }
+      sib = sib.nextElementSibling;
+    }
+    if (currentTitle !== null) {
+      trendItems.push({ title: currentTitle, body: currentBodyParts.join(' ').trim() });
+    }
+
+    // Fallback: try OL/UL directly after H2 if no H3-based items found
+    if (trendItems.length === 0) {
+      const list = nodesToReplace.find(n => ['OL','UL'].includes(n.tagName));
+      if (list) {
+        list.querySelectorAll(':scope > li').forEach(li => {
+          const strong = li.querySelector('strong');
+          if (strong) {
+            const clone = li.cloneNode(true);
+            clone.querySelectorAll('strong').forEach(s => s.remove());
+            trendItems.push({ title: strong.textContent.trim(), body: clone.textContent.replace(/^[:\s–—]+/, '').trim() });
+          } else {
+            const text = li.textContent.trim();
+            const ci = text.indexOf(':');
+            trendItems.push(ci > 0
+              ? { title: text.slice(0, ci).trim(), body: text.slice(ci + 1).trim() }
+              : { title: text.slice(0, 60).trim(), body: text.slice(60).trim() });
+          }
+        });
+      }
+    }
+
+    if (trendItems.length === 0) return;
+
+    trendItems.forEach(({ title, body }, idx) => {
+      const card = document.createElement('div');
+      card.className = 'trend-card';
+      card.setAttribute('role', 'listitem');
+      // Truncate body to ~120 chars for card readability
+      const shortBody = body.length > 130 ? body.slice(0, 127) + '…' : body;
+      card.innerHTML =
+        `<div class="tc-icon">${TREND_ICONS[idx % TREND_ICONS.length]}</div>` +
+        `<div class="tc-title">${title}</div>` +
+        `<div class="tc-body">${shortBody}</div>`;
+      strip.appendChild(card);
+    });
+
+    // Replace all collected nodes with the strip
+    const parent = trendH2.parentNode;
+    nodesToReplace.forEach(n => n.remove());
+    trendH2.after(strip);
+  }
+
+  // ── #11 buildInfoCards — Shortlist Profiles & Future Outlook ─────────────────
+  function buildInfoCards() {
+    const SECTION_PATTERNS = [
+      /Buying Guidance|Shortlist/i,
+      /Future Outlook|Emerging Disrupt/i
+    ];
+    SECTION_PATTERNS.forEach(pattern => {
+      const h2 = Array.from(document.querySelectorAll('#content h2')).find(h => pattern.test(h.textContent));
+      if (!h2) return;
+
+      // Collect H3s and their body nodes between this H2 and next H2
+      const items = [];
+      let sib = h2.nextElementSibling;
+      let currentH3 = null;
+      let currentNodes = [];
+
+      while (sib && sib.tagName !== 'H2') {
+        if (sib.tagName === 'H3') {
+          if (currentH3) items.push({ h3: currentH3, nodes: currentNodes });
+          currentH3 = sib;
+          currentNodes = [];
+        } else if (currentH3) {
+          currentNodes.push(sib);
+        }
+        sib = sib.nextElementSibling;
+      }
+      if (currentH3) items.push({ h3: currentH3, nodes: currentNodes });
+      if (items.length === 0) return;
+
+      // Build cards in a container, replace existing H3+content
+      const container = document.createDocumentFragment();
+      items.forEach(({ h3, nodes }) => {
+        // Strip leading "N. " from title
+        const title = h3.textContent.trim().replace(/^\d+\.\s*/, '');
+
+        const card = document.createElement('div');
+        card.className = 'info-card';
+
+        const hdr = document.createElement('div');
+        hdr.className = 'info-card-header';
+        hdr.innerHTML = `<span style="flex:1">${title}</span><span class="info-card-toggle">▾</span>`;
+
+        const body = document.createElement('div');
+        body.className = 'info-card-body'; // collapsed by default
+        // Remove any trailing HRs
+        const cleanNodes = nodes.filter(n => n.tagName !== 'HR');
+        cleanNodes.forEach(n => body.appendChild(n));
+
+        hdr.addEventListener('click', () => {
+          const isOpen = body.classList.toggle('open');
+          hdr.querySelector('.info-card-toggle').textContent = isOpen ? '▴' : '▾';
+        });
+
+        card.appendChild(hdr);
+        card.appendChild(body);
+        container.appendChild(card);
+
+        h3.remove();
+      });
+
+      // Insert container where first H3 was (after H2)
+      h2.after(container);
+
+      // Remove any stray <hr> elements directly under this section
+      // (markdown --- separators that land between H2 and next H2)
+      let el = h2.nextElementSibling;
+      const nextH2 = h2.nextElementSibling ? (function findNext(node){
+        while (node) { if (node.tagName === 'H2') return node; node = node.nextElementSibling; }
+        return null;
+      })(h2.nextElementSibling) : null;
+      let scan = h2.nextElementSibling;
+      while (scan && scan !== nextH2) {
+        const nxt = scan.nextElementSibling;
+        if (scan.tagName === 'HR') scan.remove();
+        scan = nxt;
+      }
+    });
+  }
+
+  // ── #10 applySectionColors ───────────────────────────────────────────────────
+  function applySectionColors() {
+    document.querySelectorAll('#content h2').forEach((h2, idx) => {
+      const cls = 'sec-color-' + (idx % 8);
+      h2.classList.add(cls);
+      const h2Text = h2.textContent.trim();
+      const tocLink = Array.from(document.querySelectorAll('#toc a'))
+        .find(a => a.textContent.trim().replace(/^[●○·\s]+/, '') === h2Text);
+      if (tocLink) tocLink.classList.add(cls);
+    });
+  }
+
+  // ── #3 buildVendorCards ──────────────────────────────────────────────────────
+  function buildVendorCards() {
+    let vendorIdx = 0;
+    document.querySelectorAll('#content h2').forEach(h2 => {
+      if (!/Commercial|Open[\s\-]Source|OSS/i.test(h2.textContent)) return;
+
+      const vendorH3s = [];
+      let sib = h2.nextElementSibling;
+      while (sib && sib.tagName !== 'H2') {
+        if (sib.tagName === 'H3') vendorH3s.push(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      vendorH3s.forEach(h3 => {
+        const rawName = h3.textContent.replace(/^[▸▾]\s*/, '').trim();
+        // Strip leading "N. " and trailing "(type info)" for display
+        const displayName = rawName.replace(/^\d+\.\s*/, '').replace(/\s*\(.*\)\s*$/, '').trim();
+        const color = AVATAR_COLORS[vendorIdx % AVATAR_COLORS.length];
+        const initial = displayName.charAt(0).toUpperCase();
+        vendorIdx++;
+
+        const contentNodes = [];
+        let n = h3.nextSibling;
+        while (n) {
+          if (n.tagName === 'H2' || n.tagName === 'H3') break;
+          contentNodes.push(n);
+          n = n.nextSibling;
+        }
+
+        // Tags: from <strong> in FIRST <p>, max 4, max 25 chars
+        // Filter out structural labels
+        const STRUCTURAL_LABELS = new Set(['overview', 'major pros', 'major cons', 'key differentiator', 'best for', 'pricing']);
+        const firstP = contentNodes.find(nd => nd.tagName === 'P');
+        const tags = [];
+        if (firstP) {
+          firstP.querySelectorAll('strong').forEach(s => {
+            const txt = s.textContent.trim();
+            const stripped = txt.toLowerCase().replace(/[:\s]+$/, '');
+            if (txt && txt.length <= 25 && tags.length < 4 && !STRUCTURAL_LABELS.has(stripped)) tags.push(txt);
+          });
+        }
+
+        const card = document.createElement('div');
+        card.className = 'vendor-card';
+        card.dataset.vendor = rawName;
+
+        const header = document.createElement('div');
+        header.className = 'vc-header';
+        header.innerHTML =
+          `<div class="vc-avatar" style="background:${color}">${initial}</div>` +
+          `<div class="vc-name">${displayName}</div>` +
+          `<span class="vc-toggle is-closed">▾</span>`;
+
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'vc-tags';
+        tags.forEach(t => {
+          const pill = document.createElement('span');
+          pill.className = 'vc-tag';
+          pill.textContent = t;
+          tagsDiv.appendChild(pill);
+        });
+
+        const body = document.createElement('div');
+        body.className = 'vc-body vc-collapsed';
+        contentNodes.forEach(nd => { if (nd.tagName !== 'HR') body.appendChild(nd); });
+
+        card.appendChild(header);
+        if (tags.length > 0) card.appendChild(tagsDiv);
+        card.appendChild(body);
+
+        header.addEventListener('click', () => {
+          const isCollapsed = body.classList.toggle('vc-collapsed');
+          const toggle = header.querySelector('.vc-toggle');
+          if (isCollapsed) {
+            toggle.textContent = '▾';
+            toggle.classList.remove('is-open');
+            toggle.classList.add('is-closed');
+          } else {
+            toggle.textContent = '▴';
+            toggle.classList.remove('is-closed');
+            toggle.classList.add('is-open');
+          }
+        });
+
+        if (h3.parentNode) {
+          h3.parentNode.insertBefore(card, h3);
+          card.insertBefore(h3, card.firstChild);
+          h3.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // ── #7b layoutProsCons ──────────────────────────────────────────────────────
+  function layoutProsCons() {
+    document.querySelectorAll('.vc-body').forEach(body => {
+      // Find "Major Pros" and "Major Cons" sections
+      const allEls = Array.from(body.children);
+      let prosLabel = null, prosList = null, consLabel = null, consList = null;
+
+      for (let i = 0; i < allEls.length; i++) {
+        const el = allEls[i];
+        const text = el.textContent || '';
+        if (/Major Pros/i.test(text)) {
+          prosLabel = el;
+          // Find the next UL
+          for (let j = i + 1; j < allEls.length; j++) {
+            if (allEls[j].tagName === 'UL') { prosList = allEls[j]; break; }
+            if (allEls[j].tagName === 'H2' || allEls[j].tagName === 'H3') break;
+          }
+        }
+        if (/Major Cons/i.test(text)) {
+          consLabel = el;
+          for (let j = i + 1; j < allEls.length; j++) {
+            if (allEls[j].tagName === 'UL') { consList = allEls[j]; break; }
+            if (allEls[j].tagName === 'H2' || allEls[j].tagName === 'H3') break;
+          }
+        }
+      }
+
+      if (prosLabel && prosList && consLabel && consList) {
+        const grid = document.createElement('div');
+        grid.className = 'pros-cons-grid';
+
+        const prosCol = document.createElement('div');
+        prosCol.className = 'pros-col';
+        prosCol.appendChild(prosLabel);
+        prosCol.appendChild(prosList);
+
+        const consCol = document.createElement('div');
+        consCol.className = 'cons-col';
+        consCol.appendChild(consLabel);
+        consCol.appendChild(consList);
+
+        grid.appendChild(prosCol);
+        grid.appendChild(consCol);
+
+        // Insert grid where prosLabel was
+        // Find a good insertion point — insert before the next remaining element after the removed ones
+        // Since we removed the elements, just append the grid in a logical spot
+        // Find the first element after where cons list was
+        const remaining = Array.from(body.children);
+        // Find position: insert after overview content, before key differentiator
+        let insertBefore = null;
+        for (const el of remaining) {
+          const t = el.textContent || '';
+          if (/Key Differentiator|Best For|Pricing/i.test(t)) { insertBefore = el; break; }
+        }
+        if (insertBefore) {
+          body.insertBefore(grid, insertBefore);
+        } else {
+          body.appendChild(grid);
+        }
+      }
+    });
+  }
+
+  // ── #9 setupCollapsibles ─────────────────────────────────────────────────────
+  function setupCollapsibles() {
+    document.querySelectorAll('#content h3').forEach(h3 => {
+      if (/(3A|3B|3C|Primary 2.2|Wave|Value Curve)/i.test(h3.textContent)) return;
+      if (h3.classList.contains('collapsible')) return; // already processed
+      if (h3.closest('.vendor-card')) return; // skip H3s inside vendor cards
+
+      const bodyNodes = [];
+      let sib = h3.nextSibling;
+      while (sib) {
+        if (sib.tagName === 'H2' || sib.tagName === 'H3') break;
+        bodyNodes.push(sib);
+        sib = sib.nextSibling;
+      }
+      if (bodyNodes.length === 0) return;
+
+      const bodyDiv = document.createElement('div');
+      bodyDiv.className = 'collapsible-body';
+      if (h3.parentNode) h3.parentNode.insertBefore(bodyDiv, bodyNodes[0]);
+      bodyNodes.forEach(nd => bodyDiv.appendChild(nd));
+      bodyDiv.style.maxHeight = bodyDiv.scrollHeight + 'px';
+
+      h3.classList.add('collapsible');
+      h3.setAttribute('role', 'button');
+      h3.setAttribute('tabindex', '0');
+      h3.setAttribute('aria-expanded', 'true');
+
+      function toggleCollapsible() {
+        const isOpen = h3.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+          bodyDiv.style.maxHeight = '0';
+          h3.classList.add('is-closed');
+          h3.setAttribute('aria-expanded', 'false');
+        } else {
+          bodyDiv.style.maxHeight = bodyDiv.scrollHeight + 'px';
+          h3.classList.remove('is-closed');
+          h3.setAttribute('aria-expanded', 'true');
+        }
+      }
+
+      h3.addEventListener('click', toggleCollapsible);
+      h3.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCollapsible(); }
+      });
+    });
+  }
+
+  // ── NEW buildSolutionNav ─────────────────────────────────────────────────────
+  function buildSolutionNav() {
+    const navEl = document.getElementById('solutionNav');
+    if (!navEl) return;
+
+    const commRow = document.getElementById('snavCommercial');
+    const ossRow  = document.getElementById('snavOSS');
+    if (!commRow || !ossRow) return;
+
+    // Remove existing buttons (keep label span)
+    commRow.querySelectorAll('.snav-btn').forEach(b => b.remove());
+    ossRow.querySelectorAll('.snav-btn').forEach(b => b.remove());
+
+    // Collect vendor names from DOM sections
+    function collectVendorNames(sectionTest) {
+      const names = [];
+      for (const h2 of document.querySelectorAll('#content h2')) {
+        if (sectionTest(h2.textContent)) {
+          let sib = h2.nextElementSibling;
+          while (sib && sib.tagName !== 'H2') {
+            if (sib.tagName === 'H3') {
+              names.push(sib.textContent.replace(/^[▸▾]\s*/, '').trim());
+            }
+            sib = sib.nextElementSibling;
+          }
+          break;
+        }
+      }
+      return names;
+    }
+
+    const commVendorsRaw = collectVendorNames(t => /commercial/i.test(t));
+    const ossVendorsRaw  = collectVendorNames(t => /open[\s\-]source|oss/i.test(t));
+    // Strip leading "N. " and trailing parenthetical "(type info)"
+    function stripNavName(n) { return n.replace(/^\d+\.\s*/, '').replace(/\s*\(.*\)\s*$/, '').trim(); }
+    const commVendors = commVendorsRaw.map(stripNavName);
+    const ossVendors  = ossVendorsRaw.map(stripNavName);
+
+    function addPills(row, displayNames, rawNames) {
+      displayNames.forEach((name, i) => {
+        const raw = rawNames[i];
+        const btn = document.createElement('button');
+        btn.className = 'snav-btn';
+        btn.textContent = name;
+        btn.dataset.vendor = raw;
+        btn.addEventListener('click', () => {
+          const card = document.querySelector(`.vendor-card[data-vendor="${CSS.escape(raw)}"]`);
+          if (card) {
+            const navH = navEl.offsetHeight;
+            const bcH  = document.getElementById('breadcrumb')?.offsetHeight || 0;
+            const top  = card.getBoundingClientRect().top + window.scrollY - navH - bcH - 12;
+            window.scrollTo({ top, behavior: 'smooth' });
+          }
+        });
+        row.appendChild(btn);
+      });
+    }
+
+    addPills(commRow, commVendors, commVendorsRaw);
+    addPills(ossRow,  ossVendors, ossVendorsRaw);
+
+    // Adjust positions dynamically based on actual nav height
+    const main = document.getElementById('main');
+    if (main) {
+      requestAnimationFrame(() => {
+        const h = navEl.offsetHeight;
+        // Position breadcrumb and progress bar relative to actual nav height
+        const bc = document.getElementById('breadcrumb');
+        const rp = document.getElementById('readProgress');
+        if (bc) bc.style.top = h + 'px';
+        if (rp) rp.style.top = (h - 1) + 'px';
+        main.style.paddingTop = (h + 40) + 'px'; // nav + breadcrumb + breathing room
+        // Sidebar no longer needs extra padding — nav only spans content area
+      });
+    }
+
+    // IntersectionObserver to track active vendor card
+    if (_snavObs) _snavObs.disconnect();
+    _snavObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const name = e.target.dataset.vendor;
+          document.querySelectorAll('.snav-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll(`.snav-btn[data-vendor="${CSS.escape(name)}"]`)
+            .forEach(b => b.classList.add('active'));
+        }
+      });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('.vendor-card').forEach(c => _snavObs.observe(c));
+  }
+
+  // ── #8 insertVendorFilterBar ─────────────────────────────────────────────────
+  function insertVendorFilterBar() {
+    let targetH2 = null;
+    for (const h2 of document.querySelectorAll('#content h2')) {
+      if (/Competitive Positioning/i.test(h2.textContent)) { targetH2 = h2; break; }
+    }
+    if (!targetH2) return;
+
+    // Remove existing bar if re-rendered
+    const existing = document.getElementById('vendorFilterBar');
+    if (existing) existing.remove();
+
+    const bar = document.createElement('div');
+    bar.id = 'vendorFilterBar';
+    bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 20px;align-items:center;';
+    bar.innerHTML =
+      `<span style="font-size:11px;color:#6e7681;font-weight:600;">FILTER:</span>` +
+      `<button class="vfbtn active" data-filter="all">All Vendors</button>` +
+      `<button class="vfbtn" data-filter="commercial">Commercial</button>` +
+      `<button class="vfbtn" data-filter="oss">OSS</button>` +
+      `<button class="vfbtn" data-filter="leader">Leaders</button>` +
+      `<button class="vfbtn" data-filter="challenger">Challengers</button>`;
+
+    targetH2.parentNode.insertBefore(bar, targetH2);
+
+    bar.querySelectorAll('.vfbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        bar.querySelectorAll('.vfbtn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _applyVendorFilter(btn.dataset.filter);
+      });
+    });
+  }
+
+  function _applyVendorFilter(filter) {
+    [window._mqChart, window._gmqChart, window._waveChart].forEach(chart => {
+      if (!chart) return;
+      chart.data.datasets.forEach((ds, dsIdx) => {
+        // Store original colours once
+        const key = chart.canvas.id + '_' + dsIdx;
+        if (!_origChartColors.has(key)) {
+          _origChartColors.set(key, {
+            bg:     ds.backgroundColor,
+            border: ds.borderColor,
+          });
+        }
+        const orig = _origChartColors.get(key);
+
+        // Determine if this dataset matches the filter
+        let match = false;
+        if (filter === 'all') {
+          match = true;
+        } else {
+          // For scatter/bubble charts: each dataset has a label (quadrant name) and
+          // individual point labels. Check each point's label against exact sets.
+          const pointLabels = ds.data.map(pt => pt.label || ds.label);
+          if (filter === 'commercial') match = pointLabels.some(l => COMMERCIAL_LABELS.has(l));
+          else if (filter === 'oss')   match = pointLabels.some(l => OSS_LABELS.has(l));
+          else if (filter === 'leader')      match = pointLabels.some(l => LEADER_LABELS.has(l));
+          else if (filter === 'challenger')  match = pointLabels.some(l => CHALLENGER_LABELS.has(l));
+          // For line chart (Value Curve): dataset.label is the vendor name
+          if (!match && COMMERCIAL_LABELS.has(ds.label)) {
+            if (filter === 'commercial') match = true;
+          }
+          if (!match && OSS_LABELS.has(ds.label)) {
+            if (filter === 'oss') match = true;
+          }
+          if (!match && LEADER_LABELS.has(ds.label)) {
+            if (filter === 'leader') match = true;
+          }
+          if (!match && CHALLENGER_LABELS.has(ds.label)) {
+            if (filter === 'challenger') match = true;
+          }
+        }
+
+        if (match) {
+          ds.backgroundColor = orig.bg;
+          ds.borderColor     = orig.border;
+        } else {
+          // Append '22' alpha to hex colour for dimming, or use rgba fallback
+          const bg = typeof orig.bg === 'string' && orig.bg.startsWith('#')
+            ? orig.bg.slice(0, 7) + '22' : 'rgba(200,200,200,0.08)';
+          const bd = typeof orig.border === 'string' && orig.border.startsWith('#')
+            ? orig.border.slice(0, 7) + '22' : 'rgba(200,200,200,0.15)';
+          ds.backgroundColor = bg;
+          ds.borderColor     = bd;
+        }
+      });
+      chart.update('none');
+    });
+  }
+
+  // ── #7 wrapVendorNameLinks + comparison drawer ────────────────────────────────
+  function wrapVendorNameLinks() {
+    const content = document.getElementById('content');
+    if (!content) return;
+
+    const names = [...ALL_VENDORS].sort((a, b) => b.length - a.length);
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        let el = node.parentElement;
+        while (el && el !== content) {
+          if (['A','CODE','PRE','SCRIPT','STYLE','H1','H2','H3'].includes(el.tagName))
+            return NodeFilter.FILTER_REJECT;
+          if (el.classList && el.classList.contains('vname-link'))
+            return NodeFilter.FILTER_REJECT;
+          el = el.parentElement;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    const nodes = [];
+    let nd;
+    while ((nd = walker.nextNode())) nodes.push(nd);
+
+    for (const tn of nodes) {
+      let result = tn.textContent;
+      let replaced = false;
+      for (const name of names) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`\\b${escaped}\\b`, 'g');
+        if (re.test(result)) {
+          result = result.replace(
+            new RegExp(`\\b${escaped}\\b`, 'g'),
+            `<span class="vname-link" data-vendor="${name}">${name}</span>`
+          );
+          replaced = true;
+        }
+      }
+      if (replaced) {
+        const sp = document.createElement('span');
+        sp.innerHTML = result;
+        tn.parentNode.replaceChild(sp, tn);
+      }
+    }
+
+    // Attach event listeners (no inline onclick)
+    document.querySelectorAll('.vname-link').forEach(el => {
+      el.addEventListener('click', () => _toggleCompare(el.dataset.vendor));
+    });
+  }
+
+  function _showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('fade');
+      setTimeout(() => t.remove(), 600);
+    }, 2000);
+  }
+
+  function _toggleCompare(vendor) {
+    if (_compareSet.has(vendor)) {
+      _compareSet.delete(vendor);
+      document.querySelectorAll(`.vname-link[data-vendor="${CSS.escape(vendor)}"]`)
+        .forEach(el => el.style.background = '');
+    } else {
+      if (_compareSet.size >= 4) { _showToast('Max 4 vendors for comparison'); return; }
+      _compareSet.add(vendor);
+      document.querySelectorAll(`.vname-link[data-vendor="${CSS.escape(vendor)}"]`)
+        .forEach(el => el.style.background = '#e8f4fd');
+    }
+    _updateCompareBadge();
+    _renderCompareTable();
+  }
+
+  function _updateCompareBadge() {
+    const badge = document.getElementById('compareBadge');
+    if (!badge) return;
+    if (_compareSet.size > 0) {
+      badge.textContent = _compareSet.size;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function _renderCompareTable() {
+    const wrap = document.getElementById('compareTableWrap');
+    if (!wrap) return;
+    if (_compareSet.size === 0) {
+      wrap.innerHTML = '<p style="font-size:12px;color:#8b949e;">Click vendor names in the report to add them here (max 4).</p>';
+      return;
+    }
+
+    const vendors = [..._compareSet];
+    const allVc = [...VC_COMMERCIAL, ...VC_OSS];
+    const lookup = {};
+    allVc.forEach(v => { lookup[v.label] = v.data; });
+    VC_OSS.forEach(v => { lookup[v.label.replace(' (OSS)','')] = v.data; });
+
+    const headerCols = vendors.map(v =>
+      `<th style="padding:6px 8px;background:#f6f8fa;border:1px solid #d0d7de;text-align:center;">${v}</th>`
+    ).join('');
+
+    const bodyRows = VC_KCFS.map((kcf, i) => {
+      const cells = vendors.map(v => {
+        const data  = lookup[v];
+        const score = data ? data[i] : null;
+        const bg    = score !== null ? (SCORE_BG[score] || '#f6f8fa') : '#f6f8fa';
+        return `<td style="padding:6px 8px;border:1px solid #d0d7de;text-align:center;background:${bg};">${score !== null ? score : '—'}</td>`;
+      }).join('');
+      return `<tr><td style="padding:6px 8px;border:1px solid #d0d7de;font-weight:500;">${kcf}</td>${cells}</tr>`;
+    }).join('');
+
+    const removeLinks = vendors.map(v =>
+      `<span class="cmp-remove" data-vendor="${v}" style="margin-right:8px;cursor:pointer;color:#cf222e;font-size:12px;">✕ ${v}</span>`
+    ).join('');
+
+    wrap.innerHTML =
+      `<div style="margin-bottom:10px;">${removeLinks}</div>` +
+      `<table style="width:100%;border-collapse:collapse;font-size:12px;">` +
+      `<thead><tr><th style="text-align:left;padding:6px 8px;background:#f6f8fa;border:1px solid #d0d7de;">KCF</th>${headerCols}</tr></thead>` +
+      `<tbody>${bodyRows}</tbody></table>`;
+
+    wrap.querySelectorAll('.cmp-remove').forEach(el => {
+      el.addEventListener('click', () => _toggleCompare(el.dataset.vendor));
+    });
+  }
+
+  // ── #11 setupChartObserver ───────────────────────────────────────────────────
+  function setupChartObserver() {
+    if (_chartObs) _chartObs.disconnect();
+    _chartObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          _chartObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' });
+    document.querySelectorAll('.chart-frame').forEach(el => _chartObs.observe(el));
+  }
+
+  // ── #12 setupBreadcrumbObserver (scroll-based for reliability) ──────────────
+  let _bcScrollHandler = null;
+  function setupBreadcrumbObserver() {
+    // Remove previous handler if exists
+    if (_bcScrollHandler) {
+      window.removeEventListener('scroll', _bcScrollHandler, true);
+      window.removeEventListener('scrolltick', _bcScrollHandler);
+    }
+
+    // Collect all visible H2/H3 from content
+    const headings = Array.from(document.querySelectorAll('#content h2, #content h3'))
+      .filter(h => h.offsetParent !== null); // only visible ones
+
+    _bcScrollHandler = function() {
+      const navH = document.getElementById('solutionNav')?.offsetHeight || 125;
+      const threshold = navH + 40;
+      let curH2 = '', curH3 = '';
+      for (const h of headings) {
+        const top = h.getBoundingClientRect().top;
+        if (top > threshold) break;
+        if (h.tagName === 'H2') {
+          curH2 = h.textContent.replace(/^[▸▾]\s*/, '').trim();
+          curH3 = '';
+        } else if (h.tagName === 'H3') {
+          curH3 = h.textContent.replace(/^[▸▾]\s*/, '').trim();
+        }
+      }
+      if (_bcSection) _bcSection.textContent = curH2;
+      if (_bcSub)     _bcSub.textContent = curH3;
+      if (_bcSep)     _bcSep.style.display = curH3 ? 'inline' : 'none';
+    };
+    window.addEventListener('scroll', _bcScrollHandler, { passive: true });
+    window.addEventListener('scrolltick', _bcScrollHandler); // fallback for sandboxed envs
+    // Fire once immediately
+    _bcScrollHandler();
+  }
+
+})();
+</script>
+</body>
+</html>

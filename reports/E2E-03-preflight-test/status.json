@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-03-16T10:06:39.976872",
+  "mode": "REGULAR",
+  "platforms": [
+    {
+      "platform": "claude_ai",
+      "display_name": "Claude.ai",
+      "status": "rate_limited",
+      "chars": 0,
+      "file": "",
+      "mode_used": "",
+      "error": "Pre-flight blocked: Cooldown active (43s / 300s)",
+      "duration_s": 0
+    }
+  ]
+}

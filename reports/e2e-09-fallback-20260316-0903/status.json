@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-03-16T09:04:42.730158",
+  "mode": "REGULAR",
+  "platforms": [
+    {
+      "platform": "perplexity",
+      "display_name": "Perplexity",
+      "status": "complete",
+      "chars": 4224,
+      "file": "/Users/shafqat/Documents/Projects/devops-platforms/solution-research-skill-260303B/multi-ai-skills/reports/e2e-09-fallback-20260316-0903/Perplexity-raw-response.md",
+      "mode_used": "Sonar",
+      "error": "",
+      "duration_s": 49.1
+    }
+  ]
+}
