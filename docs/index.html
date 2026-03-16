@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>multi-ai-skills — Multi-AI Orchestration for Claude Code</title>
+<meta name="description" content="Submit research prompts to 7 AI platforms simultaneously, synthesise results, and produce structured reports — all from Claude Code.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ───── RESET ───── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+
+/* ───── DESIGN TOKENS ───── */
+:root{
+  --bg-page:#0a0a0f;
+  --bg-card:#12121a;
+  --bg-card-hover:#181825;
+  --bg-code:#1a1a2e;
+  --bg-hero:linear-gradient(135deg,#0a0a1a 0%,#0f0f2e 40%,#1a0a2e 100%);
+  --accent:#6366f1;
+  --accent-light:#818cf8;
+  --accent-glow:rgba(99,102,241,.15);
+  --accent2:#a78bfa;
+  --accent3:#f472b6;
+  --green:#34d399;
+  --amber:#fbbf24;
+  --red:#f87171;
+  --cyan:#22d3ee;
+  --text-primary:#e2e8f0;
+  --text-secondary:#94a3b8;
+  --text-dim:#64748b;
+  --border:#1e293b;
+  --border-hover:#334155;
+  --radius:12px;
+  --radius-lg:20px;
+  --radius-sm:8px;
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.4);
+  --shadow-glow:0 0 40px rgba(99,102,241,.08);
+}
+
+body{
+  font-family:var(--font-sans);
+  background:var(--bg-page);
+  color:var(--text-primary);
+  line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* ───── UTILITIES ───── */
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+@media(min-width:901px) and (max-width:1100px){.grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}}
+.text-center{text-align:center}
+.mt-2{margin-top:16px}.mt-3{margin-top:24px}.mt-4{margin-top:32px}.mt-6{margin-top:48px}.mt-8{margin-top:64px}
+.mb-2{margin-bottom:16px}.mb-4{margin-bottom:32px}
+.tag{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:600;letter-spacing:.03em}
+.tag-purple{background:rgba(99,102,241,.15);color:var(--accent-light)}
+.tag-green{background:rgba(52,211,153,.12);color:var(--green)}
+.tag-amber{background:rgba(251,191,36,.12);color:var(--amber)}
+.tag-pink{background:rgba(244,114,182,.12);color:var(--accent3)}
+.tag-cyan{background:rgba(34,211,238,.12);color:var(--cyan)}
+
+/* ───── NAV ───── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(10,10,15,.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+}
+nav .nav-inner{
+  max-width:1200px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  height:64px;
+}
+nav .logo{
+  font-weight:800;font-size:1.1rem;
+  background:linear-gradient(135deg,var(--accent-light),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.02em;
+}
+nav .nav-links{display:flex;gap:28px;list-style:none}
+nav .nav-links a{
+  color:var(--text-secondary);text-decoration:none;font-size:.875rem;
+  font-weight:500;transition:color .2s;
+}
+nav .nav-links a:hover{color:var(--text-primary)}
+nav .nav-cta{
+  background:var(--accent);color:#fff;padding:8px 20px;border-radius:999px;
+  font-size:.8rem;font-weight:600;text-decoration:none;
+  transition:all .2s;border:none;cursor:pointer;
+}
+nav .nav-cta:hover{background:var(--accent-light);box-shadow:0 0 20px rgba(99,102,241,.3)}
+.nav-toggle{display:none;background:none;border:none;color:var(--text-primary);font-size:1.5rem;cursor:pointer}
+@media(max-width:768px){
+  nav .nav-links{display:none}
+  .nav-toggle{display:block}
+  nav .nav-links.active{
+    display:flex;flex-direction:column;position:absolute;
+    top:64px;left:0;right:0;background:rgba(10,10,15,.97);
+    padding:20px 24px;gap:16px;border-bottom:1px solid var(--border);
+  }
+}
+
+/* ───── HERO ───── */
+.hero{
+  background:var(--bg-hero);
+  padding:140px 24px 100px;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;top:-200px;right:-200px;
+  width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(99,102,241,.08) 0%,transparent 70%);
+}
+.hero::after{
+  content:'';position:absolute;bottom:-150px;left:-100px;
+  width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(167,139,250,.06) 0%,transparent 70%);
+}
+.hero .container{position:relative;z-index:1}
+.hero .version-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);
+  border-radius:999px;padding:6px 16px;font-size:.8rem;
+  color:var(--accent-light);font-weight:500;margin-bottom:24px;
+}
+.hero .version-badge .dot{
+  width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{
+  font-size:clamp(2.5rem,5vw,4.5rem);font-weight:900;
+  line-height:1.1;letter-spacing:-.04em;
+  max-width:800px;margin:0 auto 24px;
+}
+.hero h1 .gradient{
+  background:linear-gradient(135deg,var(--accent-light) 0%,var(--accent2) 50%,var(--accent3) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero .subtitle{
+  font-size:1.2rem;color:var(--text-secondary);max-width:640px;
+  margin:0 auto 40px;line-height:1.7;
+}
+.hero .cta-group{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:999px;font-size:.9rem;
+  font-weight:600;text-decoration:none;transition:all .25s;
+  border:none;cursor:pointer;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#7c3aed);
+  color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.3);
+}
+.btn-primary:hover{
+  box-shadow:0 8px 30px rgba(99,102,241,.4);transform:translateY(-2px);
+}
+.btn-outline{
+  background:transparent;color:var(--text-primary);
+  border:1px solid var(--border-hover);
+}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent-light)}
+
+/* ───── ARCHITECTURE DIAGRAM ───── */
+.arch-diagram{
+  background:var(--bg-code);border:1px solid var(--border);
+  border-radius:var(--radius);padding:32px;
+  font-family:var(--font-mono);font-size:.8rem;
+  line-height:1.8;color:var(--text-secondary);
+  overflow-x:auto;white-space:pre;
+  max-width:700px;margin:0 auto;
+}
+.arch-diagram .hl-purple{color:var(--accent-light)}
+.arch-diagram .hl-green{color:var(--green)}
+.arch-diagram .hl-pink{color:var(--accent3)}
+.arch-diagram .hl-amber{color:var(--amber)}
+.arch-diagram .hl-cyan{color:var(--cyan)}
+
+/* ───── SECTION HEADINGS ───── */
+section{padding:80px 0}
+section:nth-child(even){background:rgba(18,18,26,.4)}
+.section-label{
+  text-transform:uppercase;font-size:.75rem;font-weight:700;
+  letter-spacing:.12em;color:var(--accent-light);margin-bottom:12px;
+}
+.section-title{
+  font-size:clamp(1.8rem,3vw,2.5rem);font-weight:800;
+  letter-spacing:-.03em;margin-bottom:16px;line-height:1.2;
+}
+.section-desc{
+  font-size:1rem;color:var(--text-secondary);max-width:600px;
+  margin-bottom:48px;
+}
+.section-desc.centered{margin-left:auto;margin-right:auto}
+
+/* ───── PLATFORM STRIP ───── */
+.platform-strip{
+  display:flex;gap:16px;justify-content:center;flex-wrap:wrap;
+  padding:32px 0;
+}
+.platform-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 20px;border-radius:999px;
+  background:var(--bg-card);border:1px solid var(--border);
+  font-size:.85rem;font-weight:500;color:var(--text-secondary);
+  transition:all .25s;
+}
+.platform-pill:hover{
+  border-color:var(--accent);color:var(--text-primary);
+  box-shadow:var(--shadow-glow);transform:translateY(-2px);
+}
+.platform-pill .p-dot{width:8px;height:8px;border-radius:50%}
+
+/* ───── FEATURE CARDS ───── */
+.feature-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:32px;
+  transition:all .3s;position:relative;overflow:hidden;
+}
+.feature-card:hover{
+  border-color:var(--border-hover);
+  box-shadow:var(--shadow-glow);transform:translateY(-4px);
+}
+.feature-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;
+  height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.feature-card:hover::before{opacity:1}
+.feature-icon{
+  width:48px;height:48px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;margin-bottom:16px;
+}
+.feature-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.feature-card p{font-size:.9rem;color:var(--text-secondary);line-height:1.6}
+
+/* ───── SKILLS SECTION ───── */
+.skill-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+  transition:all .3s;
+}
+.skill-card:hover{border-color:var(--border-hover);box-shadow:var(--shadow-glow)}
+.skill-header{padding:28px 28px 0}
+.skill-header .skill-name{
+  font-family:var(--font-mono);font-size:.9rem;
+  color:var(--accent-light);margin-bottom:4px;font-weight:600;
+}
+.skill-header h3{font-size:1.25rem;font-weight:700;margin-bottom:8px}
+.skill-header p{font-size:.875rem;color:var(--text-secondary);margin-bottom:16px}
+.skill-phases{padding:0 28px 28px}
+.skill-phase{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:8px 0;border-top:1px solid rgba(30,41,59,.5);
+}
+.skill-phase:first-child{border-top:none}
+.phase-num{
+  min-width:28px;height:28px;border-radius:50%;
+  background:var(--accent-glow);color:var(--accent-light);
+  font-size:.75rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);
+}
+.phase-text{font-size:.8rem;color:var(--text-secondary);padding-top:3px}
+
+/* ───── INSTALL SECTION ───── */
+.install-block{
+  background:var(--bg-code);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;
+  max-width:680px;margin:0 auto;
+}
+.install-tabs{
+  display:flex;border-bottom:1px solid var(--border);
+}
+.install-tab{
+  flex:1;padding:12px 20px;text-align:center;
+  font-size:.8rem;font-weight:600;color:var(--text-dim);
+  background:none;border:none;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.install-tab.active{color:var(--accent-light)}
+.install-tab.active::after{
+  content:'';position:absolute;bottom:0;left:20%;right:20%;
+  height:2px;background:var(--accent);border-radius:2px;
+}
+.install-code{
+  padding:24px;font-family:var(--font-mono);font-size:.82rem;
+  line-height:2;color:var(--text-secondary);display:none;
+}
+.install-code.active{display:block}
+.install-code .comment{color:var(--text-dim)}
+.install-code .cmd{color:var(--green)}
+.install-code .flag{color:var(--accent2)}
+
+/* ───── HOW IT WORKS ───── */
+.flow-steps{
+  display:flex;gap:0;align-items:stretch;justify-content:center;
+  flex-wrap:wrap;
+}
+.flow-step{
+  flex:1;min-width:200px;max-width:260px;
+  text-align:center;padding:24px 16px;
+  position:relative;
+}
+.flow-step:not(:last-child)::after{
+  content:'\2192';position:absolute;right:-12px;top:50%;
+  transform:translateY(-50%);color:var(--text-dim);font-size:1.5rem;
+}
+@media(max-width:900px){
+  .flow-step:not(:last-child)::after{content:'\2193';right:auto;bottom:-16px;top:auto;left:50%;transform:translateX(-50%)}
+}
+.flow-num{
+  width:40px;height:40px;border-radius:50%;margin:0 auto 12px;
+  background:linear-gradient(135deg,var(--accent),#7c3aed);
+  color:#fff;font-weight:700;font-size:.9rem;
+  display:flex;align-items:center;justify-content:center;
+}
+.flow-step h4{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.flow-step p{font-size:.8rem;color:var(--text-secondary)}
+
+/* ───── COMPARISON TABLE ───── */
+.comparison-table{width:100%;border-collapse:collapse;margin-top:32px}
+.comparison-table th{
+  text-align:left;padding:12px 16px;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.08em;
+  color:var(--text-dim);border-bottom:2px solid var(--border);
+}
+.comparison-table td{
+  padding:14px 16px;font-size:.875rem;
+  border-bottom:1px solid rgba(30,41,59,.4);
+  color:var(--text-secondary);
+}
+.comparison-table td:first-child{color:var(--text-primary);font-weight:600}
+.comparison-table tr:hover td{background:rgba(99,102,241,.03)}
+.check{color:var(--green);font-weight:700}
+.cross{color:var(--text-dim)}
+
+/* ───── STATS BAR ───── */
+.stats-bar{
+  display:flex;justify-content:center;gap:48px;flex-wrap:wrap;
+  padding:40px 0;
+}
+.stat{text-align:center}
+.stat .stat-num{
+  font-size:2.5rem;font-weight:900;
+  background:linear-gradient(135deg,var(--accent-light),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.03em;
+}
+.stat .stat-label{font-size:.8rem;color:var(--text-dim);margin-top:4px;font-weight:500}
+
+/* ───── CODE BLOCKS ───── */
+.code-block{
+  background:var(--bg-code);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:20px 24px;
+  font-family:var(--font-mono);font-size:.82rem;
+  line-height:1.8;color:var(--text-secondary);
+  overflow-x:auto;
+}
+.code-block .prompt{color:var(--green)}
+.code-block .string{color:var(--amber)}
+.code-block .flag{color:var(--accent2)}
+.code-block .comment{color:var(--text-dim)}
+
+/* ───── TESTIMONIAL / CALLOUT ───── */
+.callout{
+  background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(167,139,250,.05));
+  border:1px solid rgba(99,102,241,.2);
+  border-radius:var(--radius-lg);padding:40px;
+  text-align:center;max-width:700px;margin:0 auto;
+}
+.callout .callout-icon{font-size:2rem;margin-bottom:12px}
+.callout p{font-size:1.05rem;color:var(--text-secondary);line-height:1.7}
+.callout strong{color:var(--text-primary)}
+
+/* ───── FOOTER ───── */
+footer{
+  border-top:1px solid var(--border);padding:48px 0;
+  color:var(--text-dim);font-size:.85rem;
+}
+footer .footer-inner{
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:16px;
+}
+footer a{color:var(--text-secondary);text-decoration:none}
+footer a:hover{color:var(--accent-light)}
+footer .footer-links{display:flex;gap:24px}
+
+/* ───── ANIMATIONS ───── */
+.fade-in{opacity:0;transform:translateY(20px);transition:all .6s ease-out}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ────── NAV ────── -->
+<nav>
+  <div class="nav-inner">
+    <span class="logo">multi-ai-skills</span>
+    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#platforms">Platforms</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#docs">Docs</a></li>
+    </ul>
+    <a href="https://github.com/alo-exp/multi-ai-skills" class="nav-cta" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<!-- ────── HERO ────── -->
+<section class="hero text-center">
+  <div class="container">
+    <div class="version-badge"><span class="dot"></span> v4.0.1 &mdash; Claude Code Plugin</div>
+    <h1>Query <span class="gradient">7 AI Platforms</span> at Once</h1>
+    <p class="subtitle">
+      A Claude Code plugin that submits research prompts to Claude.ai, ChatGPT, Copilot, Perplexity, Grok, DeepSeek &amp; Gemini in parallel &mdash; then synthesises the results into structured reports, landscape analyses, and comparison matrices.
+    </p>
+    <div class="cta-group">
+      <a href="#install" class="btn btn-primary">Get Started</a>
+      <a href="https://github.com/alo-exp/multi-ai-skills" class="btn btn-outline" target="_blank">View on GitHub &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ────── STATS BAR ────── -->
+<div style="background:var(--bg-card);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-num">7</div><div class="stat-label">AI Platforms</div></div>
+      <div class="stat"><div class="stat-num">5</div><div class="stat-label">Skills</div></div>
+      <div class="stat"><div class="stat-num">58</div><div class="stat-label">Unit Tests</div></div>
+      <div class="stat"><div class="stat-num">2</div><div class="stat-label">Modes (DEEP / REGULAR)</div></div>
+      <div class="stat"><div class="stat-num">0</div><div class="stat-label">API Keys Required</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ────── PLATFORMS ────── -->
+<section id="platforms">
+  <div class="container text-center">
+    <div class="section-label">Supported Platforms</div>
+    <h2 class="section-title">One prompt. Seven perspectives.</h2>
+    <p class="section-desc centered">
+      Each platform brings a different training set, reasoning style, and search index. Multi-AI Skills queries all seven simultaneously via Playwright browser automation &mdash; no API keys needed.
+    </p>
+    <div class="platform-strip">
+      <div class="platform-pill"><span class="p-dot" style="background:#d97706"></span>Claude.ai</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#10b981"></span>ChatGPT</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#3b82f6"></span>Copilot</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#6366f1"></span>Perplexity</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#ef4444"></span>Grok</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#8b5cf6"></span>DeepSeek</div>
+      <div class="platform-pill"><span class="p-dot" style="background:#2563eb"></span>Gemini</div>
+    </div>
+    <div style="margin-top:32px">
+      <table class="comparison-table" style="max-width:800px;margin:0 auto">
+        <thead><tr><th>Platform</th><th>Free Tier</th><th>DEEP Mode</th><th>Agent Fallback</th></tr></thead>
+        <tbody>
+          <tr><td>Claude.ai</td><td class="check">&#10003;</td><td class="check">&#10003; Pro plan</td><td class="check">&#10003;</td></tr>
+          <tr><td>ChatGPT</td><td class="check">&#10003;</td><td class="check">&#10003; Plus plan</td><td class="check">&#10003;</td></tr>
+          <tr><td>Microsoft Copilot</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+          <tr><td>Perplexity</td><td class="check">&#10003;</td><td class="check">&#10003; Pro plan</td><td class="check">&#10003;</td></tr>
+          <tr><td>Grok</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+          <tr><td>DeepSeek</td><td class="check">&#10003;</td><td class="check">&#10003; DeepThink</td><td class="check">&#10003;</td></tr>
+          <tr><td>Google Gemini</td><td class="check">&#10003;</td><td class="check">&#10003; Deep Research</td><td class="check">&#10003;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ────── FEATURES ────── -->
+<section id="features">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-label">Capabilities</div>
+      <h2 class="section-title">Everything you need for multi-AI research</h2>
+      <p class="section-desc centered">From parallel submission to structured reports — built into your Claude Code workflow.</p>
+    </div>
+    <div class="grid grid-3 mt-6">
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#9881;</div>
+        <h3>Intelligent Routing</h3>
+        <p>The orchestrator analyses your intent and routes to the correct skill automatically &mdash; landscape, solution, comparator, or direct multi-AI.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#9889;</div>
+        <h3>Parallel Execution</h3>
+        <p>All 7 platforms run concurrently via <code>asyncio.gather()</code>. A typical REGULAR-mode run completes in under 90 seconds.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)">&#128202;</div>
+        <h3>DEEP Research Mode</h3>
+        <p>Activates each platform's research/think mode (Deep Research, DeepThink, etc.) for comprehensive answers with citations.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(251,191,36,.12);color:var(--amber)">&#128203;</div>
+        <h3>Structured Reports</h3>
+        <p>Consolidator synthesises raw responses into structured deliverables &mdash; CIRs, 9-section landscape reports, or free-form summaries.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)">&#128200;</div>
+        <h3>XLSX Comparison Matrix</h3>
+        <p>Maintain a capability matrix with weighted scores, combo columns, and auto-reordering. All via Python scripts.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(167,139,250,.12);color:var(--accent2)">&#128274;</div>
+        <h3>Rate Limiting</h3>
+        <p>Per-platform budgets, cooldowns, and daily caps &mdash; persisted across sessions. Never get rate-limited again.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)">&#129302;</div>
+        <h3>Agent Fallback</h3>
+        <p>When a Playwright selector fails, a vision-based <code>browser-use</code> agent takes over &mdash; powered by Claude Sonnet or Gemini Flash.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#128736;</div>
+        <h3>Self-Improving Skills</h3>
+        <p>Each skill appends a timestamped run log after every execution and can update its own templates and scripts based on learnings.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#127757;</div>
+        <h3>Shared Domain Knowledge</h3>
+        <p><code>domains/{domain}.md</code> is enriched by both research skills after every run. New archetypes, terminology, and trends persist across sessions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── SKILLS ────── -->
+<section id="skills">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-label">Skills</div>
+      <h2 class="section-title">Five skills, one coherent pipeline</h2>
+      <p class="section-desc centered">Each skill handles a specific research workflow. The orchestrator routes automatically &mdash; or you can invoke directly.</p>
+    </div>
+
+    <div class="grid grid-2 mt-6" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">
+
+      <!-- Orchestrator -->
+      <div class="skill-card fade-in">
+        <div class="skill-header">
+          <div class="skill-name">/multi-ai-skills:orchestrator</div>
+          <h3>Orchestrator</h3>
+          <p>Intelligent router + engine owner. Entry point for all workflows.</p>
+          <span class="tag tag-purple">Router</span>
+          <span class="tag tag-green">Engine</span>
+        </div>
+        <div class="skill-phases">
+          <div class="skill-phase"><div class="phase-num">0</div><div class="phase-text">Route decision &mdash; landscape, solution, comparator, or direct</div></div>
+          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Prompt confirmed / built</div></div>
+          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Pre-flight rate limit check + budget display</div></div>
+          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine invoked &mdash; parallel 7-platform submission</div></div>
+          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Results reviewed + consolidation</div></div>
+        </div>
+      </div>
+
+      <!-- Landscape Researcher -->
+      <div class="skill-card fade-in">
+        <div class="skill-header">
+          <div class="skill-name">/multi-ai-skills:landscape-researcher</div>
+          <h3>Landscape Researcher</h3>
+          <p>Produces 9-section Market Landscape Reports for any solution category.</p>
+          <span class="tag tag-pink">Research</span>
+          <span class="tag tag-amber">9 Sections</span>
+        </div>
+        <div class="skill-phases">
+          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Extract: category, audience, scope modifiers</div></div>
+          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Build prompt from template + domain knowledge</div></div>
+          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine run (DEEP mode, all platforms)</div></div>
+          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Consolidate into 9-section report</div></div>
+          <div class="skill-phase"><div class="phase-num">5</div><div class="phase-text">Launch report viewer + domain enrichment</div></div>
+        </div>
+      </div>
+
+      <!-- Solution Researcher -->
+      <div class="skill-card fade-in">
+        <div class="skill-header">
+          <div class="skill-name">/multi-ai-skills:solution-researcher</div>
+          <h3>Solution Researcher</h3>
+          <p>Deep-dive on a specific product &mdash; capabilities, pricing, competitive context.</p>
+          <span class="tag tag-cyan">Product</span>
+          <span class="tag tag-green">CIR</span>
+        </div>
+        <div class="skill-phases">
+          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Confirm product + scope + optional focus areas</div></div>
+          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Build research prompt from template</div></div>
+          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine run (DEEP mode) + consolidation into CIR</div></div>
+          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Optional: update comparison matrix</div></div>
+          <div class="skill-phase"><div class="phase-num">5</div><div class="phase-text">Domain knowledge enrichment</div></div>
+        </div>
+      </div>
+
+      <!-- Comparator -->
+      <div class="skill-card fade-in">
+        <div class="skill-header">
+          <div class="skill-name">/multi-ai-skills:comparator</div>
+          <h3>Comparator</h3>
+          <p>Maintains XLSX capability matrices with weighted scores and combo columns.</p>
+          <span class="tag tag-amber">XLSX</span>
+          <span class="tag tag-purple">Matrix</span>
+        </div>
+        <div class="skill-phases">
+          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Parse operation: add, score, reorder, combo, verify</div></div>
+          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Read CIR or feature list</div></div>
+          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Execute via matrix_ops.py / matrix_builder.py</div></div>
+          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Validate: orphan check, score recalc, reorder</div></div>
+        </div>
+      </div>
+
+      <!-- Consolidator -->
+      <div class="skill-card fade-in" style="grid-column:1/-1;max-width:500px;margin:0 auto">
+        <div class="skill-header">
+          <div class="skill-name">/multi-ai-skills:consolidator</div>
+          <h3>Consolidator</h3>
+          <p>Synthesises raw multi-AI responses into unified structured reports. Called automatically by other skills.</p>
+          <span class="tag tag-green">Synthesis</span>
+        </div>
+        <div class="skill-phases">
+          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Read raw archive + assess per-source reliability</div></div>
+          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Apply consolidation guide (if provided) as structural authority</div></div>
+          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Produce final report: consensus-first, union for 2+ sources</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── HOW IT WORKS ────── -->
+<section id="how-it-works">
+  <div class="container text-center">
+    <div class="section-label">Workflow</div>
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-desc centered">From natural language request to structured deliverable in four steps.</p>
+
+    <div class="flow-steps mt-6">
+      <div class="flow-step fade-in">
+        <div class="flow-num">1</div>
+        <h4>Describe Your Goal</h4>
+        <p>"Research the DevOps platform landscape for SMBs"</p>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="flow-num">2</div>
+        <h4>Auto-Route</h4>
+        <p>Orchestrator selects landscape-researcher and builds the prompt</p>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="flow-num">3</div>
+        <h4>7-AI Parallel Run</h4>
+        <p>Playwright submits to all 7 platforms concurrently in DEEP mode</p>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="flow-num">4</div>
+        <h4>Structured Report</h4>
+        <p>Consolidator produces a 9-section landscape report with Top 20 vendors</p>
+      </div>
+    </div>
+
+    <div class="mt-8">
+      <div class="arch-diagram text-center">
+<span class="hl-amber">You</span> (Claude Code)
+  <span class="hl-purple">|</span>
+  <span class="hl-purple">v</span>
+<span class="hl-purple">Orchestrator</span> ── Phase 0: Route Decision
+  <span class="hl-purple">|</span>
+  <span class="hl-purple">|--></span> <span class="hl-pink">landscape-researcher</span>  --> engine --> consolidator --> report
+  <span class="hl-purple">|--></span> <span class="hl-cyan">solution-researcher</span>   --> engine --> consolidator --> CIR --> comparator
+  <span class="hl-purple">|--></span> <span class="hl-amber">comparator</span>             --> matrix_ops.py (direct)
+  <span class="hl-purple">|--></span> <span class="hl-green">direct multi-AI</span>        --> engine --> consolidator (generic)
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── INSTALL ────── -->
+<section id="install">
+  <div class="container text-center">
+    <div class="section-label">Installation</div>
+    <h2 class="section-title">Up and running in 2 commands</h2>
+    <p class="section-desc centered">Python dependencies install automatically on your first session via a SessionStart hook. No manual setup.</p>
+
+    <div class="install-block mt-4">
+      <div class="install-tabs">
+        <button class="install-tab active" onclick="switchTab(this, 'tab-plugin')">Plugin Install</button>
+        <button class="install-tab" onclick="switchTab(this, 'tab-cli')">Claude Code CLI</button>
+        <button class="install-tab" onclick="switchTab(this, 'tab-dev')">Dev / Clone</button>
+      </div>
+      <div id="tab-plugin" class="install-code active">
+<span class="comment"># Step 1 &mdash; Register the marketplace (one-time)</span>
+<span class="cmd">/plugin marketplace add</span> <span class="flag">alo-exp/multi-ai-skills</span>
+
+<span class="comment"># Step 2 &mdash; Install the plugin</span>
+<span class="cmd">/plugin install</span> <span class="flag">multi-ai-skills@multi-ai-skills</span>
+
+<span class="comment"># Done! Start a new session and all deps install automatically.</span>
+      </div>
+      <div id="tab-cli" class="install-code">
+<span class="comment"># Or use Claude Desktop GUI:</span>
+<span class="comment"># Browse Plugins > Personal > + > Add marketplace from GitHub</span>
+<span class="comment"># Enter: alo-exp/multi-ai-skills</span>
+<span class="comment"># Then install the multi-ai-skills plugin</span>
+
+<span class="comment"># Or from the CLI:</span>
+<span class="cmd">claude plugin marketplace add</span> <span class="flag">alo-exp/multi-ai-skills</span>
+<span class="cmd">claude plugin install</span> <span class="flag">multi-ai-skills@multi-ai-skills</span>
+      </div>
+      <div id="tab-dev" class="install-code">
+<span class="cmd">git clone</span> <span class="flag">https://github.com/alo-exp/multi-ai-skills.git</span>
+<span class="cmd">cd</span> multi-ai-skills
+<span class="cmd">bash</span> install.sh
+
+<span class="comment"># Load directly without marketplace registration:</span>
+<span class="cmd">claude</span> <span class="flag">--plugin-dir</span> ./multi-ai-skills
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <div class="callout">
+        <div class="callout-icon">&#128273;</div>
+        <p><strong>No API keys required for core functionality.</strong><br>
+        The engine uses Playwright browser automation with your existing Chrome logins. Optionally add <code>GOOGLE_API_KEY</code> (free) or <code>ANTHROPIC_API_KEY</code> for vision-based agent fallback.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── PREREQUISITES ────── -->
+<section id="prereqs">
+  <div class="container text-center">
+    <div class="section-label">Requirements</div>
+    <h2 class="section-title">Prerequisites</h2>
+    <div class="grid grid-4 mt-6" style="max-width:900px;margin-left:auto;margin-right:auto">
+      <div class="feature-card fade-in" style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:8px">&#128187;</div>
+        <h3 style="font-size:.95rem">macOS / Linux</h3>
+        <p style="font-size:.8rem">Primary target. Windows untested.</p>
+      </div>
+      <div class="feature-card fade-in" style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:8px">&#128013;</div>
+        <h3 style="font-size:.95rem">Python 3.10+</h3>
+        <p style="font-size:.8rem">3.13 for agent fallback</p>
+      </div>
+      <div class="feature-card fade-in" style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:8px">&#127760;</div>
+        <h3 style="font-size:.95rem">Google Chrome</h3>
+        <p style="font-size:.8rem">Logged in to AI platforms</p>
+      </div>
+      <div class="feature-card fade-in" style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:8px">&#9889;</div>
+        <h3 style="font-size:.95rem">Claude Code &ge;1.0.33</h3>
+        <p style="font-size:.8rem">CLI, Desktop, or Cowork</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── QUICK START EXAMPLES ────── -->
+<section id="examples">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-label">Examples</div>
+      <h2 class="section-title">Just describe what you need</h2>
+      <p class="section-desc centered">The orchestrator routes to the right skill based on your intent. No slash commands needed.</p>
+    </div>
+
+    <div class="grid grid-2 mt-6">
+      <div class="feature-card fade-in">
+        <span class="tag tag-pink mb-2">Landscape Research</span>
+        <div class="code-block mt-2" style="font-size:.82rem">
+<span class="string">"Run a market landscape analysis of Internal Developer Platforms for platform engineering teams"</span>
+
+<span class="comment">&#8594; Routes to landscape-researcher</span>
+<span class="comment">&#8594; 9-section report + Top 20 vendors</span>
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="tag tag-cyan mb-2">Solution Research</span>
+        <div class="code-block mt-2" style="font-size:.82rem">
+<span class="string">"Research Humanitec.com &#8212; I want a Competitive Intelligence Report covering their IDP capabilities"</span>
+
+<span class="comment">&#8594; Routes to solution-researcher</span>
+<span class="comment">&#8594; CIR + optional XLSX update</span>
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="tag tag-amber mb-2">Comparator</span>
+        <div class="code-block mt-2" style="font-size:.82rem">
+<span class="string">"Add Spinnaker to the comparison matrix based on the latest CIR"</span>
+
+<span class="comment">&#8594; Routes to comparator</span>
+<span class="comment">&#8594; Extracts features, ticks XLSX</span>
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="tag tag-green mb-2">Direct Multi-AI</span>
+        <div class="code-block mt-2" style="font-size:.82rem">
+<span class="string">"What are the main trade-offs between microservices and monoliths?"</span>
+
+<span class="comment">&#8594; Direct multi-AI run</span>
+<span class="comment">&#8594; 7 responses consolidated</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────── RATE LIMITING ────── -->
+<section>
+  <div class="container">
+    <div class="text-center">
+      <div class="section-label">Rate Limiting</div>
+      <h2 class="section-title">Built-in budget management</h2>
+      <p class="section-desc centered">Per-platform budgets, cooldowns, and daily caps prevent rate limiting. State persists across sessions.</p>
+    </div>
+    <div style="max-width:700px;margin:32px auto 0">
+      <table class="comparison-table">
+        <thead><tr><th>Tier</th><th>Budget / Session</th><th>Cooldown</th><th>Daily Cap</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-green">free</span></td><td>3 requests</td><td>30 min</td><td>5</td></tr>
+          <tr><td><span class="tag tag-purple">pro</span></td><td>10 requests</td><td>5 min</td><td>20</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ────── DOCS ────── -->
+<section id="docs">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-label">Documentation</div>
+      <h2 class="section-title">Comprehensive docs included</h2>
+    </div>
+    <div class="grid grid-3 mt-6">
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/USER-GUIDE.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#128214;</div>
+        <h3>User Guide</h3>
+        <p>Full 1,000-line reference: all skills, CLI flags, platform notes, troubleshooting.</p>
+      </a>
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/docs/Architecture-and-Design.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#127959;</div>
+        <h3>Architecture</h3>
+        <p>System topology, data flows, module design, interface contracts, design decisions.</p>
+      </a>
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/docs/SRS.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#128203;</div>
+        <h3>SRS</h3>
+        <p>Software Requirements Specification: functional requirements, use cases, constraints.</p>
+      </a>
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/docs/Test-Strategy-and-Plan.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#9989;</div>
+        <h3>Test Strategy</h3>
+        <p>58 unit tests, E2E test plan, test case reference, coverage matrix.</p>
+      </a>
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/docs/CICD-Strategy-and-Plan.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#128640;</div>
+        <h3>CI/CD Strategy</h3>
+        <p>Pipeline stages, make targets, deployment scope, regression checks.</p>
+      </a>
+      <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/CHANGELOG.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
+        <div style="font-size:1.5rem;margin-bottom:8px">&#128221;</div>
+        <h3>Changelog</h3>
+        <p>Version history from v2.0 through v4.0.1 with migration notes.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ────── PROJECT STRUCTURE ────── -->
+<section>
+  <div class="container text-center">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Self-contained skill ownership</h2>
+    <p class="section-desc centered">Each skill owns its scripts, templates, and guides. No shared engine at the root &mdash; skills are portable modules.</p>
+    <div class="code-block mt-4" style="max-width:680px;margin-left:auto;margin-right:auto;text-align:left">
+multi-ai-skills/
+<span class="flag">&#9500;&#9472;&#9472;</span> skills/
+<span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> <span class="hl-purple" style="color:var(--accent-light)">orchestrator/</span>         <span class="comment"># Router + Playwright engine</span>
+<span class="flag">&#9474;</span>   <span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> SKILL.md
+<span class="flag">&#9474;</span>   <span class="flag">&#9474;</span>   <span class="flag">&#9492;&#9472;&#9472;</span> engine/              <span class="comment"># orchestrator.py, platforms/, rate_limiter.py</span>
+<span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> <span style="color:var(--accent3)">landscape-researcher/</span> <span class="comment"># Market landscape reports</span>
+<span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> <span style="color:var(--cyan)">solution-researcher/</span>  <span class="comment"># Product deep-dives (CIR)</span>
+<span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> <span style="color:var(--amber)">comparator/</span>           <span class="comment"># XLSX matrix ops scripts</span>
+<span class="flag">&#9474;</span>   <span class="flag">&#9492;&#9472;&#9472;</span> <span style="color:var(--green)">consolidator/</span>         <span class="comment"># Response synthesis</span>
+<span class="flag">&#9500;&#9472;&#9472;</span> domains/                  <span class="comment"># Shared domain knowledge</span>
+<span class="flag">&#9500;&#9472;&#9472;</span> reports/                  <span class="comment"># Output + preview.html viewer</span>
+<span class="flag">&#9500;&#9472;&#9472;</span> tests/                    <span class="comment"># 58 pytest unit tests</span>
+<span class="flag">&#9492;&#9472;&#9472;</span> docs/                     <span class="comment"># SRS, Architecture, Test, CI/CD</span>
+    </div>
+  </div>
+</section>
+
+<!-- ────── FOOTER ────── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <span style="font-weight:700;color:var(--text-secondary)">multi-ai-skills</span>
+        <span style="margin-left:8px">v4.0.1 &bull; MIT License</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/alo-exp/multi-ai-skills" target="_blank">GitHub</a>
+        <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/USER-GUIDE.md" target="_blank">User Guide</a>
+        <a href="https://github.com/alo-exp/multi-ai-skills/issues" target="_blank">Issues</a>
+        <a href="https://github.com/alo-exp" target="_blank">alo-exp</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ────── SCRIPTS ────── -->
+<script>
+// Tab switching
+function switchTab(btn, tabId) {
+  btn.closest('.install-block').querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+  btn.closest('.install-block').querySelectorAll('.install-code').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// Scroll-triggered fade-in
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
