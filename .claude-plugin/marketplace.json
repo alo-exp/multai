@@ -1,5 +1,5 @@
 {
-  "name": "multi-ai-skills",
+  "name": "multai",
   "owner": {
     "name": "alo-exp"
   },
@@ -11,15 +11,15 @@
       "name": "multai",
       "source": {
         "source": "url",
-        "url": "https://github.com/alo-exp/multi-ai-skills.git"
+        "url": "https://github.com/alo-exp/multai.git"
       },
       "description": "MultAI — Submit research prompts to 7 AI platforms simultaneously (Claude.ai, ChatGPT, Copilot, Perplexity, Grok, DeepSeek, Gemini), synthesise results, maintain capability comparison matrices, and produce landscape reports — all from Claude Code.",
       "version": "4.0.1",
       "author": {
         "name": "alo-exp"
       },
-      "homepage": "https://github.com/alo-exp/multi-ai-skills",
-      "repository": "https://github.com/alo-exp/multi-ai-skills",
+      "homepage": "https://github.com/alo-exp/multai",
+      "repository": "https://github.com/alo-exp/multai",
       "license": "MIT",
       "keywords": ["multi-ai", "orchestration", "research", "playwright", "comparison-matrix", "rate-limiting", "deep-research"]
     }

@@ -41,9 +41,9 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/alo-exp/multi-ai-skills"
-"Bug Tracker" = "https://github.com/alo-exp/multi-ai-skills/issues"
-"User Guide" = "https://github.com/alo-exp/multi-ai-skills/blob/main/USER-GUIDE.md"
+Repository = "https://github.com/alo-exp/multai"
+"Bug Tracker" = "https://github.com/alo-exp/multai/issues"
+"User Guide" = "https://github.com/alo-exp/multai/blob/main/USER-GUIDE.md"
 
 [tool.setuptools.packages.find]
 where = ["."]

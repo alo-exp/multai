@@ -71,7 +71,7 @@ Playwright Engine ──► 7 AI Platforms ──► reports/
 
 ```shell
 # Step 1 — register the repo as a marketplace (one-time):
-/plugin marketplace add alo-exp/multi-ai-skills
+/plugin marketplace add alo-exp/multai
 
 # Step 2 — install the plugin from that marketplace:
 /plugin install multi-ai-skills@multi-ai-skills
@@ -90,7 +90,7 @@ Python dependencies (`playwright`, `openpyxl`, Chromium browser) are **installed
 ### Alternative — Local / Dev Install
 
 ```bash
-git clone https://github.com/alo-exp/multi-ai-skills.git
+git clone https://github.com/alo-exp/multai.git
 cd multi-ai-skills
 bash install.sh          # installs pip deps + Playwright Chromium + .env template
 # optional agent fallback:
@@ -404,4 +404,4 @@ MIT — see [LICENSE](LICENSE) or the `license` field in [`pyproject.toml`](pypr
 
 ## Author
 
-[alo-exp](https://github.com/alo-exp) · [GitHub](https://github.com/alo-exp/multi-ai-skills) · [User Guide](USER-GUIDE.md)
+[alo-exp](https://github.com/alo-exp) · [GitHub](https://github.com/alo-exp/multai) · [User Guide](USER-GUIDE.md)

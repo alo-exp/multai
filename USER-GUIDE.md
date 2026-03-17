@@ -113,7 +113,7 @@ Log in to these platforms in your regular Chrome profile before running:
 ### 3.1 Clone the Repository
 
 ```bash
-git clone https://github.com/alo-exp/multi-ai-skills.git
+git clone https://github.com/alo-exp/multai.git
 cd multi-ai-skills
 ```
 
