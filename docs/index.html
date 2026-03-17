@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>multi-ai-skills — Multi-AI Orchestration for Claude Code</title>
+<title>MultAI — Multi-AI Orchestration for Claude Code</title>
 <meta name="description" content="Submit research prompts to 7 AI platforms simultaneously, synthesise results, and produce structured reports — all from Claude Code.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -409,7 +409,7 @@ footer .footer-links{display:flex;gap:24px}
 <!-- ────── NAV ────── -->
 <nav>
   <div class="nav-inner">
-    <span class="logo">multi-ai-skills</span>
+    <span class="logo">MultAI</span>
     <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')" aria-label="Toggle menu">&#9776;</button>
     <ul class="nav-links">
       <li><a href="#features">Features</a></li>
@@ -426,8 +426,8 @@ footer .footer-links{display:flex;gap:24px}
 <!-- ────── HERO ────── -->
 <section class="hero text-center">
   <div class="container">
-    <div class="version-badge"><span class="dot"></span> v4.0.1 &mdash; Claude Code Plugin</div>
-    <h1>Query <span class="gradient">7 AI Platforms</span> at Once</h1>
+    <div class="version-badge"><span class="dot"></span> MultAI v4.0.1 &mdash; Claude Code Plugin</div>
+    <h1><span class="gradient">MultAI</span> &mdash; Query 7 AI Platforms at Once</h1>
     <p class="subtitle">
       A Claude Code plugin that submits research prompts to Claude.ai, ChatGPT, Copilot, Perplexity, Grok, DeepSeek &amp; Gemini in parallel &mdash; then synthesises the results into structured reports, landscape analyses, and comparison matrices.
     </p>
@@ -457,7 +457,7 @@ footer .footer-links{display:flex;gap:24px}
     <div class="section-label">Supported Platforms</div>
     <h2 class="section-title">One prompt. Seven perspectives.</h2>
     <p class="section-desc centered">
-      Each platform brings a different training set, reasoning style, and search index. Multi-AI Skills queries all seven simultaneously via Playwright browser automation &mdash; no API keys needed.
+      Each platform brings a different training set, reasoning style, and search index. MultAI queries all seven simultaneously via Playwright browser automation &mdash; no API keys needed.
     </p>
     <div class="platform-strip">
       <div class="platform-pill"><span class="p-dot" style="background:#d97706"></span>Claude.ai</div>
@@ -557,7 +557,7 @@ footer .footer-links{display:flex;gap:24px}
       <!-- Orchestrator -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multi-ai-skills:orchestrator</div>
+          <div class="skill-name">/multai:orchestrator</div>
           <h3>Orchestrator</h3>
           <p>Intelligent router + engine owner. Entry point for all workflows.</p>
           <span class="tag tag-purple">Router</span>
@@ -575,7 +575,7 @@ footer .footer-links{display:flex;gap:24px}
       <!-- Landscape Researcher -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multi-ai-skills:landscape-researcher</div>
+          <div class="skill-name">/multai:landscape-researcher</div>
           <h3>Landscape Researcher</h3>
           <p>Produces 9-section Market Landscape Reports for any solution category.</p>
           <span class="tag tag-pink">Research</span>
@@ -593,7 +593,7 @@ footer .footer-links{display:flex;gap:24px}
       <!-- Solution Researcher -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multi-ai-skills:solution-researcher</div>
+          <div class="skill-name">/multai:solution-researcher</div>
           <h3>Solution Researcher</h3>
           <p>Deep-dive on a specific product &mdash; capabilities, pricing, competitive context.</p>
           <span class="tag tag-cyan">Product</span>
@@ -611,7 +611,7 @@ footer .footer-links{display:flex;gap:24px}
       <!-- Comparator -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multi-ai-skills:comparator</div>
+          <div class="skill-name">/multai:comparator</div>
           <h3>Comparator</h3>
           <p>Maintains XLSX capability matrices with weighted scores and combo columns.</p>
           <span class="tag tag-amber">XLSX</span>
@@ -628,7 +628,7 @@ footer .footer-links{display:flex;gap:24px}
       <!-- Consolidator -->
       <div class="skill-card fade-in" style="grid-column:1/-1;max-width:500px;margin:0 auto">
         <div class="skill-header">
-          <div class="skill-name">/multi-ai-skills:consolidator</div>
+          <div class="skill-name">/multai:consolidator</div>
           <h3>Consolidator</h3>
           <p>Synthesises raw multi-AI responses into unified structured reports. Called automatically by other skills.</p>
           <span class="tag tag-green">Synthesis</span>
@@ -707,7 +707,7 @@ footer .footer-links{display:flex;gap:24px}
 <span class="cmd">/plugin marketplace add</span> <span class="flag">alo-exp/multi-ai-skills</span>
 
 <span class="comment"># Step 2 &mdash; Install the plugin</span>
-<span class="cmd">/plugin install</span> <span class="flag">multi-ai-skills@multi-ai-skills</span>
+<span class="cmd">/plugin install</span> <span class="flag">multai@multi-ai-skills</span>
 
 <span class="comment"># Done! Start a new session and all deps install automatically.</span>
       </div>
@@ -719,7 +719,7 @@ footer .footer-links{display:flex;gap:24px}
 
 <span class="comment"># Or from the CLI:</span>
 <span class="cmd">claude plugin marketplace add</span> <span class="flag">alo-exp/multi-ai-skills</span>
-<span class="cmd">claude plugin install</span> <span class="flag">multi-ai-skills@multi-ai-skills</span>
+<span class="cmd">claude plugin install</span> <span class="flag">multai@multi-ai-skills</span>
       </div>
       <div id="tab-dev" class="install-code">
 <span class="cmd">git clone</span> <span class="flag">https://github.com/alo-exp/multi-ai-skills.git</span>
@@ -910,16 +910,21 @@ multi-ai-skills/
 <!-- ────── FOOTER ────── -->
 <footer>
   <div class="container">
-    <div class="footer-inner">
-      <div>
-        <span style="font-weight:700;color:var(--text-secondary)">multi-ai-skills</span>
-        <span style="margin-left:8px">v4.0.1 &bull; MIT License</span>
+    <div class="footer-inner" style="flex-direction:column;gap:16px;align-items:center">
+      <div style="font-size:.95rem;color:var(--text-secondary)">
+        Innovated at <a href="https://alolabs.dev" target="_blank" style="font-weight:700;background:linear-gradient(135deg,var(--accent-light),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none">&#256;lo Labs</a>
       </div>
-      <div class="footer-links">
-        <a href="https://github.com/alo-exp/multi-ai-skills" target="_blank">GitHub</a>
-        <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/USER-GUIDE.md" target="_blank">User Guide</a>
-        <a href="https://github.com/alo-exp/multi-ai-skills/issues" target="_blank">Issues</a>
-        <a href="https://github.com/alo-exp" target="_blank">alo-exp</a>
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <span style="font-weight:700;color:var(--text-secondary)">MultAI</span>
+          <span style="margin-left:8px">v4.0.1 &bull; MIT License</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/alo-exp/multi-ai-skills" target="_blank">GitHub</a>
+          <a href="https://github.com/alo-exp/multi-ai-skills/blob/main/USER-GUIDE.md" target="_blank">User Guide</a>
+          <a href="https://github.com/alo-exp/multi-ai-skills/issues" target="_blank">Issues</a>
+          <a href="https://github.com/alo-exp" target="_blank">alo-exp</a>
+        </div>
       </div>
     </div>
   </div>

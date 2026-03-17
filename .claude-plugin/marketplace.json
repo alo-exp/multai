@@ -4,16 +4,16 @@
     "name": "alo-exp"
   },
   "metadata": {
-    "description": "Submit research prompts to 7 AI platforms simultaneously, synthesise results, and produce structured reports — all from Claude Code."
+    "description": "MultAI — Submit research prompts to 7 AI platforms simultaneously, synthesise results, and produce structured reports — all from Claude Code."
   },
   "plugins": [
     {
-      "name": "multi-ai-skills",
+      "name": "multai",
       "source": {
         "source": "url",
         "url": "https://github.com/alo-exp/multi-ai-skills.git"
       },
-      "description": "Submit research prompts to 7 AI platforms simultaneously (Claude.ai, ChatGPT, Copilot, Perplexity, Grok, DeepSeek, Gemini), synthesise results, maintain capability comparison matrices, and produce landscape reports — all from Claude Code.",
+      "description": "MultAI — Submit research prompts to 7 AI platforms simultaneously (Claude.ai, ChatGPT, Copilot, Perplexity, Grok, DeepSeek, Gemini), synthesise results, maintain capability comparison matrices, and produce landscape reports — all from Claude Code.",
       "version": "4.0.1",
       "author": {
         "name": "alo-exp"
