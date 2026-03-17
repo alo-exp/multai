@@ -708,7 +708,7 @@ footer .footer-links{display:flex;gap:24px}
 <span class="cmd">/plugin marketplace add</span> <span class="flag">alo-exp/multai</span>
 
 <span class="comment"># Step 2 &mdash; Install the plugin</span>
-<span class="cmd">/plugin install</span> <span class="flag">multai@multi-ai-skills</span>
+<span class="cmd">/plugin install</span> <span class="flag">multai@multai</span>
 
 <span class="comment"># Done! Start a new session and all deps install automatically.</span>
       </div>
@@ -716,19 +716,19 @@ footer .footer-links{display:flex;gap:24px}
 <span class="comment"># Or use Claude Desktop GUI:</span>
 <span class="comment"># Browse Plugins > Personal > + > Add marketplace from GitHub</span>
 <span class="comment"># Enter: alo-exp/multai</span>
-<span class="comment"># Then install the multi-ai-skills plugin</span>
+<span class="comment"># Then install the multai plugin</span>
 
 <span class="comment"># Or from the CLI:</span>
 <span class="cmd">claude plugin marketplace add</span> <span class="flag">alo-exp/multai</span>
-<span class="cmd">claude plugin install</span> <span class="flag">multai@multi-ai-skills</span>
+<span class="cmd">claude plugin install</span> <span class="flag">multai@multai</span>
       </div>
       <div id="tab-dev" class="install-code">
 <span class="cmd">git clone</span> <span class="flag">https://github.com/alo-exp/multai.git</span>
-<span class="cmd">cd</span> multi-ai-skills
+<span class="cmd">cd</span> multai
 <span class="cmd">bash</span> install.sh
 
 <span class="comment"># Load directly without marketplace registration:</span>
-<span class="cmd">claude</span> <span class="flag">--plugin-dir</span> ./multi-ai-skills
+<span class="cmd">claude</span> <span class="flag">--plugin-dir</span> ./multai
       </div>
     </div>
 
@@ -891,7 +891,7 @@ footer .footer-links{display:flex;gap:24px}
     <h2 class="section-title">Self-Contained Skill Ownership</h2>
     <p class="section-desc centered">Each skill owns its scripts, templates, and guides. No shared engine at the root &mdash; skills are portable modules.</p>
     <div class="code-block mt-4" style="max-width:680px;margin-left:auto;margin-right:auto;text-align:left">
-multi-ai-skills/
+multai/
 <span class="flag">&#9500;&#9472;&#9472;</span> skills/
 <span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> <span class="hl-purple" style="color:var(--accent-light)">orchestrator/</span>         <span class="comment"># Router + Playwright engine</span>
 <span class="flag">&#9474;</span>   <span class="flag">&#9474;</span>   <span class="flag">&#9500;&#9472;&#9472;</span> SKILL.md
