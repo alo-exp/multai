@@ -130,8 +130,13 @@ These are structural invariants that must hold across all changes:
 
 ```bash
 # ── Domain isolation: no domain-specific strings in generic engine ──
+# These patterns are checked by `make regression` — keep in sync with the Makefile
 ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "solution.research" skills/orchestrator/engine/
 ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "devops" skills/orchestrator/engine/
+
+# Additional domain patterns (optional — add to Makefile if a violation appears)
+# ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "capability.analysis" skills/orchestrator/engine/
+# ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "executive.summary" skills/orchestrator/engine/
 
 # ── No hardcoded prompt signatures in platform files ──
 ! grep -r "_PROMPT_SIGS" skills/orchestrator/engine/platforms/*.py
@@ -183,7 +188,7 @@ pip-audit -r skills/orchestrator/engine/requirements.txt
 # ── Plugin manifest validation ──
 python3 -c "
 import json
-hooks = json.load(open('hooks.json'))
+hooks = json.load(open('hooks/hooks.json'))
 assert 'hooks' in hooks, 'hooks.json missing hooks key'
 settings = json.load(open('settings.json'))
 assert 'permissions' in settings, 'settings.json missing permissions key'
