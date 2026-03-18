@@ -7,6 +7,7 @@ import logging
 from playwright.async_api import Page
 
 from .base import BasePlatform
+from prompt_echo import is_prompt_echo
 
 log = logging.getLogger(__name__)
 
@@ -119,12 +120,22 @@ class Grok(BasePlatform):
 
         self._no_stop_polls += 1
 
-        # 2. Check for response message containers (at least 2 = user + AI)
+        # 2. Check for response message containers (at least 2 = user + AI).
+        # Require the LAST message to have meaningful content (> 200 chars)
+        # before declaring complete — the AI message container can appear
+        # immediately in an empty/loading state before content streams in,
+        # which would cause a premature completion fire.
         try:
             messages = page.locator('[data-testid*="message"], [class*="message"]')
             count = await messages.count()
             if count >= 2:
-                return True
+                last_msg = messages.nth(count - 1)
+                try:
+                    last_len = await last_msg.evaluate("el => el.innerText.length")
+                    if last_len > 200:
+                        return True
+                except Exception:
+                    pass  # Content check failed — fall through to stable-state
         except Exception:
             pass
 
@@ -159,7 +170,34 @@ class Grok(BasePlatform):
         except Exception as exc:
             log.debug(f"[Grok] Message container extraction failed: {exc}")
 
-        # Secondary: try main content area (exclude sidebar)
+        # Secondary: scan body text for Markdown heading markers.
+        # Use last-occurrence scan with prompt-echo guard (same pattern as
+        # Claude.ai / Gemini) to avoid returning the echoed prompt when
+        # the research prompt itself contains headings.
+        try:
+            body = await page.evaluate("document.body.innerText")
+            if body and len(body) > 500:
+                for marker in ["# ", "## "]:
+                    positions = []
+                    start = 0
+                    while True:
+                        idx = body.find(marker, start)
+                        if idx < 0:
+                            break
+                        positions.append(idx)
+                        start = idx + 1
+                    for idx in reversed(positions):
+                        candidate = body[idx:]
+                        if is_prompt_echo(candidate, self.prompt_sigs):
+                            log.debug(f"[Grok] Skipping prompt echo at marker '{marker}' pos {idx}")
+                            continue
+                        if len(candidate) > 200:
+                            log.info(f"[Grok] Extracted {len(candidate)} chars from marker '{marker}' at pos {idx}")
+                            return candidate
+        except Exception as exc:
+            log.debug(f"[Grok] Marker extraction failed: {exc}")
+
+        # Tertiary: try main content area (exclude sidebar)
         try:
             text = await page.evaluate("""
                 (() => {
@@ -170,13 +208,15 @@ class Grok(BasePlatform):
                     return document.body.innerText;
                 })()
             """)
-            if text and len(text) > 200:
+            if text and len(text) > 200 and not is_prompt_echo(text, self.prompt_sigs):
                 log.info(f"[Grok] Extracted {len(text)} chars via main container")
                 return text
         except Exception as exc:
             log.debug(f"[Grok] Main container extraction failed: {exc}")
 
-        # Last resort: full body text
+        # Last resort: full body text (with prompt-echo guard)
         text = await page.evaluate("document.body.innerText")
+        if is_prompt_echo(text, self.prompt_sigs):
+            log.warning("[Grok] body.innerText appears to be a prompt echo — returning as-is (no better option)")
         log.info(f"[Grok] Extracted {len(text)} chars via body.innerText")
         return text

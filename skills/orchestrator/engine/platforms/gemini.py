@@ -21,13 +21,26 @@ class Gemini(BasePlatform):
         self._seen_stop: bool = False  # True once a stop button has been observed (research actually started)
 
     async def check_rate_limit(self, page: Page) -> str | None:
-        """Check for Gemini-specific rate limit indicators."""
+        """Check for Gemini-specific rate limit indicators.
+
+        Extended to cover additional real-world rate-limit/quota UI patterns
+        observed in the March 2026 test round.
+        """
         patterns = [
             "at full capacity",
             "limit reached",
             "quota exceeded",
             "too many requests",
             "try again in",
+            # Additional patterns from live testing
+            "daily limit exceeded",
+            "usage limit reached",
+            "You've reached your usage limit",
+            "unavailable right now",
+            "is currently unavailable",
+            "temporarily unavailable",
+            "Gemini 1.5 Pro is not available",
+            "2.0 Flash Thinking Experimental is limited",
         ]
         for pattern in patterns:
             try:
@@ -82,25 +95,36 @@ class Gemini(BasePlatform):
             log.warning(f"[Gemini] Thinking model selection failed: {exc}")
 
         # DEEP mode: enable Deep Research via Tools menu
+        # Gemini toolbar has a "Tools" button (no aria-label) that opens a MAT-ACTION-LIST
+        # menu. The "Deep research" option is a button[role="menuitemcheckbox"] inside it.
         if mode == "DEEP":
             try:
-                tools_btn = page.get_by_text("Tools", exact=True).first
+                # Use the input-area Tools button — it has visible text "Tools" but no aria-label.
+                # Scope to buttons WITHOUT aria-label to avoid the sidebar conversation-actions button
+                # which has aria-label="More options for ... Tools".
+                tools_btn = page.locator("button:not([aria-label])").filter(has_text="Tools").first
                 if await tools_btn.count() == 0:
-                    tools_btn = page.locator('button[aria-label*="Tools"]').first
+                    tools_btn = page.get_by_text("Tools", exact=True).first
                 if await tools_btn.count() > 0 and await tools_btn.is_visible():
                     await tools_btn.click()
                     await page.wait_for_timeout(500)
 
-                    dr = page.get_by_text("Deep Research", exact=False).first
-                    if await dr.count() > 0:
+                    # Target the menuitemcheckbox inside the Tools action-list menu
+                    dr = page.get_by_role("menuitemcheckbox", name="Deep research").first
+                    if await dr.count() == 0:
+                        # Fallback: any button in the menu containing "deep research"
+                        dr = page.locator('[role="menu"] button').filter(has_text="Deep research").first
+                    if await dr.count() > 0 and await dr.is_visible():
                         await dr.click()
                         await page.wait_for_timeout(500)
                         log.info("[Gemini] Enabled Deep Research")
                         label_parts.append("Deep Research")
+                    else:
+                        log.warning("[Gemini] Deep Research menu item not found or not visible — skipping")
 
-                    # Verify badge is visible
-                    badge = page.get_by_text("Deep research", exact=False).first
-                    if await badge.count() > 0:
+                    # Verify badge is visible (badge text uses lowercase "r")
+                    badge = page.locator('[role="menu"] button').filter(has_text="Deep research").first
+                    if await badge.count() > 0 and await badge.is_visible():
                         log.info("[Gemini] Deep Research badge confirmed")
                     else:
                         log.warning("[Gemini] Deep Research badge NOT visible — may not be enabled")

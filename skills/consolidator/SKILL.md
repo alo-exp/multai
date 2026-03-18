@@ -134,3 +134,13 @@ any structural issues encountered, and any improvements worth capturing.
 ## Run Log
 
 <!-- Append new entries at the top of this section after each run -->
+
+### 2026-03-18 — Northflank (IT-SC-03 / E2E-05 pipeline)
+- Source archive: `reports/e2e05-solution-research/e2e05-solution-research - Raw AI Responses.md` (~67 KB)
+- Sources used: 4/6 — Copilot (21,627 chars), Grok (12,208 chars), Claude.ai (9,070 chars partial), DeepSeek (22,111 chars, DOM chrome heavy); ChatGPT and Perplexity excluded (quota < 500 chars)
+- CIR quality: High — Copilot + Grok both independently confirmed all major capability groups; Claude.ai provided RBAC/SSO confirmation despite partial response; DeepSeek contributed minimal content
+- Guide used: `skills/solution-researcher/consolidation-guide.md` — 5-section structure applied cleanly
+- Output: `reports/e2e05-solution-research/Northflank - Consolidated Intelligence Report.md`
+- Structural observations: DeepSeek DOM chrome extraction issue is a known limitation in `platforms/deepseek.py` — body text includes navigation elements; response content was minimal but identifiable
+- Source reliability insight: Copilot + Grok are the most reliable sources for structured capability analysis on PaaS/IDP platforms
+- Changes made: none to consolidator files

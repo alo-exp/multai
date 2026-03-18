@@ -1,6 +1,6 @@
 """Unit tests for config module.
 
-Tests UT-CF-01 through UT-CF-07.
+Tests UT-CF-01 through UT-CF-08.
 """
 
 import sys
@@ -74,3 +74,8 @@ class TestConfigValues:
                     assert cfg.max_requests > 0
                     assert cfg.window_seconds > 0
                     assert cfg.cooldown_seconds >= 0
+
+    def test_ut_cf_08_poll_interval_positive(self):
+        """UT-CF-08: POLL_INTERVAL is a positive number."""
+        assert isinstance(POLL_INTERVAL, (int, float))
+        assert POLL_INTERVAL > 0

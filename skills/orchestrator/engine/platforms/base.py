@@ -403,21 +403,92 @@ class BasePlatform:
     # ------------------------------------------------------------------
 
     async def _inject_exec_command(self, page: Page, prompt: str) -> int:
-        """Inject into a contenteditable div via document.execCommand. Returns verified char count."""
-        await page.evaluate("""(prompt) => {
+        """Inject into a contenteditable div via document.execCommand.
+
+        Returns verified char count.  If execCommand silently fails (returns
+        false — it is a deprecated API and Chrome may drop it), automatically
+        falls back to clipboard-paste injection before raising.
+        """
+        success = await page.evaluate("""(prompt) => {
             const el = document.querySelector('div[contenteditable="true"]')
                       || document.querySelector('[contenteditable="true"]');
             if (!el) throw new Error('No contenteditable element found');
             el.focus();
             document.execCommand('selectAll', false, null);
-            document.execCommand('insertText', false, prompt);
+            // execCommand returns false when the command is unsupported/disabled
+            const ok = document.execCommand('insertText', false, prompt);
+            return ok;
         }""", prompt)
-        # Verify injection
+
+        # Verify injection — read back what's actually in the field
         length = await page.evaluate("""
             (document.querySelector('div[contenteditable="true"]')
              || document.querySelector('[contenteditable="true"]')).textContent.length
         """)
+
+        # If execCommand reported failure or the field has < 50% of the prompt,
+        # fall back to clipboard-paste injection before giving up.
+        if not success or length < len(prompt) * 0.5:
+            log.warning(
+                f"[{self.display_name}] execCommand returned {success} "
+                f"(field has {length}/{len(prompt)} chars) — trying clipboard-paste fallback"
+            )
+            length = await self._inject_clipboard_paste(page, prompt)
+
         log.info(f"[{self.display_name}] Injected {length} chars via execCommand")
+        return length
+
+    async def _inject_clipboard_paste(self, page: Page, prompt: str) -> int:
+        """Fallback injection via system clipboard + paste keystroke.
+
+        Used when execCommand('insertText') fails (deprecated API).
+        Writes the prompt to the OS clipboard, focuses the contenteditable
+        element, and triggers Cmd+V / Ctrl+V.
+        """
+        import subprocess
+        import sys
+
+        # Write prompt to system clipboard
+        if sys.platform == "darwin":
+            subprocess.run(["pbcopy"], input=prompt.encode("utf-8"), timeout=5, check=True)
+        elif sys.platform == "linux":
+            for cmd in [
+                ["xclip", "-selection", "clipboard"],
+                ["xsel", "--clipboard", "--input"],
+                ["wl-copy"],
+            ]:
+                try:
+                    subprocess.run(cmd, input=prompt.encode("utf-8"), timeout=5, check=True)
+                    break
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    continue
+            else:
+                raise RuntimeError("No clipboard tool available (install xclip, xsel, or wl-copy)")
+        elif sys.platform == "win32":
+            subprocess.run(["clip"], input=prompt.encode("utf-16-le"), timeout=5, check=True)
+        else:
+            raise RuntimeError(f"Unsupported platform for clipboard paste: {sys.platform}")
+
+        # Focus + select-all in the contenteditable, then paste
+        await page.evaluate("""
+            (() => {
+                const el = document.querySelector('div[contenteditable="true"]')
+                          || document.querySelector('[contenteditable="true"]');
+                if (!el) throw new Error('No contenteditable element found');
+                el.focus();
+                document.execCommand('selectAll', false, null);
+            })()
+        """)
+        modifier = "Meta" if sys.platform == "darwin" else "Control"
+        await page.keyboard.press(f"{modifier}+KeyV")
+        await page.wait_for_timeout(500)
+
+        # Verify
+        length = await page.evaluate("""
+            (document.querySelector('div[contenteditable="true"]')
+             || document.querySelector('[contenteditable="true"]')).textContent.length
+        """)
+        log.info(f"[{self.display_name}] Injected {length} chars via clipboard paste fallback")
         return length
 
     async def _inject_physical_type(self, page: Page, prompt: str) -> None:

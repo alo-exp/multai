@@ -134,17 +134,19 @@ class AgentFallbackManager:
             session = BrowserSession(cdp_url=self._cdp_url)
 
             # Select LLM based on which API key is available
+            from config import AGENT_MODEL_ANTHROPIC, AGENT_MODEL_GOOGLE
+
             if self._llm_provider == "anthropic":
                 from browser_use.llm.anthropic.chat import ChatAnthropic
                 llm = ChatAnthropic(
-                    model="claude-sonnet-4-6",
+                    model=AGENT_MODEL_ANTHROPIC,
                     timeout=60,
                     max_tokens=4096,
                 )
             else:
                 from browser_use.llm.google.chat import ChatGoogle
                 llm = ChatGoogle(
-                    model="gemini-2.0-flash",
+                    model=AGENT_MODEL_GOOGLE,
                     api_key=os.environ.get("GOOGLE_API_KEY"),
                 )
 

@@ -7,6 +7,7 @@ import logging
 from playwright.async_api import Page
 
 from .base import BasePlatform
+from prompt_echo import is_prompt_echo
 
 log = logging.getLogger(__name__)
 
@@ -20,13 +21,23 @@ class Perplexity(BasePlatform):
         self._last_page_len: int = 0  # Track page text length between polls for growth detection
 
     async def check_rate_limit(self, page: Page) -> str | None:
-        """Check for Perplexity-specific rate limit indicators."""
+        """Check for Perplexity-specific rate limit indicators.
+
+        Covers both Pro search quota exhaustion and free-tier limits.
+        """
         patterns = [
             "Pro search limit",
             "limit reached",
             "upgrade to Pro",
             "daily limit",
             "out of Pro searches",
+            # Additional patterns observed in testing
+            "out of searches",
+            "searches remaining",
+            "free searches",
+            "You've used all",
+            "You've reached your",
+            "search limit",
         ]
         for pattern in patterns:
             try:
@@ -231,7 +242,9 @@ class Perplexity(BasePlatform):
         except Exception:
             pass
 
-        # Last resort: full page inner text
+        # Last resort: full page inner text (with prompt-echo guard)
         text = await page.evaluate("document.body.innerText")
+        if is_prompt_echo(text, self.prompt_sigs):
+            log.warning("[Perplexity] body.innerText appears to be a prompt echo — returning as-is (no better option)")
         log.info(f"[Perplexity] Extracted {len(text)} chars via body.innerText")
         return text

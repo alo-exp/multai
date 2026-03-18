@@ -1,6 +1,6 @@
 """Unit tests for collate_responses module.
 
-Tests UT-CR-01 through UT-CR-07.
+Tests UT-CR-01 through UT-CR-09.
 """
 
 import json
@@ -98,3 +98,25 @@ class TestCollate:
         # Each fixture file has "Executive Summary"
         assert "Executive Summary" in content
         assert "Feature A: Yes" in content
+
+    def test_ut_cr_08_metadata_from_status_json(self):
+        """UT-CR-08: status.json metadata (chars, duration) flows into archive sections."""
+        tmpdir = _setup_tmpdir_with_fixtures()
+        result = collate(tmpdir, "Test Task")
+        content = result.read_text(encoding="utf-8")
+        # Status.json has chars: 5432 for Claude.ai — should appear as "5,432 chars"
+        assert "5,432 chars" in content, (
+            "Claude.ai metadata (5,432 chars) should appear in archive"
+        )
+        # Status.json has mode: REGULAR — should appear in header
+        assert "**Mode:** REGULAR" in content
+
+    def test_ut_cr_09_status_json_timestamp_in_header(self):
+        """UT-CR-09: status.json timestamp appears in archive header."""
+        tmpdir = _setup_tmpdir_with_fixtures()
+        result = collate(tmpdir, "Test Task")
+        content = result.read_text(encoding="utf-8")
+        # Fixture has timestamp: "2026-03-15T21:28:00" → formatted as "2026-03-15 21:28"
+        assert "2026-03-15 21:28" in content, (
+            "Timestamp from status.json should be formatted in archive header"
+        )
