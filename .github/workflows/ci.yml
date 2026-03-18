@@ -94,6 +94,9 @@ jobs:
           print('Plugin manifests OK')
           "
 
+      - name: Version sync check
+        run: bash scripts/version-stamp.sh --check
+
       - name: Landscape smoke test
         run: |
           python skills/landscape-researcher/launch_report.py --report-dir test --report-file "Test.md" --no-browser
