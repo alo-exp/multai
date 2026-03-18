@@ -84,9 +84,24 @@ PROMPT_EOF
 ```
 
 ### Verify environment:
+
+Check that the engine's virtual environment exists and is bootstrapped:
+
 ```bash
-python3 --version   # Needs >=3.11
+ls skills/orchestrator/engine/.venv/bin/python 2>/dev/null && echo "venv OK" || echo "venv MISSING"
 ```
+
+**If the output is `venv MISSING`**, stop and tell the user:
+
+> "The MultAI engine environment is not set up yet. Please run the one-time bootstrap from the repo root:
+>
+> ```bash
+> bash setup.sh
+> ```
+>
+> This installs Playwright, Chromium, and openpyxl into an isolated virtual environment. Run `bash setup.sh --with-fallback` to also install the browser-use agent. Once complete, re-invoke this skill."
+
+Do not proceed to Phase 2 until the venv exists.
 
 ---
 
