@@ -1,0 +1,12 @@
+# MultAI engine — core runtime dependencies
+# Install via: pip install -r requirements.txt
+# Or use the repo-root bootstrap: bash setup.sh
+
+playwright>=1.40.0
+openpyxl>=3.1.0
+
+# Optional: browser-use agent fallback (requires Python >=3.11)
+# Uncomment or install separately:
+# browser-use==0.12.2
+# anthropic>=0.76.0
+# fastmcp>=2.0.0
