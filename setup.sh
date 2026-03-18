@@ -85,3 +85,17 @@ echo "    /solution-researcher   →  competitive intelligence on a product"
 echo ""
 echo "  See USER-GUIDE.md for full usage instructions."
 echo ""
+
+# ── .env template (if missing) ───────────────────────────────────────────────
+ENV_FILE="$SCRIPT_DIR/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  info "Creating .env template..."
+  cat > "$ENV_FILE" <<'EOF'
+# MultAI environment configuration
+# Add optional API keys for the browser-use agent fallback.
+
+# ANTHROPIC_API_KEY=your_anthropic_key_here
+# GOOGLE_API_KEY=your_google_api_key_here
+EOF
+  success ".env template created — add API keys if using the agent fallback"
+fi
