@@ -6,7 +6,7 @@ ENGINE      = skills/orchestrator/engine
 COMPARATOR  = skills/comparator
 LANDSCAPE   = skills/landscape-researcher
 
-.PHONY: compile test regression check budget-check landscape-smoke e2e-smoke
+.PHONY: compile test regression check budget-check landscape-smoke e2e-smoke version-check version-stamp
 
 # ── Stage 1: Compile ──────────────────────────────────────────────────────────
 compile:
@@ -57,8 +57,16 @@ regression:
 	@python3 $(ENGINE)/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget"
 	@echo "All regression checks passed."
 
+# ── Version ───────────────────────────────────────────────────────────────────
+version-check:
+	@echo "=== Version sync check ==="
+	@bash scripts/version-stamp.sh --check
+
+version-stamp:
+	@bash scripts/version-stamp.sh
+
 # ── Combined ──────────────────────────────────────────────────────────────────
-check: compile test regression
+check: compile test regression version-check
 	@echo ""
 	@echo "All checks passed."
 
