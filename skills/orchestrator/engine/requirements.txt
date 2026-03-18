@@ -1,6 +1,6 @@
 # MultAI engine — core runtime dependencies
-# Install via: pip install -r requirements.txt
-# Or use the repo-root bootstrap: bash setup.sh
+# Install via: pip install -r skills/orchestrator/engine/requirements.txt
+# Or use the repo-root bootstrap: bash setup.sh  (recommended)
 
 playwright>=1.40.0
 openpyxl>=3.1.0
