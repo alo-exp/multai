@@ -228,7 +228,7 @@ multi-ai-skills/
 │       ├── <task-name> - Raw AI Responses.md  (auto-collated archive)
 │       └── agent-fallback-log.json  (if fallback was triggered)
 │
-├── tests/                      # pytest unit test suite (58 tests)
+├── tests/                      # pytest unit test suite (75 tests)
 │   ├── fixtures/               # Sample prompts, responses, status files
 │   ├── test_prompt_echo.py
 │   ├── test_rate_limiter.py
