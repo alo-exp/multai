@@ -52,13 +52,24 @@ class ChatGPT(BasePlatform):
         self._mode: str = ""          # Stored in configure_mode; used by extract_response
 
     async def check_rate_limit(self, page: Page) -> str | None:
-        """Check for ChatGPT-specific rate limit indicators."""
+        """Check for ChatGPT-specific rate limit indicators.
+
+        Covers both hard rate limits (usage cap) and Deep Research quota
+        exhaustion ("lighter version of deep research" message), which
+        causes DR to silently degrade without triggering a stop button.
+        """
         patterns = [
+            # Hard rate limits
             "You've reached the current usage cap",
             "usage cap",
             "limit reached",
             "too many messages",
             "come back later",
+            # Deep Research quota exhaustion (account-level, not engine-level)
+            "lighter version of deep research",
+            "remaining queries are powered by",
+            "full access resets on",
+            "Your remaining queries",
         ]
         for pattern in patterns:
             try:
@@ -111,26 +122,44 @@ class ChatGPT(BasePlatform):
             return "Default"
 
     async def post_send(self, page: Page, mode: str) -> None:
-        """Install blob interceptor for DEEP mode extraction."""
+        """Install blob interceptor for DEEP mode extraction.
+
+        Uses duck-typing (blob.size !== undefined) instead of instanceof Blob
+        to handle File and MediaSource objects that also pass through
+        createObjectURL.  Both the capture and the original call are wrapped
+        in try-catch so a bad argument never breaks the interceptor itself.
+        """
         if mode == "DEEP":
             try:
                 await page.evaluate("""
-                    const origCreateObjectURL = URL.createObjectURL;
-                    window.__capturedBlobs = [];
-                    URL.createObjectURL = function(blob) {
-                        if (blob instanceof Blob) {
-                            const reader = new FileReader();
-                            reader.onload = (e) => {
-                                window.__capturedBlobs.push({
-                                    size: blob.size,
-                                    type: blob.type,
-                                    text: e.target.result
-                                });
-                            };
-                            reader.readAsText(blob);
-                        }
-                        return origCreateObjectURL.call(URL, blob);
-                    };
+                    (() => {
+                        const origCreateObjectURL = URL.createObjectURL.bind(URL);
+                        window.__capturedBlobs = [];
+                        URL.createObjectURL = function(obj) {
+                            // Duck-type check: Blob, File and MediaSource all have .size
+                            try {
+                                if (obj && typeof obj.size === 'number') {
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        window.__capturedBlobs.push({
+                                            size: obj.size,
+                                            type: obj.type || '',
+                                            text: e.target.result
+                                        });
+                                    };
+                                    reader.readAsText(obj);
+                                }
+                            } catch (captureErr) {
+                                // Silently ignore capture errors — never break page behaviour
+                            }
+                            try {
+                                return origCreateObjectURL(obj);
+                            } catch (e) {
+                                // Re-raise so the calling page code sees the original error
+                                throw e;
+                            }
+                        };
+                    })();
                 """)
                 log.info("[ChatGPT] Blob interceptor installed for Deep Research extraction")
             except Exception as exc:
@@ -185,7 +214,11 @@ class ChatGPT(BasePlatform):
             except Exception as exc:
                 log.debug(f"[ChatGPT] frame_locator method failed (pat={url_pat}): {exc}")
 
-        # --- C: Coordinate-based fallback (calibrated from Harness OSS run) ---
+        # --- C: Coordinate-based fallback (proportional offsets relative to iframe) ---
+        # Uses percentage-based offsets instead of hardcoded pixels so it adapts
+        # to different window sizes and DR panel redesigns.  After clicking the
+        # download-icon area, waits for a dropdown menu to appear before clicking
+        # the "Copy contents" item (avoids blind second click).
         try:
             rect = await page.evaluate("""
                 (() => {
@@ -202,17 +235,38 @@ class ChatGPT(BasePlatform):
                 log.debug("[ChatGPT] DR iframe not found for coordinate extraction")
                 return ""
 
-            dl_x = rect["right"] - 70
-            dl_y = rect["top"] + 10
+            # Download icon: near top-right corner of the iframe header.
+            # Use proportional offsets: ~95% of width from left, ~3% of height from top
+            # (clamped to minimum 10px from edges).
+            dl_x = rect["left"] + max(rect["width"] * 0.95, rect["width"] - 40)
+            dl_y = rect["top"] + max(rect["height"] * 0.03, 10)
             await page.mouse.click(dl_x, dl_y)
-            await page.wait_for_timeout(500)
-            log.info(f"[ChatGPT] Clicked DR download icon at ({dl_x:.0f}, {dl_y:.0f}) [coordinate fallback]")
+            await page.wait_for_timeout(800)
+            log.info(f"[ChatGPT] Clicked DR download icon at ({dl_x:.0f}, {dl_y:.0f}) [proportional coordinate]")
 
-            copy_x = dl_x - 115
-            copy_y = dl_y + 45
-            await page.mouse.click(copy_x, copy_y)
-            await page.wait_for_timeout(1000)
-            log.info(f"[ChatGPT] Clicked 'Copy contents' at ({copy_x:.0f}, {copy_y:.0f})")
+            # Wait for "Copy contents" / "Copy" text to appear in a dropdown menu
+            # rather than blind-clicking a hardcoded offset.
+            copied = False
+            for copy_text in ["Copy contents", "Copy"]:
+                try:
+                    copy_item = page.get_by_text(copy_text, exact=False).first
+                    if await copy_item.count() > 0 and await copy_item.is_visible():
+                        await copy_item.click()
+                        await page.wait_for_timeout(1000)
+                        log.info(f"[ChatGPT] Clicked '{copy_text}' via text selector after coordinate click")
+                        copied = True
+                        break
+                except Exception:
+                    pass
+
+            if not copied:
+                # Fallback: click below the download icon (menu didn't render with
+                # text-searchable elements, or it uses a canvas/shadow DOM).
+                copy_x = dl_x - min(rect["width"] * 0.08, 115)
+                copy_y = dl_y + min(rect["height"] * 0.06, 45)
+                await page.mouse.click(copy_x, copy_y)
+                await page.wait_for_timeout(1000)
+                log.info(f"[ChatGPT] Clicked 'Copy contents' at ({copy_x:.0f}, {copy_y:.0f}) [blind offset]")
 
             text = _read_clipboard()
             if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
@@ -288,11 +342,23 @@ class ChatGPT(BasePlatform):
 
         return False
 
+    # Phrases that indicate Deep Research quota exhaustion rather than real content.
+    _DR_QUOTA_PHRASES = (
+        "lighter version of deep research",
+        "remaining queries are powered by",
+        "full access resets on",
+        "your remaining queries",
+    )
+
     async def extract_response(self, page: Page) -> str:
         """
         DEEP mode: DR panel download → 'Copy contents' → clipboard (primary),
                    then blob interceptor fallback.
         REGULAR mode: article[1].innerText (article[0]=prompt, article[1]=response).
+
+        Quota-exhaustion guard: if DEEP mode and extracted text is short AND
+        contains quota-exhaustion phrases, return a [RATE LIMITED] marker
+        instead of a spuriously-successful short response.
         """
         # DEEP mode primary: DR panel download icon → 'Copy contents' → clipboard.
         # The DR report lives in a cross-origin iframe; this is the only reliable path.
@@ -380,6 +446,24 @@ class ChatGPT(BasePlatform):
                 })()
             """)
             if text and len(text) > 200 and not is_prompt_echo(text, self.prompt_sigs):
+                # Guard: if DEEP mode and the main container text contains DR
+                # quota-exhaustion phrases, tag as rate-limited.  No length
+                # threshold — main.innerText includes UI chrome (buttons,
+                # sidebar labels) that easily exceeds 1 000 chars even when
+                # the actual response is a 381-char quota message.  In DEEP
+                # mode, a real DR report is extracted via _extract_deep_
+                # research_panel() / blob interceptor, NOT this main-container
+                # fallback — reaching here already implies DR didn't produce
+                # content, so flagging quota phrases is always correct.
+                if self._mode == "DEEP":
+                    text_lower = text.lower()
+                    for phrase in self._DR_QUOTA_PHRASES:
+                        if phrase in text_lower:
+                            log.warning(
+                                f"[ChatGPT] DR quota exhausted detected in main container "
+                                f"({len(text)} chars). Returning rate-limited marker."
+                            )
+                            return f"[RATE LIMITED] ChatGPT Deep Research quota exhausted. {text[:300]}"
                 log.info(f"[ChatGPT] Extracted {len(text)} chars via main container")
                 return text
         except Exception:
@@ -401,6 +485,19 @@ class ChatGPT(BasePlatform):
                 f"body only {len(text)} chars — returning empty to trigger Agent fallback."
             )
             return ""
+
+        # REGULAR mode guard: body.innerText includes the full page — "You said: [prompt]"
+        # followed by "ChatGPT said: [response]". Strip the sent-prompt preamble so
+        # the AI's answer is what gets saved and consolidated.
+        if self._mode != "DEEP" and is_prompt_echo(text, self.prompt_sigs):
+            for marker in ("\nChatGPT said:\n", "\nChatGPT said:", "ChatGPT said:\n", "ChatGPT said:"):
+                idx = text.find(marker)
+                if idx != -1:
+                    trimmed = text[idx + len(marker):].strip()
+                    if trimmed and len(trimmed) > 200:
+                        log.info(f"[ChatGPT] Stripped sent-prompt preamble — {len(trimmed)} chars of AI response remain")
+                        text = trimmed
+                        break
 
         log.info(f"[ChatGPT] Extracted {len(text)} chars via body.innerText")
         return text

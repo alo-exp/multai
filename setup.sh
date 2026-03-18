@@ -81,7 +81,7 @@ fi
 
 # ── Smoke test ────────────────────────────────────────────────────────────────
 info "Running smoke test..."
-if smoke_output=$("$PYTHON_VENV" "$ENGINE_DIR/orchestrator.py" --budget --tier free 2>&1); then
+if smoke_output=$("$PYTHON_VENV" "$ENGINE_DIR/orchestrator.py" --prompt "x" --budget --tier free 2>&1); then
   success "Engine smoke test passed"
 else
   warn "Smoke test returned non-zero — output:"
@@ -98,7 +98,7 @@ echo "    /orchestrator  →  route a research task"
 echo "    /landscape-researcher  →  market landscape analysis"
 echo "    /solution-researcher   →  competitive intelligence on a product"
 echo ""
-echo "  See USER-GUIDE.md for full usage instructions."
+echo "  See USER-GUIDE.md for usage instructions or CONTRIBUTOR-GUIDE.md for technical details."
 echo ""
 
 # ── .env template (if missing) ───────────────────────────────────────────────

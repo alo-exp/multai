@@ -436,13 +436,19 @@ class RateLimiter:
         )
 
     def _count_today(self, platform: str, mode: str, now: float) -> int:
-        """Count requests today for a specific mode, for daily cap check."""
+        """Count requests today for a specific mode, for daily cap check.
+
+        Uses LOCAL midnight as the day boundary, consistent with
+        _seconds_until_midnight() which reports wait time until local midnight.
+        AI platform daily caps reset at calendar-day boundaries in the user's
+        timezone, not at UTC midnight.
+        """
         state = self._state.get(platform)
         if state is None:
             return 0
 
-        # Start of today (midnight UTC, matching UTC timestamps in records)
-        today_start = datetime.now(timezone.utc).replace(
+        # Start of today (local midnight — must match _seconds_until_midnight)
+        today_start = datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
         ).timestamp()
 

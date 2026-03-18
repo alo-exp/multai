@@ -7,6 +7,7 @@ import logging
 from playwright.async_api import Page
 
 from .base import BasePlatform
+from prompt_echo import is_prompt_echo
 
 log = logging.getLogger(__name__)
 
@@ -20,13 +21,21 @@ class Copilot(BasePlatform):
         self._last_response_len: int = 0  # Track response length between polls to detect growth
 
     async def check_rate_limit(self, page: Page) -> str | None:
-        """Check for Copilot-specific rate limit indicators."""
+        """Check for Copilot-specific rate limit indicators.
+
+        Patterns must be specific enough to avoid false positives — Copilot
+        renders the echoed prompt and AI response on the same page, so a
+        generic phrase like "try again" could match normal prose.
+        """
         patterns = [
             "conversation limit",
             "daily limit",
             "limit reached",
-            "too many",
-            "try again",
+            "too many requests",        # was "too many" — overly broad
+            "try again later",          # was "try again" — overly broad
+            "reached the limit",
+            "you've reached your limit",
+            "This conversation has reached its limit",
         ]
         for pattern in patterns:
             try:
@@ -300,21 +309,37 @@ class Copilot(BasePlatform):
         except Exception as exc:
             log.debug(f"[Copilot] 'Copilot said' extraction failed: {exc}")
 
-        # Secondary: find generic Markdown heading markers in body text
+        # Secondary: find generic Markdown heading markers in body text.
+        # Scan ALL occurrences of each marker and pick the LAST one that is
+        # not a prompt echo — mirrors the Claude.ai / Gemini pattern.
+        # (Using first-occurrence find() risks returning the echoed prompt when
+        # the research prompt itself contains Markdown headings.)
         try:
             text = await page.evaluate("document.body.innerText")
             if text:
                 for marker in ["# ", "## "]:
-                    idx = text.find(marker)
-                    if idx > 0:
-                        report = text[idx:]
-                        if len(report) > 200:
-                            log.info(f"[Copilot] Extracted {len(report)} chars from marker '{marker}'")
-                            return report
+                    positions = []
+                    start = 0
+                    while True:
+                        idx = text.find(marker, start)
+                        if idx < 0:
+                            break
+                        positions.append(idx)
+                        start = idx + 1
+                    for idx in reversed(positions):
+                        candidate = text[idx:]
+                        if is_prompt_echo(candidate, self.prompt_sigs):
+                            log.debug(f"[Copilot] Skipping prompt echo at marker '{marker}' pos {idx}")
+                            continue
+                        if len(candidate) > 200:
+                            log.info(f"[Copilot] Extracted {len(candidate)} chars from marker '{marker}' at pos {idx}")
+                            return candidate
         except Exception as exc:
             log.debug(f"[Copilot] Marker extraction failed: {exc}")
 
-        # Last resort: full body text
+        # Last resort: full body text (with prompt-echo guard)
         text = await page.evaluate("document.body.innerText")
+        if is_prompt_echo(text, self.prompt_sigs):
+            log.warning("[Copilot] body.innerText appears to be a prompt echo — returning as-is (no better option)")
         log.info(f"[Copilot] Extracted {len(text)} chars via body.innerText")
         return text

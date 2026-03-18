@@ -88,6 +88,8 @@ POLL_INTERVAL = 10               # Seconds between completion checks
 # Agent fallback (browser-use)
 CDP_PORT = 9222                  # Chrome DevTools Protocol port for browser-use
 AGENT_MAX_STEPS = 5              # Maximum Agent steps per fallback invocation
+AGENT_MODEL_ANTHROPIC = "claude-sonnet-4-6"   # Model for Anthropic-backed agent fallback
+AGENT_MODEL_GOOGLE = "gemini-2.0-flash"       # Model for Google-backed agent fallback
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +103,7 @@ class ModeConfig:
     deep_research: bool = False
     thinking: bool = False
     search: bool = False
+    use_condensed: bool = False   # Use condensed prompt when one is provided
     notes: str = ""
 
 
@@ -110,7 +113,7 @@ DEEP_MODE = {
     "chatgpt":    ModeConfig(deep_research=True, notes="Deep research from + picker"),
     "copilot":    ModeConfig(thinking=True, deep_research=True, notes="Think deeper + Start deep research"),
     "perplexity": ModeConfig(model="Sonar", deep_research=True, notes="Deep Research toggle if visible"),
-    "grok":       ModeConfig(thinking=True, search=True, notes="DeepThink + Search"),
+    "grok":       ModeConfig(thinking=True, search=True, use_condensed=True, notes="DeepThink + Search"),
     "deepseek":   ModeConfig(thinking=True, search=True, notes="DeepThink + Search"),
     "gemini":     ModeConfig(model="Thinking", deep_research=True, notes="Thinking + Deep Research"),
 }
@@ -121,7 +124,7 @@ REGULAR_MODE = {
     "chatgpt":    ModeConfig(notes="Regular chat, reasoning model preferred"),
     "copilot":    ModeConfig(thinking=True, notes="Think deeper only"),
     "perplexity": ModeConfig(model="Sonar", notes="Sonar, no Deep Research"),
-    "grok":       ModeConfig(thinking=True, search=True, notes="DeepThink + Search"),
+    "grok":       ModeConfig(thinking=True, search=True, use_condensed=True, notes="DeepThink + Search"),
     "deepseek":   ModeConfig(thinking=True, search=True, notes="DeepThink + Search"),
     "gemini":     ModeConfig(model="Thinking", notes="Thinking, no Deep Research"),
 }

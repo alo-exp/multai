@@ -1,9 +1,13 @@
 {
-  "Claude.ai": {"status": "complete", "chars": 5432, "duration_s": 45.2, "mode_used": "REGULAR"},
-  "ChatGPT": {"status": "complete", "chars": 4821, "duration_s": 38.1, "mode_used": "REGULAR"},
-  "Microsoft-Copilot": {"status": "timeout", "chars": 0, "duration_s": 120.0, "mode_used": "REGULAR"},
-  "Perplexity": {"status": "complete", "chars": 3901, "duration_s": 29.4, "mode_used": "REGULAR"},
-  "Grok": {"status": "failed", "chars": 0, "duration_s": 5.0, "mode_used": "REGULAR"},
-  "DeepSeek": {"status": "complete", "chars": 6100, "duration_s": 52.3, "mode_used": "REGULAR"},
-  "Google-Gemini": {"status": "complete", "chars": 4200, "duration_s": 41.0, "mode_used": "REGULAR"}
+  "timestamp": "2026-03-15T21:28:00",
+  "mode": "REGULAR",
+  "platforms": [
+    {"platform": "claude_ai", "display_name": "Claude.ai", "status": "complete", "chars": 5432, "duration_s": 45.2, "mode_used": "REGULAR", "file": "Claude.ai-raw-response.md"},
+    {"platform": "chatgpt", "display_name": "ChatGPT", "status": "complete", "chars": 4821, "duration_s": 38.1, "mode_used": "REGULAR", "file": "ChatGPT-raw-response.md"},
+    {"platform": "perplexity", "display_name": "Perplexity", "status": "complete", "chars": 3901, "duration_s": 29.4, "mode_used": "REGULAR", "file": "Perplexity-raw-response.md"},
+    {"platform": "deepseek", "display_name": "DeepSeek", "status": "complete", "chars": 6100, "duration_s": 52.3, "mode_used": "REGULAR", "file": "DeepSeek-raw-response.md"},
+    {"platform": "gemini", "display_name": "Google Gemini", "status": "complete", "chars": 4200, "duration_s": 41.0, "mode_used": "REGULAR", "file": "Google-Gemini-raw-response.md"},
+    {"platform": "copilot", "display_name": "Microsoft Copilot", "status": "timeout", "chars": 0, "duration_s": 120.0, "mode_used": "REGULAR", "file": "Microsoft-Copilot-raw-response.md", "error": "Platform timeout after 120s"},
+    {"platform": "grok", "display_name": "Grok", "status": "failed", "chars": 0, "duration_s": 5.0, "mode_used": "REGULAR", "file": "Grok-raw-response.md", "error": "Navigation failed"}
+  ]
 }

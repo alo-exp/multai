@@ -15,6 +15,10 @@ log = logging.getLogger(__name__)
 class ClaudeAI(BasePlatform):
     name = "claude_ai"
 
+    def __init__(self):
+        super().__init__()
+        self._no_stop_polls: int = 0  # Consecutive polls with no stop button visible
+
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for Claude.ai-specific rate limit indicators."""
         patterns = [
@@ -114,22 +118,40 @@ class ClaudeAI(BasePlatform):
         Check for Copy/Download buttons in artifact header.
         Claude.ai does NOT auto-display results — may need to click to reveal.
         Rate limit mid-generation check now handled by base class _poll_completion().
+
+        Stable-state fallback: if no stop button AND no completion signal appear
+        for 12 consecutive polls (~2 min), declare complete.  This handles
+        REGULAR mode responses that are plain text (no artifact/download button).
         """
         # Check for stop button (still generating)
+        has_stop = False
         for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]']:
-            stop = page.locator(sel).first
-            if await stop.count() > 0 and await stop.is_visible():
-                return False
+            try:
+                stop = page.locator(sel).first
+                if await stop.count() > 0 and await stop.is_visible():
+                    has_stop = True
+                    break
+            except Exception:
+                pass
 
-        # Check for completion indicators
+        if has_stop:
+            self._no_stop_polls = 0
+            return False
+
+        self._no_stop_polls += 1
+
+        # Check for explicit completion indicators (artifact copy/download buttons)
         for sel in [
             'button:has-text("Copy")',
             'button:has-text("Download")',
             'button[aria-label*="Copy"]',
         ]:
-            btn = page.locator(sel).first
-            if await btn.count() > 0 and await btn.is_visible():
-                return True
+            try:
+                btn = page.locator(sel).first
+                if await btn.count() > 0 and await btn.is_visible():
+                    return True
+            except Exception:
+                pass
 
         # Try clicking artifact card to reveal report (Research mode quirk)
         try:
@@ -144,6 +166,23 @@ class ClaudeAI(BasePlatform):
                         return True
         except Exception:
             pass
+
+        # Content-based: body text > 10 000 chars → likely a substantial response
+        try:
+            body_len = await page.evaluate("document.body.innerText.length")
+            if body_len > 10000:
+                return True
+        except Exception:
+            pass
+
+        # Stable-state: no stop and no copy button for 12 consecutive polls (~2 min).
+        # Handles REGULAR mode plain-text responses that never produce an artifact.
+        if self._no_stop_polls >= 12:
+            log.warning(
+                "[Claude.ai] 12 polls with no stop and no copy button — "
+                "declaring complete (likely plain-text REGULAR response)."
+            )
+            return True
 
         return False
 
@@ -230,9 +269,11 @@ class ClaudeAI(BasePlatform):
         except Exception:
             pass
 
-        # Last resort: full body text
+        # Last resort: full body text (with prompt-echo guard)
         try:
             body = await page.evaluate("document.body.innerText")
+            if is_prompt_echo(body, self.prompt_sigs):
+                log.warning("[Claude.ai] body.innerText appears to be a prompt echo — returning as-is (no better option)")
             log.info(f"[Claude.ai] Extracted {len(body)} chars via full body.innerText")
             return body
         except Exception as exc:

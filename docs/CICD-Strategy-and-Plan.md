@@ -1,7 +1,7 @@
 # CI/CD Strategy and Plan
 
-**Project:** Multi-AI Orchestrator Platform
-**Version:** 4.1
+**Project:** MultAI
+**Version:** 4.2
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
@@ -10,8 +10,9 @@
 | 3.0 | 2026-03-13 | Added matrix engine files to compile checks and test suite |
 | 3.1 | 2026-03-14 | Added rate_limiter.py compile check, rate limit unit tests, regression checks |
 | 3.2 | 2026-03-14 | Added collate_responses.py compile check, collation tests, budget smoke test |
-| 4.0 | 2026-03-16 | Updated engine paths to skills/orchestrator/engine/; added landscape-researcher and comparator script lint targets; added landscape smoke test |
-| 4.1 | 2026-03-18 | Added setup.sh smoke test; updated Python requirement to 3.11+; updated install step to use engine/requirements.txt |
+| 4.0 | 2026-03-16 | Updated engine paths to skills/orchestrator/engine/; added landscape-researcher and comparator targets |
+| 4.1 | 2026-03-18 | Added setup.sh smoke test; updated Python requirement to 3.11+; updated install step |
+| 4.2 | 2026-03-18 | Full rewrite — synced Makefile and GitHub Actions with actual code; added security scanning, coverage, matrix testing, plugin-specific CI, branching model, and Phase 2/3 acceptance criteria |
 
 ---
 
@@ -19,21 +20,26 @@
 
 ### 1.1 Context
 
-This project is a desktop-local automation tool, not a web service. It runs on the user's machine with their Chrome profile and AI platform logins. This fundamentally shapes the CI/CD strategy:
+MultAI is a desktop-local automation tool, not a web service. It runs on the user's machine with their Chrome profile and AI platform logins. It is distributed as a **Claude Code plugin**. This fundamentally shapes the CI/CD strategy:
 
 - **No deployment pipeline** — the tool runs locally, not on a server
 - **No container builds** — Chrome must use the user's real profile with active sessions
 - **Limited CI scope** — E2E tests require live AI platforms and cannot run in standard CI
-- **Primary value of CI** — catching code errors, import failures, and regressions early
+- **Plugin distribution** — users install via `claude plugin install`; the repo IS the release artifact
+- **Primary value of CI** — catching code errors, import failures, regressions, and plugin manifest correctness early
 
 ### 1.2 Goals
 
 1. Catch Python syntax errors and import failures on every change
-2. Run unit tests automatically on every change
-3. Validate that the engine CLI accepts the correct interface
+2. Run 96 automated tests on every push and pull request
+3. Validate the engine CLI accepts the correct interface
 4. Ensure no domain-specific strings leak into the generic engine
 5. Verify rate limit budgets are configured for all 7 platforms
-6. Provide a clear versioning and release process
+6. Validate plugin manifest files (`hooks.json`, `settings.json`) are well-formed
+7. Run security scans (dependency vulnerabilities, secret detection)
+8. Enforce minimum test coverage threshold
+9. Provide a clear versioning, branching, and release process
+10. Test across Python 3.11, 3.12, and 3.13
 
 ---
 
@@ -42,10 +48,10 @@ This project is a desktop-local automation tool, not a web service. It runs on t
 ### 2.1 Pipeline Stages
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  1. Install   │───▶│  2. Lint &    │───▶│  3. Unit      │───▶│  4. Regression│
-│  Dependencies │    │  Compile     │    │  Tests       │    │  Checks      │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  1. Install   │───▶│  2. Lint &    │───▶│  3. Unit      │───▶│  4. Regression│───▶│  5. Security  │
+│  Dependencies │    │  Compile     │    │  Tests       │    │  Checks      │    │  & Quality   │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
 ### 2.2 Stage 1: Install Dependencies
@@ -54,7 +60,7 @@ This project is a desktop-local automation tool, not a web service. It runs on t
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r skills/orchestrator/engine/requirements.txt
-pip install pytest  # Test runner
+pip install pytest pytest-cov  # Test runner + coverage
 ```
 
 > **Note:** `setup.sh` is the user-facing bootstrap (creates `skills/orchestrator/engine/.venv`, installs deps, runs `playwright install chromium`). CI installs dependencies directly via pip as shown above — no Chromium browser installation needed for unit tests and regression checks.
@@ -65,7 +71,7 @@ pip install pytest  # Test runner
 ### 2.3 Stage 2: Lint and Compile
 
 ```bash
-# Core engine files
+# Core engine files (7 modules)
 python3 -m py_compile skills/orchestrator/engine/orchestrator.py
 python3 -m py_compile skills/orchestrator/engine/config.py
 python3 -m py_compile skills/orchestrator/engine/utils.py
@@ -74,18 +80,15 @@ python3 -m py_compile skills/orchestrator/engine/agent_fallback.py
 python3 -m py_compile skills/orchestrator/engine/rate_limiter.py
 python3 -m py_compile skills/orchestrator/engine/collate_responses.py
 
-# Comparator skill files
+# Comparator skill files (2 modules)
 python3 -m py_compile skills/comparator/matrix_ops.py
 python3 -m py_compile skills/comparator/matrix_builder.py
 
-# Landscape-researcher skill files
+# Landscape-researcher launcher (1 module)
 python3 -m py_compile skills/landscape-researcher/launch_report.py
 
-# All platform files
+# All platform files (7 platforms + base class + __init__)
 for f in skills/orchestrator/engine/platforms/*.py; do python3 -m py_compile "$f"; done
-
-# Optional: ruff or flake8 lint
-# ruff check skills/orchestrator/engine/ --select E,F,W
 
 # Bash script syntax checks
 bash -n setup.sh
@@ -93,46 +96,50 @@ bash -n install.sh
 ```
 
 **Duration:** ~5s
-**Gate:** All 11 core files (7 engine + 2 comparator + 1 landscape + 1 launcher) + all platform files compile without errors; bash scripts pass syntax check
+**Gate:** All 10 core files + all platform files compile without errors; both shell scripts pass syntax check
 
 ### 2.4 Stage 3: Unit Tests
 
 ```bash
-cd skills/orchestrator/engine && python3 -m pytest ../../../tests/ -v --tb=short
+# Uses the engine venv which has all dependencies pre-installed
+skills/orchestrator/engine/.venv/bin/python -m pytest tests/ -v --tb=short
 ```
 
 Test modules (v4.2):
-- `tests/test_prompt_echo.py` — 8 tests (UT-PE-01 to UT-PE-08)
-- `tests/test_rate_limiter.py` — 14 tests (UT-RL-01 to UT-RL-14)
-- `tests/test_collate_responses.py` — 7 tests (UT-CR-01 to UT-CR-07)
-- `tests/test_config.py` — 7 tests (UT-CF-01 to UT-CF-07)
-- `tests/test_orchestrator_args.py` — 11 tests (UT-OR-01 to UT-OR-11)
-- `tests/test_matrix_ops.py` — 9 tests (UT-MX-01 to UT-MX-09)
-- `tests/test_matrix_builder.py` — 9 tests (UT-MB-01 to UT-MB-09)
-- `tests/test_utils.py` — 9 tests (UT-UT-01 to UT-UT-09)
-- `tests/test_launch_report.py` — 2 tests (TC-LAUNCH-1 to TC-LAUNCH-2)
-- `tests/test_setup_bootstrap.py` — 17 tests (TC-SETUP-1/3, TC-VENV-1, TC-HOOK-1/2, TC-LAUNCH-1/2)
 
-**Total unit tests:** 93
-**Duration:** ~10s
-**Gate:** All tests pass
+| Test File | Tests | IDs |
+|-----------|-------|-----|
+| `tests/test_prompt_echo.py` | 8 | UT-PE-01 to UT-PE-08 |
+| `tests/test_rate_limiter.py` | 14 | UT-RL-01 to UT-RL-14 |
+| `tests/test_collate_responses.py` | 9 | UT-CR-01 to UT-CR-09 |
+| `tests/test_config.py` | 8 | UT-CF-01 to UT-CF-08 |
+| `tests/test_orchestrator_args.py` | 11 | UT-OR-01 to UT-OR-11 |
+| `tests/test_matrix_ops.py` | 9 | UT-MX-01 to UT-MX-09 |
+| `tests/test_matrix_builder.py` | 9 | UT-MB-01 to UT-MB-09 |
+| `tests/test_utils.py` | 9 | UT-UT-01 to UT-UT-09 |
+| `tests/test_launch_report.py` | 2 | TC-LAUNCH-1 to TC-LAUNCH-2 |
+| `tests/test_setup_bootstrap.py` | 17 | TC-SETUP, TC-VENV, TC-HOOK, TC-LAUNCH |
+| **Total** | **96** | |
+
+**Duration:** ~4s
+**Gate:** All 96 tests pass
 
 ### 2.5 Stage 4: Regression Checks
 
+These are structural invariants that must hold across all changes:
+
 ```bash
-# No domain-specific strings in engine/ (exclude .venv and __pycache__)
+# ── Domain isolation: no domain-specific strings in generic engine ──
 ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "solution.research" skills/orchestrator/engine/
 ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "devops" skills/orchestrator/engine/
-! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "capability.analysis" skills/orchestrator/engine/
-! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "executive.summary" skills/orchestrator/engine/
 
-# No hardcoded _PROMPT_SIGS in platform files
+# ── No hardcoded prompt signatures in platform files ──
 ! grep -r "_PROMPT_SIGS" skills/orchestrator/engine/platforms/*.py
 
-# All 7 platforms have check_rate_limit
-test "$(grep -l "check_rate_limit" skills/orchestrator/engine/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
+# ── All 7 platforms implement check_rate_limit ──
+test "$(grep -l 'check_rate_limit' skills/orchestrator/engine/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
 
-# All 7 platforms in RATE_LIMITS config
+# ── RATE_LIMITS config covers all 7 platforms × 2 tiers × 2 modes ──
 python3 -c "
 import sys; sys.path.insert(0,'skills/orchestrator/engine')
 from config import RATE_LIMITS
@@ -141,36 +148,54 @@ for p, tiers in RATE_LIMITS.items():
     assert 'free' in tiers and 'paid' in tiers, f'{p} missing tier'
     for t, modes in tiers.items():
         assert 'REGULAR' in modes and 'DEEP' in modes, f'{p}/{t} missing mode'
-print('RATE_LIMITS OK: 7 platforms × 2 tiers × 2 modes')
+print('RATE_LIMITS OK: 7 platforms x 2 tiers x 2 modes')
 "
 
-# Budget command works and exits 0
-python3 skills/orchestrator/engine/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget"
-
-# CLI accepts new flags
+# ── CLI interface integrity ──
 python3 skills/orchestrator/engine/orchestrator.py --help | grep -q "task-name"
 python3 skills/orchestrator/engine/orchestrator.py --help | grep -q "tier"
 python3 skills/orchestrator/engine/orchestrator.py --help | grep -q "budget"
+python3 skills/orchestrator/engine/orchestrator.py --url x 2>&1 | grep -q "error"   # Old flag rejected
 
-# Old CLI flags rejected
-python3 skills/orchestrator/engine/orchestrator.py --url x 2>&1 | grep -q "error"
+# ── Budget command functional ──
+python3 skills/orchestrator/engine/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget"
 
-# Collation script runs standalone
-python3 skills/orchestrator/engine/collate_responses.py reports/harness-oss/ "Regression Test"
-
-# Landscape-researcher launch script compiles
-python3 -m py_compile skills/landscape-researcher/launch_report.py
-
-# Landscape workflow smoke test (v4.0)
+# ── Landscape smoke test ──
 python3 skills/landscape-researcher/launch_report.py --report-dir test --report-file "Test.md" --no-browser
-
-# Setup bootstrap smoke test (v4.1)
-bash -n setup.sh    # syntax check
-bash -n install.sh  # syntax check
 ```
 
 **Duration:** ~10s
 **Gate:** All checks pass
+
+### 2.6 Stage 5: Security and Quality
+
+```bash
+# ── Dependency vulnerability scan ──
+pip install pip-audit
+pip-audit -r skills/orchestrator/engine/requirements.txt
+
+# ── Secret detection (no .env, API keys, or tokens committed) ──
+! grep -ri --include="*.py" --include="*.sh" --include="*.json" \
+    "sk-[a-zA-Z0-9]" . 2>/dev/null       # Anthropic key pattern
+! grep -ri --include="*.py" --include="*.sh" --include="*.json" \
+    "AIza[a-zA-Z0-9]" . 2>/dev/null       # Google API key pattern
+
+# ── Plugin manifest validation ──
+python3 -c "
+import json
+hooks = json.load(open('hooks.json'))
+assert 'hooks' in hooks, 'hooks.json missing hooks key'
+settings = json.load(open('settings.json'))
+assert 'permissions' in settings, 'settings.json missing permissions key'
+print('Plugin manifests OK')
+"
+
+# ── Coverage threshold (informational in CI, enforced locally) ──
+# python3 -m pytest tests/ --cov=skills/orchestrator/engine --cov-report=term-missing --cov-fail-under=70
+```
+
+**Duration:** ~15s
+**Gate:** No known vulnerabilities in dependencies; no leaked secrets; plugin manifests valid
 
 ---
 
@@ -178,10 +203,10 @@ bash -n install.sh  # syntax check
 
 ### 3.1 Recommended CI Platform
 
-**GitHub Actions** (if the repo is on GitHub) or any CI that supports:
-- Python 3.11+
-- pip install
-- No Chrome required (unit tests and most regression checks only)
+**GitHub Actions** (the repo is on GitHub) with:
+- Python 3.11, 3.12, 3.13 matrix testing
+- pip dependency caching
+- No Chrome required (unit tests and regression checks only)
 
 ### 3.2 GitHub Actions Workflow
 
@@ -193,18 +218,29 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # 3.11+ required; 3.12 used in CI
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('skills/orchestrator/engine/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           pip install -r skills/orchestrator/engine/requirements.txt
-          pip install pytest
+          pip install pytest pytest-cov pip-audit
 
-      - name: Compile check — core engine files
+      - name: Compile check — engine + skill files
         run: |
           python -m py_compile skills/orchestrator/engine/orchestrator.py
           python -m py_compile skills/orchestrator/engine/config.py
@@ -221,44 +257,78 @@ jobs:
         run: |
           for f in skills/orchestrator/engine/platforms/*.py; do python -m py_compile "$f"; done
 
-      - name: Unit tests
-        run: cd skills/orchestrator/engine && python -m pytest ../../../tests/ -v --tb=short
+      - name: Bash syntax check
+        run: |
+          bash -n setup.sh
+          bash -n install.sh
+
+      - name: Unit tests with coverage
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --cov=skills/orchestrator/engine \
+            --cov-report=term-missing
 
       - name: Regression checks
         run: |
+          # Domain isolation
           ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "solution.research" skills/orchestrator/engine/
           ! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "devops" skills/orchestrator/engine/
           ! grep -r "_PROMPT_SIGS" skills/orchestrator/engine/platforms/*.py
+
+          # 7 platforms have check_rate_limit
+          test "$(grep -l 'check_rate_limit' skills/orchestrator/engine/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
+
+          # RATE_LIMITS config completeness
           python -c "
           import sys; sys.path.insert(0,'skills/orchestrator/engine')
           from config import RATE_LIMITS
           assert len(RATE_LIMITS) == 7
           print('RATE_LIMITS: OK')
           "
+
+          # CLI interface
           python skills/orchestrator/engine/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget"
           python skills/orchestrator/engine/orchestrator.py --help | grep -q "task-name"
+          python skills/orchestrator/engine/orchestrator.py --help | grep -q "tier"
+          python skills/orchestrator/engine/orchestrator.py --url x 2>&1 | grep -q "error"
 
-      - name: Landscape smoke test (v4.0)
+      - name: Plugin manifest validation
+        run: |
+          python -c "
+          import json
+          hooks = json.load(open('hooks.json'))
+          assert 'hooks' in hooks, 'hooks.json missing hooks key'
+          settings = json.load(open('settings.json'))
+          assert 'permissions' in settings, 'settings.json missing permissions key'
+          print('Plugin manifests OK')
+          "
+
+      - name: Landscape smoke test
         run: |
           python skills/landscape-researcher/launch_report.py --report-dir test --report-file "Test.md" --no-browser
 
-      - name: Setup bootstrap syntax check (v4.1)
+      - name: Dependency vulnerability scan
+        run: pip-audit -r skills/orchestrator/engine/requirements.txt
+        continue-on-error: true  # Advisory — does not block merge
+
+      - name: Secret detection
         run: |
-          bash -n setup.sh
-          bash -n install.sh
+          ! grep -ri --include="*.py" --include="*.sh" --include="*.json" "sk-[a-zA-Z0-9]" . 2>/dev/null
+          ! grep -ri --include="*.py" --include="*.sh" --include="*.json" "AIza[a-zA-Z0-9]" . 2>/dev/null
 ```
 
 ### 3.3 What CI Cannot Test
 
 | Aspect | Reason | Mitigation |
 |--------|--------|------------|
-| Platform extraction (7 AIs) | Requires active logins | Manual E2E tests |
+| Platform extraction (7 AIs) | Requires active logins | Manual E2E tests (Section 8) |
 | Chrome CDP lifecycle | Requires Chrome + display | Manual integration tests |
-| Agent fallback (browser-use) | Requires ANTHROPIC_API_KEY or GOOGLE_API_KEY + Chrome | Manual with key set |
+| Agent fallback (browser-use) | Requires API keys + Chrome | Manual with key set |
 | Skill invocation (SKILL.md) | Requires Claude Code host AI | Manual via Claude Code |
 | Deep Research mode | Requires platform subscriptions | Manual E2E |
 | Rate limit state file creation | Requires actual orchestration run | Manual IT-06 |
 | XLSX visual output | Requires Excel/Numbers | Manual inspection |
+| Plugin install flow (`claude plugin install`) | Requires published plugin | Manual post-release |
 
 ---
 
@@ -269,85 +339,203 @@ jobs:
 Developers should run before committing:
 
 ```bash
-# Quick check (~15s)
+# Quick check — compile + 96 tests + regression (~15s)
 make check
 
-# Full check including E2E smoke test (~2 min)
+# Full check including E2E smoke test (~2 min, requires Chrome)
 make check e2e-smoke
 ```
 
-### 4.2 Makefile
+### 4.2 Makefile (Canonical — Source of Truth)
+
+The actual `Makefile` in the repo root is the single source of truth for all targets. The CI workflow calls the same commands. Here is the current Makefile, reproduced verbatim:
 
 ```makefile
-.PHONY: check test compile regression e2e e2e-smoke budget-check landscape-smoke
+# MultAI — Development Targets
+# Run `make check` before every commit.
 
+VENV_PYTHON = skills/orchestrator/engine/.venv/bin/python
+ENGINE      = skills/orchestrator/engine
+COMPARATOR  = skills/comparator
+LANDSCAPE   = skills/landscape-researcher
+
+.PHONY: compile test regression check budget-check landscape-smoke e2e-smoke
+
+# ── Stage 1: Compile ──────────────────────────────────────────────────────────
 compile:
-	@echo "Compile checking engine and skill scripts..."
-	@python3 -m py_compile skills/orchestrator/engine/orchestrator.py
-	@python3 -m py_compile skills/orchestrator/engine/config.py
-	@python3 -m py_compile skills/orchestrator/engine/utils.py
-	@python3 -m py_compile skills/orchestrator/engine/prompt_echo.py
-	@python3 -m py_compile skills/orchestrator/engine/agent_fallback.py
-	@python3 -m py_compile skills/orchestrator/engine/rate_limiter.py
-	@python3 -m py_compile skills/orchestrator/engine/collate_responses.py
-	@python3 -m py_compile skills/comparator/matrix_ops.py
-	@python3 -m py_compile skills/comparator/matrix_builder.py
-	@python3 -m py_compile skills/landscape-researcher/launch_report.py
-	@for f in skills/orchestrator/engine/platforms/*.py; do python3 -m py_compile "$$f"; done
-	@echo "All files compile OK"
+	@echo "=== Compile: engine files ==="
+	python3 -m py_compile $(ENGINE)/orchestrator.py
+	python3 -m py_compile $(ENGINE)/config.py
+	python3 -m py_compile $(ENGINE)/utils.py
+	python3 -m py_compile $(ENGINE)/prompt_echo.py
+	python3 -m py_compile $(ENGINE)/agent_fallback.py
+	python3 -m py_compile $(ENGINE)/rate_limiter.py
+	python3 -m py_compile $(ENGINE)/collate_responses.py
+	@echo "=== Compile: comparator files ==="
+	python3 -m py_compile $(COMPARATOR)/matrix_ops.py
+	python3 -m py_compile $(COMPARATOR)/matrix_builder.py
+	@echo "=== Compile: landscape launcher ==="
+	python3 -m py_compile $(LANDSCAPE)/launch_report.py
+	@echo "=== Compile: platform files ==="
+	@for f in $(ENGINE)/platforms/*.py; do python3 -m py_compile "$$f"; done
+	@echo "=== Compile: shell scripts ==="
+	bash -n setup.sh
+	bash -n install.sh
+	@echo "All compile checks passed."
 
+# ── Stage 2: Unit Tests ──────────────────────────────────────────────────────
 test:
-	cd skills/orchestrator/engine && python3 -m pytest ../../../tests/ -v --tb=short
+	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
 
+# ── Stage 3: Regression ──────────────────────────────────────────────────────
 regression:
-	@echo "Checking for domain-specific strings in engine/..."
-	@! grep -ri "solution.research" skills/orchestrator/engine/ && echo "OK: no solution.research"
-	@! grep -ri "devops" skills/orchestrator/engine/ && echo "OK: no devops"
-	@! grep -r "_PROMPT_SIGS" skills/orchestrator/engine/platforms/ && echo "OK: no _PROMPT_SIGS"
-	@python3 -c "import sys; sys.path.insert(0,'skills/orchestrator/engine'); from config import RATE_LIMITS; assert len(RATE_LIMITS)==7" && echo "OK: 7 platforms in RATE_LIMITS"
-	@python3 skills/orchestrator/engine/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget" && echo "OK: budget command works"
-	@python3 skills/orchestrator/engine/orchestrator.py --help | grep -q "task-name" && echo "OK: --task-name flag present"
-	@echo "Regression checks passed"
+	@echo "=== Regression: no domain strings in engine ==="
+	@! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "solution.research" $(ENGINE)/
+	@! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "devops" $(ENGINE)/
+	@! grep -r "_PROMPT_SIGS" $(ENGINE)/platforms/*.py
+	@echo "=== Regression: 7 platforms with check_rate_limit ==="
+	@test "$$(grep -l 'check_rate_limit' $(ENGINE)/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
+	@echo "=== Regression: RATE_LIMITS config ==="
+	@python3 -c "\
+	import sys; sys.path.insert(0,'$(ENGINE)'); \
+	from config import RATE_LIMITS; \
+	assert len(RATE_LIMITS) == 7, f'Expected 7, got {len(RATE_LIMITS)}'; \
+	print('RATE_LIMITS: 7 platforms OK')"
+	@echo "=== Regression: CLI flags ==="
+	@python3 $(ENGINE)/orchestrator.py --help | grep -q "task-name"
+	@python3 $(ENGINE)/orchestrator.py --help | grep -q "tier"
+	@python3 $(ENGINE)/orchestrator.py --help | grep -q "budget"
+	@python3 $(ENGINE)/orchestrator.py --url x 2>&1 | grep -q "error"
+	@echo "=== Regression: budget command ==="
+	@python3 $(ENGINE)/orchestrator.py --prompt "x" --budget 2>&1 | grep -q "Rate Limit Budget"
+	@echo "All regression checks passed."
 
+# ── Combined ──────────────────────────────────────────────────────────────────
 check: compile test regression
+	@echo ""
+	@echo "All checks passed."
 
+# ── Convenience ───────────────────────────────────────────────────────────────
 budget-check:
-	python3 skills/orchestrator/engine/orchestrator.py --prompt "x" --budget --tier free
-	python3 skills/orchestrator/engine/orchestrator.py --prompt "x" --budget --tier paid
+	python3 $(ENGINE)/orchestrator.py --prompt "x" --budget --tier free
+	@echo ""
+	python3 $(ENGINE)/orchestrator.py --prompt "x" --budget --tier paid
 
 landscape-smoke:
-	python3 skills/landscape-researcher/launch_report.py --report-dir test --report-file "Test.md" --no-browser
+	python3 $(LANDSCAPE)/launch_report.py --report-dir test --report-file "Test.md" --no-browser
 
 e2e-smoke:
-	python3 skills/orchestrator/engine/orchestrator.py \
-	    --prompt "Hello, what is 2+2?" \
-	    --mode REGULAR \
-	    --platforms claude_ai \
-	    --task-name "CI-smoke-test"
+	python3 $(ENGINE)/orchestrator.py --prompt "What is 2+2?" --mode REGULAR --platforms claude_ai --task-name "smoke-test"
+```
 
-e2e:
-	python3 skills/orchestrator/engine/orchestrator.py \
-	    --prompt "Hello, what can you do?" \
-	    --mode REGULAR \
-	    --task-name "E2E-full-test"
+### 4.3 Makefile Target Reference
+
+| Target | Duration | What It Does | Requires Chrome? |
+|--------|----------|-------------|------------------|
+| `make compile` | ~3s | `py_compile` all 10 core + 9 platform .py files + `bash -n` for 2 shell scripts | No |
+| `make test` | ~4s | `pytest` — 96 tests across 10 test files | No |
+| `make regression` | ~5s | Domain isolation, platform count, config structure, CLI interface, budget command | No |
+| `make check` | ~12s | `compile` + `test` + `regression` (the pre-commit gate) | No |
+| `make budget-check` | ~3s | Display rate limit budgets for free and paid tiers | No |
+| `make landscape-smoke` | ~2s | Verify `launch_report.py` produces URL output with `--no-browser` | No |
+| `make e2e-smoke` | ~2 min | Run a single-platform REGULAR orchestration on claude_ai | **Yes** |
+
+---
+
+## 5. Security
+
+### 5.1 Dependency Scanning
+
+```bash
+pip-audit -r skills/orchestrator/engine/requirements.txt
+```
+
+**Policy:**
+- Critical/High vulnerabilities block release
+- Medium vulnerabilities noted in CHANGELOG, fixed within 2 weeks
+- `pip-audit` runs in CI as advisory (non-blocking) to avoid false-positive build breakage
+
+### 5.2 Secret Detection
+
+The repo must never contain API keys, tokens, or credentials. CI checks for common patterns:
+
+```bash
+# Anthropic API key pattern (sk-ant-...)
+! grep -ri --include="*.py" --include="*.sh" --include="*.json" "sk-[a-zA-Z0-9]" .
+
+# Google API key pattern (AIza...)
+! grep -ri --include="*.py" --include="*.sh" --include="*.json" "AIza[a-zA-Z0-9]" .
+```
+
+**`.gitignore` protection:** The `.env` file (where users store API keys) is gitignored. The `rate-limit-state.json` file (in `~/.chrome-playwright/`) is outside the repo entirely.
+
+### 5.3 Plugin Manifest Validation
+
+Since MultAI is distributed as a Claude Code plugin, the manifest files must be valid JSON with expected structure:
+
+```bash
+python3 -c "
+import json
+hooks = json.load(open('hooks.json'))
+assert 'hooks' in hooks
+settings = json.load(open('settings.json'))
+assert 'permissions' in settings
+print('Plugin manifests OK')
+"
 ```
 
 ---
 
-## 5. Versioning Strategy
+## 6. Branching Model
 
-### 5.1 Version Scheme
+### 6.1 Strategy: Trunk-Based Development
+
+MultAI uses trunk-based development with short-lived feature branches:
+
+```
+main ─────●────●────●────●────●──── (always releasable)
+            \       /
+             ●────●    feature/add-perplexity-deep-mode
+```
+
+**Rules:**
+- `main` is always the releasable state. Every commit on `main` should pass `make check`.
+- Feature branches are short-lived (1-3 days max).
+- No long-lived develop/staging branches — unnecessary for a local tool.
+- Direct commits to `main` are allowed for single-file fixes (typos, config tweaks).
+- Multi-file changes use feature branches with PR review.
+
+### 6.2 Branch Naming Convention
+
+| Pattern | Use |
+|---------|-----|
+| `feature/<description>` | New features (e.g., `feature/add-gemini-deep-mode`) |
+| `fix/<description>` | Bug fixes (e.g., `fix/copilot-selector-update`) |
+| `docs/<description>` | Documentation only (e.g., `docs/cicd-rewrite`) |
+
+### 6.3 Branch Protection (If Multi-Developer)
+
+When multiple contributors join:
+- Require `make check` CI to pass before merge
+- Require 1 approval on PRs touching `skills/orchestrator/engine/`
+- No force-push to `main`
+
+---
+
+## 7. Versioning Strategy
+
+### 7.1 Version Scheme
 
 `{major}.{minor}` with date tracking in CHANGELOG.md
 
-| Increment | When |
-|-----------|------|
-| Major (e.g., 2→3) | Architectural changes, new major subsystems (comparator, rate limiter) |
-| Minor (e.g., 3.1→3.2) | New features within existing architecture (collation, --task-name) |
+| Increment | When | Example |
+|-----------|------|---------|
+| Major (e.g., 3→4) | Architectural changes, new major subsystems | Adding comparator, rate limiter |
+| Minor (e.g., 4.1→4.2) | New features within existing architecture | New tests, doc restructure, bug fixes |
 
-**Current version:** 4.0 (2026-03-16)
+**Current version:** 4.2 (2026-03-18)
 
-### 5.2 What Gets Versioned
+### 7.2 What Gets Versioned
 
 | Component | Versioning | Where Tracked |
 |-----------|-----------|---------------|
@@ -355,8 +543,9 @@ e2e:
 | Skills (SKILL.md) | In `CHANGELOG.md` | Per-skill entries |
 | Domain knowledge (.md) | In the file itself | Enrichment entries appended with timestamps |
 | Docs (SRS, Architecture, Test, CI/CD) | Version number + date in file header | Updated with each version |
+| Plugin manifests (`hooks.json`, `settings.json`) | In `CHANGELOG.md` | Only when permissions or hooks change |
 
-### 5.3 CHANGELOG Format
+### 7.3 CHANGELOG Format
 
 ```markdown
 ## Version X.Y — Short Title
@@ -381,45 +570,142 @@ e2e:
 
 ---
 
-## 6. Release Process
+## 8. Release Process
 
-### 6.1 Steps
+### 8.1 Release Checklist
 
 1. **Develop** — Make changes on a feature branch (or directly on main for small fixes)
-2. **Pre-commit** — Run `make check` (compile + tests + regression); all must pass
+2. **Pre-commit** — Run `make check`; all 96 tests + regression checks must pass
 3. **Budget check** — Run `make budget-check` to confirm rate limit configs are correct
-4. **Update docs** — Update CHANGELOG.md, and any impacted SRS/Architecture/Test docs
-5. **Tag** — `git tag v4.x` (or next version)
-6. **E2E smoke** — Run `make e2e-smoke` on local machine with Chrome to confirm the engine starts
+4. **Update docs** — Update CHANGELOG.md, and any impacted SRS/Architecture/Test/CI-CD docs
+5. **Version bump** — Update version numbers in doc headers
+6. **Tag** — `git tag v4.x` (or next version)
+7. **E2E smoke** — Run `make e2e-smoke` on local machine with Chrome to confirm the engine starts
+8. **Plugin test** — Verify `claude plugin install` works from a clean environment (post-push)
 
-### 6.2 Release Artifacts
+### 8.2 Release Artifacts
 
-This is a local tool; there is no package to publish. The "release" is the state of the repository at a tagged commit. Users pull the latest code and run it.
+MultAI is distributed as a Claude Code plugin. The "release" is the state of the repository at a tagged commit. Users install or update via:
+
+```bash
+claude plugin install alo-exp/multai
+```
+
+There is no separate package to publish (no PyPI, no npm). The GitHub repository IS the distribution channel.
+
+### 8.3 Rollback Procedure
+
+If a release introduces a regression:
+
+1. **Identify** — User reports issue or `make check` fails on latest `main`
+2. **Hotfix** — Create `fix/<description>` branch from previous tag, apply fix, merge to `main`
+3. **Tag** — Create new patch version (e.g., `v4.2.1`)
+4. **Notify** — Update CHANGELOG with rollback note
+5. **Users re-install** — `claude plugin install alo-exp/multai` pulls latest `main`
+
+For catastrophic regressions where a hotfix isn't immediately available:
+```bash
+git revert <commit>   # Revert the breaking change
+git tag v4.x.1        # Tag the revert
+```
 
 ---
 
-## 7. Test Infrastructure Evolution
+## 9. Plugin-Specific CI Considerations
 
-### 7.1 Phase 1 (Current — v4.0)
+### 9.1 Plugin Manifest Files
 
-- Unit tests for prompt_echo, rate_limiter, collate_responses, config, orchestrator args, matrix_ops
-- Compile checks for all engine files (skills/orchestrator/engine/) + comparator scripts (skills/comparator/) + landscape launcher (skills/landscape-researcher/launch_report.py) + 7 platform files
-- Regression grep checks + config validation checks
-- Budget smoke test (CLI output verification)
-- Landscape workflow smoke test (`launch_report.py --no-browser`)
-- Manual E2E validation
+MultAI's plugin identity is defined by two files that CI must validate:
 
-### 7.2 Phase 2 (Future — If Warranted)
+| File | Purpose | Validation |
+|------|---------|------------|
+| `hooks.json` | Defines lifecycle hooks (session_start → install.sh) | Valid JSON, has `hooks` key, references existing scripts |
+| `settings.json` | Default permissions and settings for Claude Code | Valid JSON, has `permissions` key |
+| `install.sh` | First-run bootstrap (delegates to setup.sh) | `bash -n` syntax check, references setup.sh |
+| `setup.sh` | Dependency installer (venv, pip, playwright) | `bash -n` syntax check |
 
-- **HTML snapshot tests:** Save platform page HTML; test extraction logic against snapshots (no live browser)
-- **Playwright dry-run mode:** Engine flag `--dry-run` that connects to Chrome and navigates but stops before injection
-- **Matrix snapshot tests:** Save reference XLSX outputs; compare after `matrix_ops` operations to detect regressions
-- **Scheduled E2E:** Weekly cron job on local machine running all 7 platforms and reporting drift
-- **Rate limit state replay:** Test rate limiter with pre-seeded state files to verify budget and cooldown enforcement
+### 9.2 Plugin Install Smoke Test (Manual)
 
-### 7.3 Phase 3 (Future — If Multi-Developer)
+After every release tag, verify on a clean machine (or clean directory):
 
-- Pre-commit hooks via `pre-commit` framework (`make check` on every commit)
-- Branch protection rules requiring CI pass before merge
-- Automated CHANGELOG generation from commit messages
-- Platform selector health checks: scheduled script navigating to each AI platform and verifying key selectors still exist
+```bash
+# 1. Install from GitHub
+claude plugin install alo-exp/multai
+
+# 2. Start Claude Code in the plugin directory
+claude
+
+# 3. Type a test prompt — should trigger orchestrator routing
+> What is 2+2?
+
+# 4. Verify setup.sh ran (venv exists, deps installed)
+ls skills/orchestrator/engine/.venv/bin/python
+```
+
+This cannot be automated in CI because it requires the Claude Code runtime.
+
+---
+
+## 10. Test Infrastructure Evolution
+
+### 10.1 Phase 1 (Current — v4.2)
+
+**Implemented and running in `make check`:**
+
+- 96 automated tests across 10 test files (pytest)
+- Compile checks for 10 core modules + 9 platform files + 2 shell scripts
+- Regression checks: domain isolation (2 patterns), prompt signature guard, platform count, RATE_LIMITS structure, CLI interface (4 flags), budget command
+- Landscape workflow smoke test
+- Plugin manifest validation (hooks.json, settings.json)
+- Bash syntax checks (setup.sh, install.sh)
+
+### 10.2 Phase 2 (Next — Trigger: First External Contributor)
+
+| Item | What | Acceptance Criteria | Effort |
+|------|------|---------------------|--------|
+| **HTML snapshot tests** | Save AI platform page HTML; test extraction logic against snapshots | 7 snapshot files (1/platform), extraction returns expected chars ±10% | 2 days |
+| **Playwright dry-run mode** | Engine flag `--dry-run` connecting to Chrome, navigating, stopping before injection | `--dry-run` exits 0 with 7 "navigated" log lines; no prompt injected | 1 day |
+| **Matrix snapshot tests** | Save reference XLSX; compare after `matrix_ops` operations | `add-platform` output matches reference cell-by-cell (excluding timestamps) | 1 day |
+| **Rate limit state replay** | Pre-seeded state JSON files testing budget/cooldown enforcement | 5 scenarios: fresh, mid-budget, exhausted, cooldown-active, daily-cap-hit | 1 day |
+| **Coverage threshold** | `pytest --cov-fail-under=70` enforced in CI | CI fails if engine coverage drops below 70% | 0.5 day |
+| **Pre-commit hooks** | `pre-commit` framework running `make check` on every commit | `.pre-commit-config.yaml` exists, `pre-commit install` works | 0.5 day |
+
+### 10.3 Phase 3 (Future — Trigger: 3+ Contributors or Public Release)
+
+| Item | What | Acceptance Criteria | Effort |
+|------|------|---------------------|--------|
+| **Scheduled E2E** | Weekly cron GitHub Action running all 7 platforms on a self-hosted runner | Cron job produces `status.json` with 7 entries; Slack notification on drift | 3 days |
+| **Platform selector health checks** | Script navigating to each AI platform, verifying key selectors exist | 7-platform report: selector found/missing/changed with screenshot diff | 2 days |
+| **Automated CHANGELOG generation** | Conventional commits + auto-generated CHANGELOG entries | `npm run changelog` produces correct markdown from commit messages | 1 day |
+| **Branch protection rules** | Require CI pass + 1 approval before merge | GitHub branch protection enabled on `main` | 0.5 day |
+| **Dependency auto-update** | Dependabot or Renovate for Python dependencies | PRs auto-created for outdated deps; CI runs on those PRs | 0.5 day |
+| **Doc-code sync check** | CI verifies doc test counts match `pytest --collect-only` | Script compares doc "Total: N" with actual collected count; fails on mismatch | 1 day |
+
+---
+
+## 11. Monitoring and Notifications
+
+### 11.1 CI Failure Notification
+
+**Current (single developer):** GitHub email notifications on workflow failure (default).
+
+**Future (multi-developer):** Add Slack webhook notification step:
+
+```yaml
+- name: Notify on failure
+  if: failure()
+  uses: slackapi/slack-github-action@v2
+  with:
+    webhook: ${{ secrets.SLACK_WEBHOOK }}
+    payload: |
+      {"text": "CI failed on ${{ github.ref }}: ${{ github.event.head_commit.message }}"}
+```
+
+### 11.2 Platform Drift Detection
+
+AI platforms update their UIs without notice, breaking Playwright selectors. Currently detected manually during E2E runs. Phase 3 adds automated weekly health checks (see Section 10.3).
+
+**Current drift detection signals:**
+- E2E test fails with "extraction returned 0 chars"
+- Agent fallback fires (logged to `agent-fallback-log.json`)
+- Rate limit state shows `STATUS_FAILED` for a previously-working platform

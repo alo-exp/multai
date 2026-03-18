@@ -119,13 +119,11 @@ def _ensure_dependencies() -> None:
             sys.exit(1)
         installed = True
 
-    # 2. Optional: browser-use + langchain-anthropic (only when ANTHROPIC_API_KEY is set)
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    # 2. Optional: browser-use (only when ANTHROPIC_API_KEY or GOOGLE_API_KEY is set)
+    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
         optional = []
         if importlib.util.find_spec("browser_use") is None:
-            optional.append("browser-use>=0.2.0")
-        if importlib.util.find_spec("langchain_anthropic") is None:
-            optional.append("langchain-anthropic>=0.3.0")
+            optional.append("browser-use>=0.12.0")
         if optional:
             print(f"  Installing Agent fallback packages: {', '.join(optional)}")
             try:
@@ -157,9 +155,11 @@ from agent_fallback import AgentFallbackManager  # noqa: E402
 from config import (  # noqa: E402
     AGENT_MAX_STEPS,
     CDP_PORT,
+    DEEP_MODE,
     GLOBAL_TIMEOUT_DEEP,
     GLOBAL_TIMEOUT_REGULAR,
     PLATFORM_DISPLAY_NAMES,
+    REGULAR_MODE,
     STAGGER_DELAY,
     STATUS_FAILED,
     STATUS_ICONS,
@@ -296,8 +296,16 @@ async def run_single_platform(
     platform.agent_manager = agent_manager
     platform.prompt_sigs = prompt_sigs
 
-    # All platforms use full prompt
-    prompt = full_prompt
+    # Use condensed prompt for platforms configured with use_condensed=True
+    # (e.g. Grok, which has injection constraints on very long prompts)
+    mode_cfg_map = DEEP_MODE if mode == "DEEP" else REGULAR_MODE
+    mode_cfg = mode_cfg_map.get(platform_name)
+    if mode_cfg and mode_cfg.use_condensed and condensed_prompt:
+        prompt = condensed_prompt
+        if condensed_prompt != full_prompt:
+            log.info(f"[{platform_name}] Using condensed prompt ({len(condensed_prompt)} chars vs {len(full_prompt)} full)")
+    else:
+        prompt = full_prompt
 
     page = await context.new_page()
     try:

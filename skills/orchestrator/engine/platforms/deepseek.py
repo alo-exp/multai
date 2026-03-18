@@ -7,6 +7,7 @@ import logging
 from playwright.async_api import Page
 
 from .base import BasePlatform
+from prompt_echo import is_prompt_echo
 
 log = logging.getLogger(__name__)
 
@@ -19,13 +20,23 @@ class DeepSeek(BasePlatform):
         self._no_stop_polls: int = 0  # Consecutive polls with no stop button visible
 
     async def check_rate_limit(self, page: Page) -> str | None:
-        """Check for DeepSeek-specific rate limit indicators."""
+        """Check for DeepSeek-specific rate limit indicators.
+
+        DeepSeek under heavy load returns several different throttle messages
+        depending on the specific failure mode (server overload vs. rate limit).
+        """
         patterns = [
             "server is busy",
             "too many requests",
             "rate limit",
             "try again later",
             "service is temporarily unavailable",
+            # Additional patterns observed under load
+            "overloaded",
+            "service unavailable",
+            "We're experiencing high demand",
+            "high traffic",
+            "currently unavailable",
         ]
         for pattern in patterns:
             try:
@@ -243,26 +254,40 @@ class DeepSeek(BasePlatform):
         except Exception as exc:
             log.debug(f"[DeepSeek] message-content extraction failed: {exc}")
 
-        # Tertiary: find generic Markdown heading markers in body text (skip sidebar)
-        # Use rfind (LAST occurrence) because the sidebar at the top of the page
-        # contains chat history titles. The actual AI response is near the bottom.
+        # Tertiary: find generic Markdown heading markers in body text (skip sidebar).
+        # Scan ALL occurrences and pick the LAST one that is not a prompt echo.
+        # (rfind alone is insufficient — if the prompt's last heading happens to be
+        #  the final marker on the page, we'd return the echoed prompt.)
         try:
             text = await page.evaluate("document.body.innerText")
-            if text:
+            if text and len(text) > 500:
                 for marker in ["# ", "## "]:
-                    idx = text.rfind(marker)  # Last occurrence (skip sidebar)
-                    if idx > 0:
-                        start = text.rfind("\n", max(0, idx - 200), idx)
-                        if start < 0:
-                            start = idx
-                        report = text[start:].strip()
-                        if len(report) > 500:
-                            log.info(f"[DeepSeek] Extracted {len(report)} chars from marker '{marker}' at pos {idx}")
-                            return report
+                    positions = []
+                    start = 0
+                    while True:
+                        idx = text.find(marker, start)
+                        if idx < 0:
+                            break
+                        positions.append(idx)
+                        start = idx + 1
+                    for idx in reversed(positions):
+                        # Find the preceding newline to capture the full heading line
+                        line_start = text.rfind("\n", max(0, idx - 200), idx)
+                        if line_start < 0:
+                            line_start = idx
+                        candidate = text[line_start:].strip()
+                        if is_prompt_echo(candidate, self.prompt_sigs):
+                            log.debug(f"[DeepSeek] Skipping prompt echo at marker '{marker}' pos {idx}")
+                            continue
+                        if len(candidate) > 500:
+                            log.info(f"[DeepSeek] Extracted {len(candidate)} chars from marker '{marker}' at pos {idx}")
+                            return candidate
         except Exception as exc:
             log.debug(f"[DeepSeek] marker extraction failed: {exc}")
 
-        # Last resort: full body text
+        # Last resort: full body text (with prompt-echo guard)
         text = await page.evaluate("document.body.innerText")
+        if is_prompt_echo(text, self.prompt_sigs):
+            log.warning("[DeepSeek] body.innerText appears to be a prompt echo — returning as-is (no better option)")
         log.info(f"[DeepSeek] Extracted {len(text)} chars via body.innerText")
         return text

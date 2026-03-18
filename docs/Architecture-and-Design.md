@@ -1,7 +1,7 @@
 # Architecture and Design Document
 
 **Project:** Multi-AI Orchestrator Platform
-**Version:** 4.1
+**Version:** 4.2
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
@@ -12,6 +12,7 @@
 | 3.2 | 2026-03-14 | Added collate_responses.py, --task-name routing, collation step in flow |
 | 4.0 | 2026-03-16 | 5-skill architecture: landscape-researcher, engine owned by orchestrator, comparator owns matrix scripts, self-improving skills, domain knowledge sharing model, intent-based routing |
 | 4.1 | 2026-03-18 | Dependency bootstrap architecture: setup.sh, plugin hook chain, skills.sh install path, venv check |
+| 4.2 | 2026-03-18 | Platform resilience improvements: DR quota detection, blob interceptor robustness, stable-state fallbacks, prompt-echo coverage for all 7 platforms, expanded rate-limit patterns |
 
 ---
 
@@ -623,29 +624,73 @@ class BasePlatform:
 - `check_rate_limit()` called each poll cycle in `_poll_completion()` — mid-generation detection
 - Base class provides common pattern detection; all 7 platforms override with specific selectors
 
+**Prompt injection cascade (v4.2):**
+
+```
+_inject_exec_command(page, prompt)
+  │
+  ├─ execCommand('insertText') → check return value + verify length
+  │    ├─ success (length >= 50% of prompt) → return ✅
+  │    └─ failure (returned false or short length)
+  │         │
+  │         └─► _inject_clipboard_paste(page, prompt)
+  │              ├─ Write prompt to OS clipboard (pbcopy / xclip / clip)
+  │              ├─ Focus + selectAll in contenteditable
+  │              ├─ Press Cmd+V / Ctrl+V
+  │              └─ Verify length → return ✅ or raise
+  │
+  [if _inject_exec_command raises]
+  │
+  └─► Agent fallback (vision-based — focus input field)
+       └─► page.keyboard.type(prompt) — physical keystroke injection
+```
+
+This three-tier cascade ensures prompt injection survives the eventual removal of `document.execCommand` from Chrome.
+
 ### 4.6 Platform Extraction (Generic Pattern)
 
-All platforms follow the same decoupled extraction pattern:
+All 7 platforms follow the same decoupled extraction pattern. As of v4.2 (2026-03-18), **all 7 platforms import `is_prompt_echo`** — previously only ChatGPT, Gemini, and Claude.ai did so. Copilot, Grok, Perplexity, and DeepSeek now have full prompt-echo protection in their fallback paths.
 
 ```python
-from prompt_echo import is_prompt_echo
+from prompt_echo import is_prompt_echo   # ALL 7 platforms import this
 
 # Primary: platform-specific selector (CSS class, aria-label, etc.)
 text = await specific_selector.inner_text()
 if text and len(text) > threshold and not is_prompt_echo(text, self.prompt_sigs):
     return text
 
-# Secondary: generic Markdown heading detection
+# Secondary: generic Markdown heading detection (LAST occurrence, not first)
+# Using first-occurrence find() risks returning the echoed prompt when the
+# research prompt itself contains Markdown headings (e.g., # Background).
 body = await page.evaluate("document.body.innerText")
 for marker in ["# ", "## "]:
-    # Scan all occurrences, pick LAST one not matching prompt
+    # Collect ALL positions of this marker
+    positions = [all idx where body.find(marker, start) succeeds]
+    # Pick the LAST occurrence that is not a prompt echo
     for idx in reversed(positions):
         candidate = body[idx:]
         if not is_prompt_echo(candidate, self.prompt_sigs) and len(candidate) > 500:
             return candidate
 
-# Tertiary: full body text (with prompt-echo guard)
+# Tertiary / last resort: full body text
+# Logs a warning if body appears to be a prompt echo (no better option available)
+if is_prompt_echo(body, self.prompt_sigs):
+    log.warning("[Platform] body.innerText appears to be a prompt echo — returning as-is")
+return body
 ```
+
+**Platform-specific extraction notes:**
+
+| Platform | Primary Extraction | Key Quirk |
+|----------|--------------------|-----------|
+| Claude.ai | DOCX download (python-docx) | Cross-origin iframe requires file download |
+| ChatGPT (REGULAR) | Last `article` element | Echo guard on article text |
+| ChatGPT (DEEP) | frame.evaluate → frame_locator → coordinates | Cross-origin iframe; 3-layer fallback; quota-exhaustion guard |
+| Copilot | "Copilot said" text marker | Strips "See my thinking" prefix |
+| Perplexity | `.prose` container | Growth-based completion detection |
+| Grok | Message container (last, >200 chars) | ProseMirror editor; premature-completion guard |
+| DeepSeek | `.markdown-body` container | React `nativeInputValueSetter` injection |
+| Gemini | `model-response` container | `_seen_stop` guard prevents premature completion during plan phase |
 
 ---
 
@@ -871,9 +916,56 @@ Direct `bash setup.sh` invocation. Same result as above.
 | Engine | Platform over budget (pre-flight) | Skip platform before launch; mark as `rate_limited` in results |
 | Engine | Platform rate limited (page banner) | Detect via `check_rate_limit()` on page load + each poll cycle; mark as `rate_limited` |
 | Engine | Platform rate limited (mid-generation) | `check_rate_limit()` in poll loop exits early; partial content saved if available |
+| Engine | ChatGPT DR quota exhausted | Detected by quota-exhaustion phrases ("lighter version of deep research") in `check_rate_limit()` and in `extract_response()`; returns `[RATE LIMITED]` marker → status `rate_limited` instead of spurious `complete` |
+| Engine | Claude.ai plain-text REGULAR response (no artifact) | Stable-state fallback in `completion_check()`: after 12 polls (~2 min) without stop or copy button, declares complete and extracts body text |
+| Engine | Premature completion (Grok) | `completion_check()` requires last message container to have >200 chars before declaring complete |
+| Engine | Prompt-echo in extraction fallback | All 7 platforms log warning and return body text as-is (cannot discard) when no better option available |
 | Engine | Extraction returns <200 chars | Try Agent fallback; if still fails, mark as `failed` |
 | Engine | Playwright selector fails | Try Agent fallback (browser-use); if fails, raise error |
 | Engine | Agent fallback disabled | Re-raise original Playwright error |
+| Engine | `execCommand('insertText')` silently fails or is removed | Auto-detected via return value + length verification; falls back to `_inject_clipboard_paste()` (OS clipboard + Cmd/Ctrl+V); if both fail, escalates to Agent fallback + physical typing |
+| Engine | Blob interceptor install failure | Non-fatal warning; DR extraction falls through to frame_locator and coordinate methods |
 | Skill | Engine exit code 1 | Report failure to user; suggest re-run with `--platforms` subset |
 | Skill | Partial results | Proceed with consolidation using available responses |
 | Skill | Domain file not found | Proceed without domain knowledge; note in output |
+
+---
+
+## 8. Platform Resilience Design (v4.2)
+
+### 8.1 Rate Limit Detection Coverage
+
+As of v4.2, all 7 platforms have expanded `check_rate_limit()` implementations covering:
+
+| Platform | Hard Rate Limit Patterns | Soft Quota/Degradation Patterns |
+|----------|--------------------------|---------------------------------|
+| Claude.ai | "Usage limit reached", "too many messages", "You've sent too many" | — |
+| ChatGPT | "You've reached the current usage cap", "usage cap", "limit reached" | "lighter version of deep research", "remaining queries are powered by", "full access resets on" |
+| Copilot | "conversation limit", "daily limit", "limit reached", "too many" | — |
+| Perplexity | "Pro search limit", "limit reached", "daily limit", "out of Pro searches" | "out of searches", "free searches", "You've used all", "search limit" |
+| Grok | "Message limit reached", "try again later", "rate limit" | — |
+| DeepSeek | "server is busy", "too many requests", "rate limit", "try again later" | "overloaded", "service unavailable", "high traffic", "currently unavailable" |
+| Gemini | "at full capacity", "limit reached", "quota exceeded", "too many requests" | "daily limit exceeded", "usage limit reached", "unavailable right now", "is currently unavailable", "switched to Flash" |
+
+### 8.2 Completion Detection Resilience
+
+Each platform's `completion_check()` has a stable-state fallback to prevent infinite polling:
+
+| Platform | Primary Signal | Secondary Signal | Stable-State Trigger |
+|----------|---------------|-----------------|----------------------|
+| ChatGPT | Stop button absent | Article >2000 chars OR body >15 000 chars | 3 polls (~30s) |
+| Claude.ai | Stop button absent | Copy/Download button present OR body >10 000 chars | 12 polls (~2 min) — for REGULAR plain-text |
+| Copilot | Stop button + thinking indicators | Page text growth stabilizes | 3 polls at >5 000 chars OR 8 polls absolute |
+| Grok | Stop button absent | 2+ messages AND last message >200 chars | 3 polls |
+| DeepSeek | Stop button absent + no animation | Copy/Regenerate button OR markdown >3 000 chars | 6 polls |
+| Gemini | Stop button absent (+ `_seen_stop` guard) | Copy/Share/Export buttons OR body >15 000 chars | 3 polls after stop seen; 12 polls fallback |
+| Perplexity | Stop button absent | Page text growth stabilizes + citations + prose >3 000 chars | 3 polls at >5 000 chars OR 6 polls absolute |
+
+### 8.3 Blob Interceptor Design (ChatGPT DEEP)
+
+The blob interceptor in `chatgpt.py post_send()` captures `URL.createObjectURL` calls to intercept exported Markdown from the Deep Research panel. Key design decisions:
+
+- **`URL.createObjectURL.bind(URL)`** — stores the original bound reference so calls to the override always dispatch correctly regardless of how the browser internals call it
+- **Duck-typing (`typeof obj.size === 'number'`)** — handles `Blob`, `File`, and `MediaSource` objects without relying on `instanceof Blob`, which can fail in Playwright's sandboxed evaluation context
+- **Double try-catch** — the capture block is wrapped separately from the original-call block so a FileReader error never breaks page behavior
+- **IIFE wrapper** — prevents `origCreateObjectURL` from leaking into the global scope

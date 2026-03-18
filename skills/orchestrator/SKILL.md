@@ -210,3 +210,30 @@ other skills' files or the domain files.
 ## Run Log
 
 <!-- Append new entries at the top of this section after each run -->
+
+### 2026-03-18 — Platform Resilience Code Review + Improvements (2 rounds)
+- Trigger: Post 3-run test round gap resolution, quality review, and pre-existing weakness resolution
+- Files changed: `platforms/chatgpt.py`, `platforms/claude_ai.py`, `platforms/copilot.py`, `platforms/grok.py`, `platforms/gemini.py`, `platforms/perplexity.py`, `platforms/deepseek.py`, `platforms/base.py` (8 files)
+- Round 1 fixes (9 bugs): ChatGPT DR quota detection (check_rate_limit + extract_response guard); blob interceptor robustness (bind+duck-typing+try-catch); Claude.ai stable-state fallback (12-poll); Copilot/Grok/Perplexity/DeepSeek prompt-echo import added; Grok premature-completion guard; expanded rate-limit patterns in Gemini (8 new), Perplexity (6 new), DeepSeek (5 new)
+- Round 2 fixes (2 bugs): ChatGPT quota guard threshold removed (was `< 1000`, masked by UI chrome); DeepSeek marker scan echo-guard added (replaced blind rfind with full-scan + is_prompt_echo)
+- Pre-existing fixes (3 items): Copilot `check_rate_limit` false-positive patterns tightened ("too many"→"too many requests", "try again"→"try again later"); `_inject_exec_command` deprecation-proofed (return-value check + `_inject_clipboard_paste` auto-fallback); ChatGPT DR coordinate extraction rewritten with proportional iframe offsets + text-selector verification for Copy menu
+- Docs updated: Architecture-and-Design.md v4.2, Test-Strategy-and-Plan.md v4.3
+- Test result: `make check` 93/93 PASS after all rounds
+
+### 2026-03-18 — E2E Platform Regression (REGULAR + DEEP modes)
+- Platforms tested: ChatGPT, Gemini, Claude.ai, Copilot, Grok, DeepSeek, Perplexity (all 7)
+- Modes: REGULAR (all 7) + DEEP (ChatGPT, Gemini, Copilot, Grok, Perplexity)
+- E2E-01 ChatGPT REGULAR: PASS — response extracted, correct routing
+- E2E-02 Gemini REGULAR: PASS — Thinking model selected, response extracted
+- E2E-03 Claude.ai REGULAR: PASS — tool-use limit noted mid-long response (acceptable)
+- E2E-04 Copilot REGULAR: PASS — 21,627 chars extracted
+- E2E-05 Solution-researcher pipeline: PASS — full Northflank CIR produced via 4/6 platforms
+- E2E-06 Grok DEEP: PASS — 12,208 chars extracted
+- E2E-07 ChatGPT DEEP: BLOCKED — DR quota exhausted; "lighter version" message returned (~381 chars); quota resets 2026-03-28
+- E2E-08 DeepSeek REGULAR: PASS — 22,111 chars extracted (DOM chrome noted in content)
+- E2E-09 Agent fallback: PASS — fallback path verified via code inspection
+- E2E-10 Perplexity REGULAR: PASS — 1 request incremented (state: 3/50 budget)
+- E2E-11 Rate-limit detection: PASS — mock HTML tests verified ChatGPT + Gemini check_rate_limit() detection
+- E2E-12 Rate-limit state persistence: PASS — rate_limit_state.json persists across runs; Perplexity 2→3 confirmed
+- Engine observations: CDP reuse stable; staggered_run scheduling working; post_send Gemini "Start research" click path stable
+- Known issue: E2E-07 ChatGPT DR extraction cannot be verified until 2026-03-28 quota reset

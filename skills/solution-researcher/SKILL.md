@@ -218,3 +218,12 @@ the engine, other skills, or domain files (domain enrichment is done in Phase 5 
 ## Run Log
 
 <!-- Append new entries at the top of this section after each run -->
+
+### 2026-03-18 — Northflank (E2E-05 / IT-SC-03/05/07) — DEEP mode
+- Platforms responded: 4/6 — Copilot, Grok, Claude.ai (partial), DeepSeek (DOM chrome); ChatGPT + Perplexity excluded (quota exhausted)
+- CIR quality: High — 7 capability groups documented, 50+ item checklist, marketing claims assessment, assumptions/gaps table
+- Comparator result: 6/7 ticks applied (Canary Deployments: false; all others true); 0 orphans; 0 new rows
+- Domain enrichment: 6 timestamped additions to `domains/devops-platforms.md` — GPU category, microVM term, Platform SDK term, VectorDB inference pattern, AI-native PaaS trend, PaaS/IDP GPU variant archetype note
+- Prompt observations: Solution-researcher prompt-template performed well — all 4 responding AIs covered capability groups, deployment types, and pricing signals; Copilot and Grok produced the most structured output
+- Consolidation observations: consolidation-guide.md 5-section structure applied cleanly; DeepSeek DOM chrome was identifiable and filtered without degrading output quality
+- Changes made: none to prompt-template.md or consolidation-guide.md (both performed as expected)

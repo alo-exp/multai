@@ -271,3 +271,14 @@ After each successful matrix operation, append a run log entry and update script
 ## Run Log
 
 <!-- Append new entries at the top of this section after each run -->
+
+### 2026-03-18 — Northflank (IT-SC-05) — add-platform
+- Matrix: `/tmp/it-sc05-matrix.xlsx` (test fixture, 4 existing platforms, 7 feature rows)
+- Output: `/tmp/it-sc05-matrix-northflank.xlsx`
+- Tick count: 6/7 (archetype: PaaS/IDP K8s-native — expected range 5–8 ✓)
+- Features ticked: GitOps ✓, Blue/Green Deployments ✓, CLI Tool ✓, Preview Environments ✓, Kubernetes Support ✓, Multi-cloud ✓
+- Features not ticked: Canary Deployments ✗ (no mention in any of 4 responding AI sources — inferred absent)
+- New rows added: 0 (all 7 features matched existing rows)
+- Orphans: 0
+- Observations: `matrix_ops.py add-platform --out` flag required (not `--dst`); inference from CIR evidence for Canary was reliable — Grok explicitly covered deployment types without mentioning canary
+- Changes made: none to matrix_ops.py or matrix_builder.py

@@ -259,7 +259,8 @@ multi-ai-skills/
 ├── install.sh                ← Plugin hook delegate → setup.sh
 ├── pyproject.toml            ← Python packaging spec
 ├── settings.json             ← Default Claude Code plugin permissions
-└── USER-GUIDE.md             ← Comprehensive usage reference
+├── USER-GUIDE.md             ← End-user guide (non-technical)
+└── CONTRIBUTOR-GUIDE.md      ← Technical contributor reference
 ```
 
 ---
@@ -378,7 +379,8 @@ python3 skills/orchestrator/engine/orchestrator.py --budget --tier free
 
 | Document | Description |
 |---|---|
-| [`USER-GUIDE.md`](USER-GUIDE.md) | Full usage reference — all skills, CLI flags, troubleshooting |
+| [`USER-GUIDE.md`](USER-GUIDE.md) | End-user guide — installation, skills overview, viewing reports |
+| [`CONTRIBUTOR-GUIDE.md`](CONTRIBUTOR-GUIDE.md) | Contributor reference — CLI flags, platform internals, tests, CI/CD |
 | [`docs/Architecture-and-Design.md`](docs/Architecture-and-Design.md) | System topology, data flows, design decisions |
 | [`docs/SRS.md`](docs/SRS.md) | Software Requirements Specification |
 | [`docs/Test-Strategy-and-Plan.md`](docs/Test-Strategy-and-Plan.md) | Test cases, coverage strategy |
@@ -407,4 +409,4 @@ MIT — see [LICENSE](LICENSE) or the `license` field in [`pyproject.toml`](pypr
 
 ## Author
 
-[alo-exp](https://github.com/alo-exp) · [GitHub](https://github.com/alo-exp/multai) · [User Guide](USER-GUIDE.md)
+[alo-exp](https://github.com/alo-exp) · [GitHub](https://github.com/alo-exp/multai) · [User Guide](USER-GUIDE.md) · [Contributor Guide](CONTRIBUTOR-GUIDE.md)
