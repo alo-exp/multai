@@ -2,7 +2,7 @@
 
 > **Submit a research prompt to 7 AI platforms simultaneously — all from Claude Code.**
 
-`MultAI` is a Claude Code plugin that automates multi-AI research workflows. It uses Playwright CDP automation to submit prompts to Claude.ai, ChatGPT, Microsoft Copilot, Perplexity, Grok, DeepSeek, and Google Gemini in parallel, extracts their responses, and synthesizes the results into structured deliverables — market landscape reports, solution capability matrices, comparison spreadsheets, and more.
+`MultAI` is a Claude Cowork/Code plugin that automates multi-AI research workflows. It uses Playwright CDP automation to submit prompts to Claude.ai, ChatGPT, Microsoft Copilot, Perplexity, Grok, DeepSeek, and Google Gemini in parallel, extracts their responses, and synthesizes the results into structured deliverables — market landscape reports, solution capability matrices, comparison spreadsheets, and more.
 
 ---
 
@@ -258,7 +258,7 @@ multai/
 ├── setup.sh                  ← Canonical bootstrap — creates .venv, installs deps
 ├── install.sh                ← Plugin hook delegate → setup.sh
 ├── pyproject.toml            ← Python packaging spec
-├── settings.json             ← Default Claude Code plugin permissions
+├── settings.json             ← Default Claude Cowork/Code plugin permissions
 ├── USER-GUIDE.md             ← End-user guide (non-technical)
 └── CONTRIBUTOR-GUIDE.md      ← Technical contributor reference
 ```
@@ -397,7 +397,7 @@ python3 skills/orchestrator/engine/orchestrator.py --budget --tier free
 | Google Chrome | latest | Must be installed; engine re-uses your profile |
 | playwright | ≥ 1.40.0 | Installed by `setup.sh` |
 | openpyxl | ≥ 3.1.0 | Installed by `setup.sh` |
-| Claude Code | latest | Skills are invoked as Claude Code plugin skills |
+| Claude Code | latest | Skills are invoked as Claude Cowork/Code plugin skills |
 
 ---
 

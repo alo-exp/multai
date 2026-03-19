@@ -1,7 +1,7 @@
 # CI/CD Strategy and Plan
 
 **Project:** MultAI
-**Version:** 0.2.260319C Alpha
+**Version:** 0.2.260319D Alpha
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
@@ -21,7 +21,7 @@
 
 ### 1.1 Context
 
-MultAI is a desktop-local automation tool, not a web service. It runs on the user's machine with their Chrome profile and AI platform logins. It is distributed as a **Claude Code plugin**. This fundamentally shapes the CI/CD strategy:
+MultAI is a desktop-local automation tool, not a web service. It runs on the user's machine with their Chrome profile and AI platform logins. It is distributed as a **Claude Cowork/Code plugin**. This fundamentally shapes the CI/CD strategy:
 
 - **No deployment pipeline** — the tool runs locally, not on a server
 - **No container builds** — Chrome must use the user's real profile with active sessions
@@ -477,7 +477,7 @@ The repo must never contain API keys, tokens, or credentials. CI checks for comm
 
 ### 5.3 Plugin Manifest Validation
 
-Since MultAI is distributed as a Claude Code plugin, the manifest files must be valid JSON with expected structure:
+Since MultAI is distributed as a Claude Cowork/Code plugin, the manifest files must be valid JSON with expected structure:
 
 ```bash
 python3 -c "
@@ -603,7 +603,7 @@ When multiple contributors join:
 
 ### 8.2 Release Artifacts
 
-MultAI is distributed as a Claude Code plugin. The "release" is the state of the repository at a tagged commit. Users install or update via:
+MultAI is distributed as a Claude Cowork/Code plugin. The "release" is the state of the repository at a tagged commit. Users install or update via:
 
 ```bash
 claude plugin install alo-exp/multai

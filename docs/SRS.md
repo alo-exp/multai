@@ -1,7 +1,7 @@
 # Software Requirements Specification (SRS)
 
 **Project:** MultAI
-**Version:** 0.2.260319C Alpha
+**Version:** 0.2.260319D Alpha
 **Date:** 2026-03-18
 **Base Version:** multai/ (formerly multi-ai-skills/, solution-research-skill-260308A)
 
@@ -55,7 +55,7 @@ The system submits user-provided prompts to 7 AI platforms in parallel (Claude.a
 | **Self-Improve** | A phase in each skill where the skill appends a timestamped run log entry to its own SKILL.md after a successful run (v4.0) |
 | **Run Log** | A section in each SKILL.md that accumulates timestamped entries from Self-Improve phases (v4.0) |
 | **setup.sh** | The canonical one-time bootstrap script at the repo root; creates `skills/orchestrator/engine/.venv`, installs Python dependencies, runs `playwright install chromium`, and creates a `.env` template (v4.1) |
-| **SessionStart hook** | A Claude Code plugin lifecycle hook defined in `hooks/hooks.json` that fires `install.sh` (which delegates to `setup.sh`) on the first session start (v4.1) |
+| **SessionStart hook** | A Claude Cowork/Code plugin lifecycle hook defined in `hooks/hooks.json` that fires `install.sh` (which delegates to `setup.sh`) on the first session start (v4.1) |
 | **.installed sentinel** | A file created by the `SessionStart` hook after successful setup; prevents `setup.sh` from being re-invoked on subsequent sessions (v4.1) |
 
 ---
