@@ -532,26 +532,32 @@ When multiple contributors join:
 
 ### 7.1 Version Scheme
 
-`{Major}.{Minor}.{YYMMDDX} {Phase}` — hybrid semver + CalVer.
+`{Major}.{Minor}.{YYMMDDNN} {Phase}` — hybrid semver + CalVer.
 
 | Component | Meaning | Example |
 |-----------|---------|---------|
 | **Major** | Breaking changes, architectural overhauls | `0` → `1` |
 | **Minor** | New features within existing architecture | `0.1` → `0.2` |
-| **YYMMDDX** | Calendar date + daily increment letter. Updated with **every commit**. | `260318A`, `260318B`, `260319A` |
+| **YYMMDDNN** | Calendar date + two-digit daily patch counter (`01`–`99`). Updated with **every commit**. | `26031801`, `26031802`, `26031901` |
 | **Phase** | Maturity label: `Alpha`, `Beta`, `RC`, or omitted for GA | `Alpha` |
+
+The two-digit counter replaces the former letter suffix (`A`, `B`, …). This keeps the version
+fully valid semver (PATCH is a plain integer) while preserving date context and allowing up to
+99 patches per calendar day. The Claude plugin system compares versions as semver, so
+`0.2.26040102 > 0.2.26040101` is correctly ordered.
 
 **Formats by context:**
 
 | Context | Format | Example |
 |---------|--------|---------|
-| Git tags | `vMajor.Minor.YYMMDDX-phase` | `v0.2.260318A-alpha` |
-| Doc headers | `Version: Major.Minor.YYMMDDX Phase` | `Version: 0.2.260318A Alpha` |
-| pyproject.toml | `version = "Major.Minor.YYMMDD"` (PEP 440; letter in metadata) | `version = "0.2.260318"` |
-| Website / UI | Display version with phase | `v0.2.260318A Alpha` |
-| CHANGELOG | `## Major.Minor.YYMMDDX Phase — Title` | `## 0.2.260318A Alpha — Initial Release` |
+| Git tags | `vMajor.Minor.YYMMDDNN-phase` | `v0.2.26031801-alpha` |
+| Doc headers | `Version: Major.Minor.YYMMDDNN Phase` | `Version: 0.2.26031801 Alpha` |
+| pyproject.toml | `version = "Major.Minor.YYMMDDNN"` | `version = "0.2.26031801"` |
+| `.claude-plugin/plugin.json` | `"version": "Major.Minor.YYMMDDNN"` | `"version": "0.2.26031801"` |
+| Website / UI | Display version with phase | `v0.2.26031801 Alpha` |
+| CHANGELOG | `## Major.Minor.YYMMDDNN Phase — Title` | `## 0.2.26031801 Alpha — Initial Release` |
 
-**Current version:** 0.2.260318A Alpha
+**Current version:** 0.2.26040102 Alpha
 
 ### 7.2 What Gets Versioned
 
