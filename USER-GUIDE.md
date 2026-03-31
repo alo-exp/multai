@@ -1,6 +1,6 @@
 # MultAI — User Guide
 
-**Version:** 0.2.260331A Alpha | **Date:** 2026-03-18
+**Version:** 0.2.26040102 Alpha | **Date:** 2026-03-18
 
 ---
 
