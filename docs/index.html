@@ -478,7 +478,7 @@ footer .footer-links{display:flex;gap:24px}
 <!-- ────── HERO ────── -->
 <section class="hero text-center">
   <div class="container">
-    <div class="version-badge"><span class="dot"></span> MultAI v0.2.26040102 Alpha &mdash; Claude Cowork/Code Plugin</div>
+    <div class="version-badge"><span class="dot"></span> Alpha &mdash; Claude Cowork/Code Plugin</div>
     <h1><span style="position:relative;display:inline-block"><span class="gradient">MultAI</span><span style="position:absolute;top:.05em;left:calc(100% + 6px);font-size:.168em;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,.15);color:var(--accent-light);border:1px solid rgba(99,102,241,.25);font-family:var(--font-sans);white-space:nowrap">ALPHA</span></span></h1>
     <p style="font-size:clamp(1.2rem,2.5vw,1.8rem);font-weight:600;color:var(--text-primary);margin-bottom:20px;letter-spacing:-.01em">Leverage the Knowledge and Intelligence of 7 Leading AIs at Once</p>
     <p class="subtitle">
@@ -501,25 +501,25 @@ footer .footer-links{display:flex;gap:24px}
       Each platform brings a different training set, reasoning style, and search index. MultAI queries all seven simultaneously via Playwright browser automation &mdash; no API keys needed.
     </p>
     <div class="platform-strip">
+      <div class="platform-pill"><span class="p-dot" style="background:#2563eb"></span>Gemini</div>
       <div class="platform-pill"><span class="p-dot" style="background:#d97706"></span>Claude.ai</div>
       <div class="platform-pill"><span class="p-dot" style="background:#10b981"></span>ChatGPT</div>
       <div class="platform-pill"><span class="p-dot" style="background:#3b82f6"></span>Copilot</div>
       <div class="platform-pill"><span class="p-dot" style="background:#6366f1"></span>Perplexity</div>
       <div class="platform-pill"><span class="p-dot" style="background:#ef4444"></span>Grok</div>
       <div class="platform-pill"><span class="p-dot" style="background:#8b5cf6"></span>DeepSeek</div>
-      <div class="platform-pill"><span class="p-dot" style="background:#2563eb"></span>Gemini</div>
     </div>
     <div style="margin-top:32px">
       <table class="comparison-table" style="max-width:800px;margin:0 auto">
         <thead><tr><th>Platform</th><th>Free Tier</th><th>DEEP Mode</th><th>Agent Fallback</th></tr></thead>
         <tbody>
+          <tr><td>Google Gemini</td><td class="check">&#10003;</td><td class="check">&#10003; Deep Research</td><td class="check">&#10003;</td></tr>
           <tr><td>Claude.ai</td><td class="check">&#10003;</td><td class="check">&#10003; Pro plan</td><td class="check">&#10003;</td></tr>
           <tr><td>ChatGPT</td><td class="check">&#10003;</td><td class="check">&#10003; Plus plan</td><td class="check">&#10003;</td></tr>
           <tr><td>Microsoft Copilot</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
           <tr><td>Perplexity</td><td class="check">&#10003;</td><td class="check">&#10003; Pro plan</td><td class="check">&#10003;</td></tr>
           <tr><td>Grok</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
           <tr><td>DeepSeek</td><td class="check">&#10003;</td><td class="check">&#10003; DeepThink</td><td class="check">&#10003;</td></tr>
-          <tr><td>Google Gemini</td><td class="check">&#10003;</td><td class="check">&#10003; Deep Research</td><td class="check">&#10003;</td></tr>
         </tbody>
       </table>
     </div>
@@ -723,30 +723,29 @@ footer .footer-links{display:flex;gap:24px}
         <button class="install-tab" onclick="switchTab(this, 'tab-dev')">Dev / Clone</button>
       </div>
       <div id="tab-plugin" class="install-code active">
-<span class="comment"># Step 1 &mdash; Register the marketplace (one-time)</span>
-<span class="cmd">/plugin marketplace add</span> <span class="flag">alo-exp/multai</span>
-
-<span class="comment"># Step 2 &mdash; Install the plugin</span>
-<span class="cmd">/plugin install</span> <span class="flag">multai@multai</span>
-
+<span class="comment"># Step 1 &mdash; Register the marketplace (one-time)</span><br>
+<span class="cmd">/plugin marketplace add</span> <span class="flag">alo-exp/multai</span><br>
+<br>
+<span class="comment"># Step 2 &mdash; Install the plugin</span><br>
+<span class="cmd">/plugin install</span> <span class="flag">multai@multai</span><br>
+<br>
 <span class="comment"># Done! Start a new session and all deps install automatically.</span>
       </div>
       <div id="tab-cli" class="install-code">
-<span class="comment"># Or use Claude Desktop GUI:</span>
-<span class="comment"># Browse Plugins > Personal > + > Add marketplace from GitHub</span>
-<span class="comment"># Enter: alo-exp/multai</span>
-<span class="comment"># Then install the multai plugin</span>
-
-<span class="comment"># Or from the CLI:</span>
-<span class="cmd">claude plugin marketplace add</span> <span class="flag">alo-exp/multai</span>
+<span class="comment"># Claude Desktop GUI:</span><br>
+<span class="comment"># Browse Plugins &gt; Personal &gt; + &gt; Add marketplace from GitHub</span><br>
+<span class="comment"># Enter: alo-exp/multai, then install the multai plugin</span><br>
+<br>
+<span class="comment"># Or from the CLI:</span><br>
+<span class="cmd">claude plugin marketplace add</span> <span class="flag">alo-exp/multai</span><br>
 <span class="cmd">claude plugin install</span> <span class="flag">multai@multai</span>
       </div>
       <div id="tab-dev" class="install-code">
-<span class="cmd">git clone</span> <span class="flag">https://github.com/alo-exp/multai.git</span>
-<span class="cmd">cd</span> multai
-<span class="cmd">bash</span> install.sh
-
-<span class="comment"># Load directly without marketplace registration:</span>
+<span class="cmd">git clone</span> <span class="flag">https://github.com/alo-exp/multai.git</span><br>
+<span class="cmd">cd</span> multai<br>
+<span class="cmd">bash</span> install.sh<br>
+<br>
+<span class="comment"># Load directly without marketplace registration:</span><br>
 <span class="cmd">claude</span> <span class="flag">--plugin-dir</span> ./multai
       </div>
     </div>
@@ -906,7 +905,7 @@ footer .footer-links{display:flex;gap:24px}
     <div class="footer-inner">
       <div>
         <span style="font-weight:700;color:var(--text-secondary)">MultAI</span>
-        <span style="margin-left:8px">v0.2.260331A Alpha &bull; MIT License</span>
+        <span style="margin-left:8px">MIT License</span>
       </div>
       <div style="font-size:.9rem;color:var(--text-secondary)">
         Innovated at <a href="https://alolabs.dev" target="_blank" style="font-weight:700;background:linear-gradient(135deg,var(--accent-light),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none">&#256;lo Labs</a>
@@ -915,7 +914,7 @@ footer .footer-links{display:flex;gap:24px}
         <a href="https://github.com/alo-exp/multai" target="_blank">GitHub</a>
         <a href="https://github.com/alo-exp/multai/blob/main/CONTRIBUTOR-GUIDE.md" target="_blank">Contributor Guide</a>
         <a href="https://github.com/alo-exp/multai/issues" target="_blank">Issues</a>
-        <a href="https://alolabs.dev" target="_blank">Ālo Labs</a>
+        <a href="https://alolabs.dev" target="_blank">alolabs.dev</a>
       </div>
     </div>
   </div>
@@ -932,10 +931,10 @@ function applyTheme(dark) {
 function toggleTheme() {
   applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
 }
-// Init: dark by default, honour saved preference
+// Init: light by default, honour saved preference
 (function(){
   const saved = localStorage.getItem('multai-theme');
-  applyTheme(saved ? saved === 'dark' : true);
+  applyTheme(saved ? saved === 'dark' : false);
 })();
 
 // ── Tab switching ──
