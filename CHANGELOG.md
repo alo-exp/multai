@@ -6,7 +6,7 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
-## 0.2.260401B Alpha — SENTINEL Security Audit Remediations
+## 0.2.26040102 Alpha — SENTINEL Security Audit Remediations
 
 **Date:** 2026-04-01
 
@@ -24,7 +24,7 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
-## 0.2.260401A Alpha — Rename orchestrator skill to `/multai`
+## 0.2.26040101 Alpha — Rename orchestrator skill to `/multai`
 
 **Date:** 2026-04-01
 
