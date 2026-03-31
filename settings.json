@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3:*)",
       "Bash(python3 skills/orchestrator/engine/orchestrator.py:*)",
       "Bash(python3 skills/comparator/matrix_ops.py:*)",
       "Bash(python3 skills/comparator/matrix_builder.py:*)",
