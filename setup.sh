@@ -62,7 +62,7 @@ PYTHON_VENV="$VENV_DIR/bin/python"
 # ── Core dependencies ─────────────────────────────────────────────────────────
 info "Installing core dependencies (playwright, openpyxl)..."
 "$PIP" install --quiet --upgrade pip
-"$PIP" install --quiet "playwright>=1.40.0" "openpyxl>=3.1.0"
+"$PIP" install --quiet "playwright==1.58.0" "openpyxl==3.1.5"
 success "Core dependencies installed"
 
 # ── Playwright browsers ───────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ success "Chromium installed"
 # ── Optional: browser-use fallback ───────────────────────────────────────────
 if [[ "$WITH_FALLBACK" == true ]]; then
   info "Installing browser-use agent fallback (--with-fallback)..."
-  "$PIP" install --quiet "browser-use==0.12.2" "anthropic>=0.76.0" "fastmcp>=2.0.0"
+  "$PIP" install --quiet "browser-use==0.12.2" "anthropic==0.76.0" "fastmcp==2.0.0"
   success "browser-use fallback installed"
 else
   warn "Skipping browser-use fallback (add --with-fallback to enable it)"

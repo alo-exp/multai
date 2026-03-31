@@ -80,6 +80,16 @@ without a specific product or landscape intent)
 Tell the user which route you've selected: *"Routing to [skill name] — [brief reason]."*
 Accept a user override: if they say "no, do X instead", re-route accordingly.
 
+**Before proceeding to Phase 1 / the specialist skill**, confirm with the user:
+
+> "Your prompt will be sent to these external AI services: **Claude.ai, ChatGPT,
+> Microsoft Copilot, Perplexity, Grok, DeepSeek, Google Gemini**. Each service
+> will receive the full prompt text and may retain it per their own data policies.
+> Do not proceed if the prompt contains confidential or sensitive information.
+> **Confirm to proceed, or say 'cancel' to abort.**"
+
+Wait for explicit confirmation before continuing. If the user says 'cancel', stop.
+
 ---
 
 ## Phase 1 — Setup (Direct Multi-AI Path)

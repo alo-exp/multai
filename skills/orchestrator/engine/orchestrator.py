@@ -102,11 +102,11 @@ def _ensure_dependencies() -> None:
         print("  Installing playwright...")
         try:
             subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "--quiet", "playwright>=1.40.0"],
+                [sys.executable, "-m", "pip", "install", "--quiet", "playwright==1.58.0"],
             )
         except subprocess.CalledProcessError:
             print("  ERROR: Failed to install playwright. Install manually:")
-            print("    pip install playwright>=1.40.0")
+            print("    pip install playwright==1.58.0")
             sys.exit(1)
         print("  Installing Chromium browser (one-time download, ~130 MB)...")
         try:
@@ -123,7 +123,7 @@ def _ensure_dependencies() -> None:
     if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
         optional = []
         if importlib.util.find_spec("browser_use") is None:
-            optional.append("browser-use>=0.12.0")
+            optional.append("browser-use==0.12.2")
         if optional:
             print(f"  Installing Agent fallback packages: {', '.join(optional)}")
             try:
@@ -256,6 +256,10 @@ def load_prompts(args: argparse.Namespace) -> tuple[str, str, list[str]]:
         path = Path(args.prompt_file)
         if not path.exists():
             log.error(f"Prompt file not found: {args.prompt_file}")
+            sys.exit(1)
+        _MAX_PROMPT_BYTES = 512_000  # 500 KB ceiling
+        if path.stat().st_size > _MAX_PROMPT_BYTES:
+            log.error(f"Prompt file exceeds 500 KB limit ({path.stat().st_size} bytes): {args.prompt_file}")
             sys.exit(1)
         full_prompt = path.read_text(encoding="utf-8")
 
@@ -443,6 +447,7 @@ def _ensure_playwright_data_dir(real_chrome_dir: str, profile_name: str) -> str:
     """
     pw_dir = Path.home() / ".chrome-playwright"
     pw_dir.mkdir(parents=True, exist_ok=True)
+    pw_dir.chmod(0o700)  # Owner-only access — protects copied session cookies
 
     profile_dst = pw_dir / profile_name
     profile_src = Path(real_chrome_dir) / profile_name
@@ -458,8 +463,9 @@ def _ensure_playwright_data_dir(real_chrome_dir: str, profile_name: str) -> str:
     _LOGIN_FILES = [
         "Cookies",
         "Cookies-journal",
-        "Login Data",
-        "Login Data-journal",
+        # "Login Data" intentionally excluded — contains saved passwords; not
+        # needed for Playwright session reuse (session cookies are sufficient).
+        # "Login Data-journal" excluded for the same reason.
         "Web Data",
         "Web Data-journal",
         "Extension Cookies",
@@ -625,6 +631,7 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
                 chrome_exe,
                 f"--user-data-dir={pw_data_dir}",
                 f"--profile-directory={args.chrome_profile}",
+                "--remote-debugging-host=127.0.0.1",  # Bind CDP to loopback only
                 f"--remote-debugging-port={CDP_PORT}",
                 "--no-first-run",
                 "--hide-crash-restore-bubble",
@@ -853,6 +860,13 @@ def _resolve_output_dir(args: argparse.Namespace) -> str:
         # Sanitise task-name: keep letters, numbers, hyphens, underscores, dots, spaces
         safe = "".join(c if c.isalnum() or c in "-_. " else "-" for c in args.task_name).strip()
         return str(_PROJECT_ROOT / "reports" / safe)
+    # Validate --output-dir is within the project root to prevent path traversal
+    resolved = Path(args.output_dir).resolve()
+    if not str(resolved).startswith(str(_PROJECT_ROOT)):
+        log.error(
+            f"--output-dir must be within the project root ({_PROJECT_ROOT}). Got: {resolved}"
+        )
+        sys.exit(1)
     return args.output_dir
 
 

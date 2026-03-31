@@ -130,12 +130,19 @@ def collate(output_dir: str, task_name: str) -> Path | None:
         if meta:
             header += f"\n*{meta}*"
 
-        sections.append(f"{header}\n\n{content}")
+        sections.append(
+            f"{header}\n\n"
+            f"<untrusted_platform_response platform=\"{display}\">\n\n"
+            f"{content}\n\n"
+            f"</untrusted_platform_response>"
+        )
 
     # Assemble full archive
     total = len(all_stems)
+    _MD_ESCAPE = str.maketrans({"#": "\\#", "[": "\\[", "]": "\\]", "*": "\\*", "_": "\\_"})
+    safe_header_name = task_name.strip().translate(_MD_ESCAPE)
     archive_lines = [
-        f"# {task_name} — Raw AI Responses",
+        f"# {safe_header_name} — Raw AI Responses",
         "",
         f"**Generated:** {ts_fmt}  ",
         f"**Mode:** {mode}  ",
