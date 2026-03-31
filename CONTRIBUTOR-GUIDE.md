@@ -1,6 +1,6 @@
 # MultAI — Contributor Guide
 
-**Version:** 0.2.260320B Alpha | **Date:** 2026-03-18
+**Version:** 0.2.260331A Alpha | **Date:** 2026-03-18
 
 > **Looking for the end-user guide?** See [USER-GUIDE.md](USER-GUIDE.md).
 
@@ -230,7 +230,7 @@ multai/
 │       ├── <task-name> - Raw AI Responses.md  (auto-collated archive)
 │       └── agent-fallback-log.json  (if fallback was triggered)
 │
-├── tests/                      # pytest unit test suite (96 tests)
+├── tests/                      # pytest unit test suite (98 tests)
 │   ├── fixtures/               # Sample prompts, responses, status files
 │   ├── test_prompt_echo.py
 │   ├── test_rate_limiter.py

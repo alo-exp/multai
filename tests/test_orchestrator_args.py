@@ -1,6 +1,6 @@
 """Unit tests for orchestrator argument parsing.
 
-Tests UT-OR-01 through UT-OR-11.
+Tests UT-OR-01 through UT-OR-12.
 
 NOTE: orchestrator.py has module-level side effects (_ensure_venv, _ensure_dependencies)
 that call subprocess.run and os.execv. We mock these to prevent them from firing.
@@ -164,3 +164,13 @@ class TestOrchestratorArgs:
         with unittest.mock.patch("sys.argv", ["orchestrator.py", "--prompt", "test", "--headless"]):
             args = parse_args()
         assert args.headless is True
+
+    def test_ut_or_12_followup_flag(self):
+        """UT-OR-12: --followup flag defaults to False and is set to True when supplied."""
+        with unittest.mock.patch("sys.argv", ["orchestrator.py", "--prompt", "test"]):
+            args = parse_args()
+        assert args.followup is False
+
+        with unittest.mock.patch("sys.argv", ["orchestrator.py", "--prompt", "test", "--followup"]):
+            args = parse_args()
+        assert args.followup is True

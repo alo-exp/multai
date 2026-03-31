@@ -58,6 +58,18 @@ PLATFORM_DISPLAY_NAMES = {
     "gemini":     "Google Gemini",
 }
 
+# URL domain fragments used to identify an existing browser tab for each platform.
+# Matched against page.url via substring search.
+PLATFORM_URL_DOMAINS = {
+    "claude_ai":  "claude.ai",
+    "chatgpt":    "openai.com",
+    "copilot":    "copilot.microsoft.com",
+    "perplexity": "perplexity.ai",
+    "grok":       "grok.com",
+    "deepseek":   "chat.deepseek.com",
+    "gemini":     "gemini.google.com",
+}
+
 
 # ---------------------------------------------------------------------------
 # Timeouts (seconds)
@@ -156,6 +168,7 @@ STATUS_PARTIAL = "partial"
 STATUS_FAILED = "failed"
 STATUS_TIMEOUT = "timeout"
 STATUS_RATE_LIMITED = "rate_limited"
+STATUS_NEEDS_LOGIN = "needs_login"
 STATUS_LOST = "lost"
 
 STATUS_ICONS = {
@@ -163,7 +176,8 @@ STATUS_ICONS = {
     STATUS_PARTIAL:      "⚠️",
     STATUS_FAILED:       "❌",
     STATUS_TIMEOUT:      "❌",
-    STATUS_RATE_LIMITED:  "❌",
+    STATUS_RATE_LIMITED: "❌",
+    STATUS_NEEDS_LOGIN:  "🔑",
     STATUS_LOST:         "❌",
 }
 

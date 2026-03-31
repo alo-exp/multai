@@ -159,12 +159,14 @@ from config import (  # noqa: E402
     GLOBAL_TIMEOUT_DEEP,
     GLOBAL_TIMEOUT_REGULAR,
     PLATFORM_DISPLAY_NAMES,
+    PLATFORM_URL_DOMAINS,
     REGULAR_MODE,
     STAGGER_DELAY,
     STATUS_FAILED,
     STATUS_ICONS,
     STATUS_RATE_LIMITED,
     STATUS_TIMEOUT,
+    TIMEOUTS,
     detect_chrome_executable,
     detect_chrome_user_data_dir,
 )
@@ -220,6 +222,9 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated platform names to run, or 'all' (default: all)")
     p.add_argument("--fresh", action="store_true",
                    help="Force launch a new Chrome (kill any existing). Default: reuse running Chrome.")
+    p.add_argument("--followup", action="store_true",
+                   help="Follow-up on the same topic: reuse existing conversations in open tabs "
+                        "instead of starting new ones. Skips navigation and mode configuration.")
 
     # Rate limiting
     p.add_argument("--tier", choices=["free", "paid"], default="free",
@@ -289,8 +294,16 @@ async def run_single_platform(
     mode: str,
     output_dir: str,
     agent_manager: AgentFallbackManager | None = None,
+    existing_page=None,
+    followup: bool = False,
 ) -> dict:
-    """Create a page, instantiate the platform class, and run it."""
+    """Find or create a page, instantiate the platform class, and run it.
+
+    Args:
+        existing_page: An open Playwright Page for this platform (from a prior run).
+                       If None, a new tab is opened.
+        followup: Pass True to reuse the existing conversation (skip navigation/config).
+    """
     cls = ALL_PLATFORMS[platform_name]
     platform = cls()
     platform.agent_manager = agent_manager
@@ -307,9 +320,17 @@ async def run_single_platform(
     else:
         prompt = full_prompt
 
-    page = await context.new_page()
+    # Reuse existing tab or open a new one
+    if existing_page is not None:
+        page = existing_page
+        tab_source = "reused"
+    else:
+        page = await context.new_page()
+        tab_source = "new"
+    log.info(f"[{PLATFORM_DISPLAY_NAMES.get(platform_name, platform_name)}] Tab: {tab_source}")
+
     try:
-        result = await platform.run(page, prompt, mode, output_dir)
+        result = await platform.run(page, prompt, mode, output_dir, followup=followup)
         return {
             "platform": result.platform,
             "display_name": result.display_name,
@@ -351,6 +372,8 @@ async def _staggered_run(
     output_dir: str,
     agent_manager: AgentFallbackManager | None,
     limiter: RateLimiter,
+    existing_page=None,
+    followup: bool = False,
 ) -> dict:
     """Wait for stagger delay, then run platform and record usage."""
     if delay_seconds > 0:
@@ -360,6 +383,7 @@ async def _staggered_run(
     result = await run_single_platform(
         platform_name, context, full_prompt, condensed_prompt,
         prompt_sigs, mode, output_dir, agent_manager,
+        existing_page=existing_page, followup=followup,
     )
 
     # Record usage for rate tracking
@@ -479,6 +503,46 @@ def _ensure_playwright_data_dir(real_chrome_dir: str, profile_name: str) -> str:
     return str(pw_dir)
 
 
+# ---------------------------------------------------------------------------
+# Tab state persistence — tracks open browser tabs across runs
+# ---------------------------------------------------------------------------
+
+_TAB_STATE_FILE = Path.home() / ".chrome-playwright" / "tab-state.json"
+
+
+def _load_tab_state() -> dict:
+    """Load the persisted mapping of platform_name → last known tab URL."""
+    if _TAB_STATE_FILE.exists():
+        try:
+            return json.loads(_TAB_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _save_tab_state(tab_state: dict) -> None:
+    """Persist the mapping of platform_name → current tab URL."""
+    _TAB_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _TAB_STATE_FILE.write_text(
+        json.dumps(tab_state, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+async def _find_existing_tab(context, platform_name: str):
+    """Search open Chrome tabs for a page belonging to this platform.
+
+    Matches by PLATFORM_URL_DOMAINS substring in the page URL.
+    Returns the Page if found, None otherwise.
+    """
+    domain = PLATFORM_URL_DOMAINS.get(platform_name, "")
+    if not domain:
+        return None
+    for page in context.pages:
+        if domain in page.url:
+            return page
+    return None
+
+
 async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> list[dict]:
     """Launch Chrome, run all platforms in parallel, return results."""
     full_prompt, condensed_prompt, prompt_sigs = load_prompts(args)
@@ -519,8 +583,20 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
     pw_data_dir = _ensure_playwright_data_dir(user_data, args.chrome_profile)
     log.info(f"Playwright data dir: {pw_data_dir}")
 
-    global_timeout = GLOBAL_TIMEOUT_DEEP if args.mode == "DEEP" else GLOBAL_TIMEOUT_REGULAR
-    log.info(f"Mode: {args.mode} | Global timeout: {global_timeout}s | Platforms: {len(platform_names)}")
+    # Dynamic global timeout: max individual platform timeout + total stagger + 60s buffer.
+    # This ensures even the last-staggered platform gets its full per-platform timeout.
+    max_plat_timeout = max(
+        (TIMEOUTS[n].deep if args.mode == "DEEP" else TIMEOUTS[n].regular)
+        for n in platform_names
+        if n in TIMEOUTS
+    ) if any(n in TIMEOUTS for n in platform_names) else (
+        GLOBAL_TIMEOUT_DEEP if args.mode == "DEEP" else GLOBAL_TIMEOUT_REGULAR
+    )
+    total_stagger = (len(platform_names) - 1) * args.stagger_delay
+    global_timeout = max_plat_timeout + total_stagger + 60
+    log.info(f"Mode: {args.mode} | Global timeout: {global_timeout}s "
+             f"(max_plat={max_plat_timeout}s + stagger={total_stagger}s + 60s) | "
+             f"Platforms: {len(platform_names)}")
 
     chrome_proc = None
 
@@ -601,41 +677,54 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
         limiter = RateLimiter(tier=args.tier)
         limiter.load_state()
 
-        # Pre-flight: check which platforms are allowed
-        allowed_platforms = []
-        skipped_platforms = []
-        launched_names = []  # Track names for index-based result mapping
-
+        # Pre-flight: WARN ONLY — never skip platforms based on rate budget.
+        # Platforms are only excluded during the run itself if they:
+        #   • Show a sign-in page (STATUS_NEEDS_LOGIN)
+        #   • Are unreachable (network error → STATUS_FAILED)
+        #   • Report actual quota exhaustion on-page (STATUS_RATE_LIMITED)
         if not args.skip_rate_check:
             for name in platform_names:
                 check = limiter.preflight_check(name, args.mode)
                 if check.allowed:
-                    allowed_platforms.append(name)
                     log.info(
                         f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] "
-                        f"Pre-flight OK — budget: {check.budget_remaining}/{check.budget_total}"
+                        f"Budget OK — {check.budget_remaining}/{check.budget_total} remaining"
                     )
                 else:
-                    skipped_platforms.append((name, check))
                     log.warning(
                         f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] "
-                        f"SKIPPED — {check.reason} (wait {check.wait_seconds}s)"
+                        f"Budget warning: {check.reason} — proceeding anyway"
                     )
         else:
-            allowed_platforms = list(platform_names)
             log.info("Rate limit checks bypassed (--skip-rate-check)")
 
-        log.info(
-            f"Browser ready — running {len(allowed_platforms)} platforms "
-            f"({len(skipped_platforms)} skipped by rate limiter)"
-        )
+        # All requested platforms proceed regardless of budget status
+        allowed_platforms = list(platform_names)
+        log.info(f"Browser ready — launching {len(allowed_platforms)} platforms")
+
+        # Find existing tabs for each platform (tab reuse across runs)
+        if args.followup:
+            log.info("Follow-up mode: reusing existing conversations in open tabs")
+        else:
+            log.info("New topic mode: reusing tabs but starting new conversations")
+
+        existing_tabs: dict[str, object] = {}
+        for name in allowed_platforms:
+            page = await _find_existing_tab(context, name)
+            if page is not None:
+                existing_tabs[name] = page
+                log.info(
+                    f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] "
+                    f"Found existing tab: {page.url[:60]}"
+                )
 
         # Get staggered launch order
         launch_order = limiter.get_staggered_order(
             allowed_platforms, args.mode, stagger_delay=args.stagger_delay,
         )
 
-        # Launch with stagger delays
+        # Launch all platforms with stagger delays
+        launched_names = []
         async_tasks = []
         for name, delay in launch_order:
             launched_names.append(name)
@@ -643,18 +732,22 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
                 _staggered_run(
                     name, delay, context, full_prompt, condensed_prompt,
                     prompt_sigs, args.mode, str(output_dir), agent_mgr, limiter,
+                    existing_page=existing_tabs.get(name),
+                    followup=args.followup and (name in existing_tabs),
                 ),
                 name=name,
             )
             async_tasks.append(task)
 
+        # Wait for ALL platforms to complete (each self-times-out via per-platform timeout).
+        # The outer timeout is a hard ceiling for truly stuck tasks.
         try:
             results = await asyncio.wait_for(
                 asyncio.gather(*async_tasks, return_exceptions=True),
                 timeout=global_timeout,
             )
         except asyncio.TimeoutError:
-            log.warning(f"Global timeout ({global_timeout}s) reached — cancelling remaining tasks")
+            log.warning(f"Hard ceiling ({global_timeout}s) reached — cancelling stuck tasks")
             for task in async_tasks:
                 if not task.done():
                     task.cancel()
@@ -665,23 +758,18 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
                     exc = task.exception()
                     results.append(exc if exc else task.result())
                 else:
-                    results.append(asyncio.TimeoutError("Global timeout"))
+                    results.append(asyncio.TimeoutError("Global ceiling exceeded"))
 
-        # Add skipped platforms as immediate results
-        final_results = []
-        for name, check in skipped_platforms:
-            final_results.append({
-                "platform": name,
-                "display_name": PLATFORM_DISPLAY_NAMES.get(name, name),
-                "status": STATUS_RATE_LIMITED,
-                "chars": 0,
-                "file": "",
-                "mode_used": "",
-                "error": f"Pre-flight blocked: {check.reason}",
-                "duration_s": 0,
-            })
+        # Save updated tab URLs to state file
+        new_tab_state: dict[str, str] = {}
+        for name in launched_names:
+            page = await _find_existing_tab(context, name)
+            if page is not None:
+                new_tab_state[name] = page.url
+        _save_tab_state(new_tab_state)
 
         # Convert exceptions to error dicts
+        final_results = []
         for i, r in enumerate(results):
             if isinstance(r, Exception):
                 name = launched_names[i]

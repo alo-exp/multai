@@ -1,7 +1,7 @@
 # CI/CD Strategy and Plan
 
 **Project:** MultAI
-**Version:** 0.2.260320B Alpha
+**Version:** 0.2.260331A Alpha
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
@@ -123,7 +123,7 @@ Test modules (v4.2):
 | **Total** | **96** | |
 
 **Duration:** ~4s
-**Gate:** All 96 tests pass
+**Gate:** All 98 tests pass
 
 ### 2.5 Stage 4: Regression Checks
 
@@ -345,7 +345,7 @@ jobs:
 Developers should run before committing:
 
 ```bash
-# Quick check — compile + 96 tests + regression (~15s)
+# Quick check — compile + 98 tests + regression (~15s)
 make check
 
 # Full check including E2E smoke test (~2 min, requires Chrome)
@@ -439,7 +439,7 @@ e2e-smoke:
 | Target | Duration | What It Does | Requires Chrome? |
 |--------|----------|-------------|------------------|
 | `make compile` | ~3s | `py_compile` all 10 core + 9 platform .py files + `bash -n` for 2 shell scripts | No |
-| `make test` | ~4s | `pytest` — 96 tests across 10 test files | No |
+| `make test` | ~4s | `pytest` — 98 tests across 10 test files | No |
 | `make regression` | ~5s | Domain isolation, platform count, config structure, CLI interface, budget command | No |
 | `make check` | ~12s | `compile` + `test` + `regression` (the pre-commit gate) | No |
 | `make budget-check` | ~3s | Display rate limit budgets for free and paid tiers | No |
@@ -593,7 +593,7 @@ When multiple contributors join:
 ### 8.1 Release Checklist
 
 1. **Develop** — Make changes on a feature branch (or directly on main for small fixes)
-2. **Pre-commit** — Run `make check`; all 96 tests + regression checks must pass
+2. **Pre-commit** — Run `make check`; all 98 tests + regression checks must pass
 3. **Budget check** — Run `make budget-check` to confirm rate limit configs are correct
 4. **Update docs** — Update CHANGELOG.md, and any impacted SRS/Architecture/Test/CI-CD docs
 5. **Version bump** — Update version numbers in doc headers
