@@ -17,6 +17,7 @@ from config import (
     POLL_INTERVAL,
     STATUS_COMPLETE,
     STATUS_FAILED,
+    STATUS_NEEDS_LOGIN,
     STATUS_PARTIAL,
     STATUS_RATE_LIMITED,
     STATUS_TIMEOUT,
@@ -74,8 +75,14 @@ class BasePlatform:
         prompt: str,
         mode: str,
         output_dir: str,
+        followup: bool = False,
     ) -> PlatformResult:
-        """Execute the full platform lifecycle: navigate → configure → inject → send → poll → extract → save."""
+        """Execute the full platform lifecycle: navigate → configure → inject → send → poll → extract → save.
+
+        Args:
+            followup: If True, reuse the existing conversation in this tab (skip navigation
+                      and mode configuration). Use for follow-up questions on the same topic.
+        """
         t0 = time.monotonic()
         timeout = TIMEOUTS.get(self.name)
         if timeout is None:
@@ -85,33 +92,78 @@ class BasePlatform:
         max_wait = timeout.deep if mode == "DEEP" else timeout.regular
 
         try:
-            # 1. Navigate
-            log.info(f"[{self.display_name}] Navigating to {self.url}")
-            await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(3000)  # Let JS frameworks initialise
+            if followup:
+                # Follow-up mode: reuse existing conversation — skip navigation and mode config
+                log.info(f"[{self.display_name}] Follow-up mode: continuing existing conversation")
+                await page.bring_to_front()
+                await page.wait_for_timeout(1000)
+                mode_label = f"{mode}-followup"
+            else:
+                # 1. Navigate to new conversation
+                log.info(f"[{self.display_name}] Navigating to {self.url}")
+                try:
+                    await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
+                except Exception as exc:
+                    # Try agent fallback for navigation errors (e.g. redirect loops)
+                    try:
+                        await self._agent_fallback(
+                            page, "navigate", exc,
+                            f"Navigate to {self.url} and wait for the {self.display_name} "
+                            f"chat interface to load. Confirm when the page is ready.",
+                        )
+                    except Exception:
+                        raise RuntimeError(f"Navigation failed: {exc}") from exc
+                await page.wait_for_timeout(3000)  # Let JS frameworks initialise
 
-            # 1b. Rate limit pre-check (before any interaction)
-            rate_msg = await self.check_rate_limit(page)
-            if rate_msg:
-                log.warning(f"[{self.display_name}] Rate limited on page load: {rate_msg}")
-                return PlatformResult(
-                    platform=self.name, display_name=self.display_name,
-                    status=STATUS_RATE_LIMITED, mode_used="",
-                    error=f"Rate limited: {rate_msg}",
-                    duration_s=time.monotonic() - t0,
-                )
+                # 1b. Sign-in detection — catches the case where the user isn't logged in
+                if await self.is_sign_in_page(page):
+                    log.warning(f"[{self.display_name}] Sign-in page detected — attempting agent recovery")
+                    try:
+                        await self._agent_fallback(
+                            page, "navigate",
+                            RuntimeError("Sign-in page visible"),
+                            f"On {self.display_name}: a sign-in / login page is currently showing. "
+                            f"The user is already authenticated — try navigating to the main chat "
+                            f"interface directly without entering any credentials. "
+                            f"Navigate to {self.url} and confirm the chat UI is now visible.",
+                        )
+                        await page.wait_for_timeout(2000)
+                    except Exception:
+                        pass
+                    # Re-check after agent attempt
+                    if await self.is_sign_in_page(page):
+                        return PlatformResult(
+                            platform=self.name, display_name=self.display_name,
+                            status=STATUS_NEEDS_LOGIN, mode_used="",
+                            error="Sign-in required — please log in to this platform in Chrome first",
+                            duration_s=time.monotonic() - t0,
+                        )
 
-            # 2. Configure mode
-            log.info(f"[{self.display_name}] Configuring mode: {mode}")
-            try:
-                mode_label = await self.configure_mode(page, mode)
-            except Exception as exc:
-                await self._agent_fallback(
-                    page, "configure_mode", exc,
-                    f"On {self.display_name}: configure the AI model for {mode} mode. "
-                    f"Select the appropriate model and enable required features.",
-                )
-                mode_label = "Agent-configured"
+                # 1c. Rate limit pre-check (before any interaction)
+                rate_msg = await self.check_rate_limit(page)
+                if rate_msg:
+                    log.warning(f"[{self.display_name}] Rate limited on page load: {rate_msg}")
+                    return PlatformResult(
+                        platform=self.name, display_name=self.display_name,
+                        status=STATUS_RATE_LIMITED, mode_used="",
+                        error=f"Rate limited: {rate_msg}",
+                        duration_s=time.monotonic() - t0,
+                    )
+
+                # 2. Configure mode
+                log.info(f"[{self.display_name}] Configuring mode: {mode}")
+                try:
+                    mode_label = await self.configure_mode(page, mode)
+                except Exception as exc:
+                    try:
+                        await self._agent_fallback(
+                            page, "configure_mode", exc,
+                            f"On {self.display_name}: configure the AI model for {mode} mode. "
+                            f"Select the appropriate model and enable required features.",
+                        )
+                    except Exception:
+                        log.warning(f"[{self.display_name}] configure_mode failed, continuing: {exc}")
+                    mode_label = "Agent-configured"
 
             # 3. Inject prompt
             log.info(f"[{self.display_name}] Injecting prompt ({len(prompt)} chars)")
@@ -119,31 +171,45 @@ class BasePlatform:
                 await self.inject_prompt(page, prompt)
             except Exception as exc:
                 # Agent finds and focuses input, then Playwright retries via keyboard
-                await self._agent_fallback(
-                    page, "inject_prompt", exc,
-                    f"On {self.display_name}: find and click/focus the main text input "
-                    f"field where messages are typed. Do NOT type any text — just click on it.",
-                )
+                try:
+                    await self._agent_fallback(
+                        page, "inject_prompt", exc,
+                        f"On {self.display_name}: find and click/focus the main text input "
+                        f"field where messages are typed. Do NOT type any text — just click on it.",
+                    )
+                except Exception:
+                    raise
                 await page.keyboard.type(prompt, delay=1)
             await page.wait_for_timeout(500)
 
             # 4. Send
             log.info(f"[{self.display_name}] Sending prompt")
-            await self.click_send(page)
-            await page.wait_for_timeout(2000)
-
-            # 5. Post-send hook
             try:
-                await self.post_send(page, mode)
+                await self.click_send(page)
             except Exception as exc:
                 try:
                     await self._agent_fallback(
-                        page, "post_send", exc,
-                        f"On {self.display_name}: look for any 'Start research' or "
-                        f"similar confirmation button and click it if present.",
+                        page, "click_send", exc,
+                        f"On {self.display_name}: find and click the send/submit button.",
                     )
                 except Exception:
-                    log.warning(f"[{self.display_name}] post_send failed (non-fatal): {exc}")
+                    log.warning(f"[{self.display_name}] click_send failed, pressing Enter: {exc}")
+                    await page.keyboard.press("Enter")
+            await page.wait_for_timeout(2000)
+
+            # 5. Post-send hook (skip for follow-ups — research mode already active)
+            if not followup:
+                try:
+                    await self.post_send(page, mode)
+                except Exception as exc:
+                    try:
+                        await self._agent_fallback(
+                            page, "post_send", exc,
+                            f"On {self.display_name}: look for any 'Start research' or "
+                            f"similar confirmation button and click it if present.",
+                        )
+                    except Exception:
+                        log.warning(f"[{self.display_name}] post_send failed (non-fatal): {exc}")
 
             # 6. Poll for completion
             log.info(f"[{self.display_name}] Waiting for response (max {max_wait}s)")
@@ -275,6 +341,37 @@ class BasePlatform:
         except Exception:
             pass
         return None
+
+    # ------------------------------------------------------------------
+    # Sign-in detection (subclasses CAN override for platform-specific patterns)
+    # ------------------------------------------------------------------
+
+    async def is_sign_in_page(self, page: Page) -> bool:
+        """Return True if the current page is a sign-in / login page.
+
+        Checks URL patterns first (fast), then DOM indicators (slower).
+        Subclasses can override for platform-specific login page structures.
+        """
+        url = page.url.lower()
+        # URL-based detection — most reliable
+        login_url_fragments = [
+            "/login", "/signin", "/sign-in", "/auth",
+            "accounts.google.com",
+            "login.microsoftonline.com",
+            "auth.openai.com",
+        ]
+        if any(fragment in url for fragment in login_url_fragments):
+            return True
+
+        # Password field is a strong DOM indicator
+        try:
+            pw = page.locator('input[type="password"]').first
+            if await pw.count() > 0 and await pw.is_visible(timeout=2000):
+                return True
+        except Exception:
+            pass
+
+        return False
 
     # ------------------------------------------------------------------
     # Methods subclasses CAN override

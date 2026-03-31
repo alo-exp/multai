@@ -1,6 +1,6 @@
 """Unit tests for config module.
 
-Tests UT-CF-01 through UT-CF-08.
+Tests UT-CF-01 through UT-CF-10.
 """
 
 import sys
@@ -11,11 +11,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "skills" / "orchestrator" 
 
 from config import (
     PLATFORM_URLS,
+    PLATFORM_URL_DOMAINS,
     TIMEOUTS,
     RATE_LIMITS,
     STAGGER_DELAY,
     DEFAULT_TIER,
     POLL_INTERVAL,
+    STATUS_NEEDS_LOGIN,
+    STATUS_ICONS,
     RateLimitConfig,
 )
 
@@ -79,3 +82,19 @@ class TestConfigValues:
         """UT-CF-08: POLL_INTERVAL is a positive number."""
         assert isinstance(POLL_INTERVAL, (int, float))
         assert POLL_INTERVAL > 0
+
+    def test_ut_cf_09_platform_url_domains_has_seven_entries(self):
+        """UT-CF-09: PLATFORM_URL_DOMAINS has 7 entries matching PLATFORM_URLS."""
+        assert len(PLATFORM_URL_DOMAINS) == 7, (
+            f"Expected 7 URL domain entries, got {len(PLATFORM_URL_DOMAINS)}"
+        )
+        assert set(PLATFORM_URL_DOMAINS.keys()) == set(PLATFORM_URLS.keys()), (
+            "PLATFORM_URL_DOMAINS keys must match PLATFORM_URLS keys"
+        )
+
+    def test_ut_cf_10_status_needs_login_has_icon(self):
+        """UT-CF-10: STATUS_NEEDS_LOGIN is defined and has an entry in STATUS_ICONS."""
+        assert STATUS_NEEDS_LOGIN == "needs_login"
+        assert STATUS_NEEDS_LOGIN in STATUS_ICONS, (
+            "STATUS_NEEDS_LOGIN must have an icon in STATUS_ICONS"
+        )

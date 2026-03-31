@@ -1,7 +1,7 @@
 # Test Strategy and Plan
 
 **Project:** MultAI
-**Version:** 0.2.260320B Alpha
+**Version:** 0.2.260331A Alpha
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
@@ -120,6 +120,8 @@ All tests must use a temporary state file path to avoid touching the real `~/.ch
 | UT-CF-06 | `STAGGER_DELAY` is positive integer | `> 0` |
 | UT-CF-07 | `RATE_LIMITS` has correct nested structure (7 platforms × free tier × REGULAR/DEEP modes, each a valid `RateLimitConfig` with positive `max_requests`) | All pass |
 | UT-CF-08 | `POLL_INTERVAL` is positive | `> 0` |
+| UT-CF-09 | `PLATFORM_URL_DOMAINS` has 7 entries matching `PLATFORM_URLS` keys | `len == 7`, keys identical |
+| UT-CF-10 | `STATUS_NEEDS_LOGIN` is defined and present in `STATUS_ICONS` | `== "needs_login"`, icon exists |
 
 ### 2.5 `skills/orchestrator/engine/orchestrator.py` — Argument Parsing
 
@@ -136,6 +138,7 @@ All tests must use a temporary state file path to avoid touching the real `~/.ch
 | UT-OR-09 | `--budget` flag parsed | `--budget` | `args.budget == True` |
 | UT-OR-10 | `--skip-rate-check` flag parsed | `--skip-rate-check` | `args.skip_rate_check == True` |
 | UT-OR-11 | `--stagger-delay` accepts integer | `--stagger-delay 10` | `args.stagger_delay == 10` |
+| UT-OR-12 | `--followup` defaults to False, set to True when supplied | Flag absent / flag present | `args.followup == False` / `True` |
 
 ### 2.6 `skills/comparator/matrix_ops.py`
 
@@ -455,7 +458,7 @@ The system is considered production-ready when:
 | `engine/agent_fallback.py` | *(none — E2E only)* | 0 | Not unit-testable (requires live API + Chrome) |
 | `engine/platforms/*.py` | *(none — E2E only)* | 0 | Not unit-testable (requires live DOM) |
 | `engine/orchestrator.py` (runtime) | *(none — E2E only)* | 0 | Not unit-testable (requires live Chrome) |
-| **Total automated** | **10 test files** | **96 tests** | |
+| **Total automated** | **10 test files** | **98 tests** | |
 
 ---
 

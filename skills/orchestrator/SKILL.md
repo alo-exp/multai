@@ -36,6 +36,15 @@ and consolidates generically. Follow the phases below.
 
 ---
 
+> **CRITICAL — NEVER USE BROWSER TOOLS DIRECTLY**
+> This skill runs its own Playwright-based browser automation engine. You must NEVER
+> use Claude-in-Chrome MCP tools, computer-use tools, browser MCP tools, or any other
+> form of manual browser automation to fulfil a research task. Doing so conflicts with
+> the engine and defeats the purpose of parallel multi-AI submission. ALWAYS execute
+> the engine by running the Python script in a Bash tool call (Phase 2 below).
+
+---
+
 ## Phase 0 — Route Decision
 
 Identify the user's intent and announce your routing decision **before acting**.
@@ -60,6 +69,13 @@ Everything else (arbitrary prompt, general question, multi-source analysis
 without a specific product or landscape intent)
   → Direct multi-AI (continue to Phase 1 below)
 ```
+
+**Follow-up detection:**
+- If the user's message refers to the previous research ("follow up", "also ask",
+  "additionally ask them", "what did they say about X", "ask the same AIs"):
+  → add `--followup` to the Phase 2 command (reuses open conversations)
+- If the topic is clearly new/different:
+  → omit `--followup` (engine will start new conversations in the same tabs)
 
 Tell the user which route you've selected: *"Routing to [skill name] — [brief reason]."*
 Accept a user override: if they say "no, do X instead", re-route accordingly.
@@ -137,6 +153,7 @@ The engine auto-collates all responses into `reports/<task-name>/<task-name> - R
 | `--skip-rate-check` | No | Bypass rate limit pre-flight checks |
 | `--budget` | No | Show rate limit budget summary and exit |
 | `--stagger-delay` | No | Seconds between platform launches (default: `5`) |
+| `--followup` | No | Reuse existing conversations (same topic follow-up). Omit for new topics. |
 
 **Timeouts:**
 - REGULAR mode: 15-minute global ceiling → set Bash timeout to 20 min
