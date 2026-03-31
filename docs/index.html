@@ -478,7 +478,7 @@ footer .footer-links{display:flex;gap:24px}
 <!-- ────── HERO ────── -->
 <section class="hero text-center">
   <div class="container">
-    <div class="version-badge"><span class="dot"></span> MultAI v0.2.260331A Alpha &mdash; Claude Cowork/Code Plugin</div>
+    <div class="version-badge"><span class="dot"></span> MultAI v0.2.26040102 Alpha &mdash; Claude Cowork/Code Plugin</div>
     <h1><span style="position:relative;display:inline-block"><span class="gradient">MultAI</span><span style="position:absolute;top:.05em;left:calc(100% + 6px);font-size:.168em;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,.15);color:var(--accent-light);border:1px solid rgba(99,102,241,.25);font-family:var(--font-sans);white-space:nowrap">ALPHA</span></span></h1>
     <p style="font-size:clamp(1.2rem,2.5vw,1.8rem);font-weight:600;color:var(--text-primary);margin-bottom:20px;letter-spacing:-.01em">Leverage the Knowledge and Intelligence of 7 Leading AIs at Once</p>
     <p class="subtitle">
@@ -538,7 +538,7 @@ footer .footer-links{display:flex;gap:24px}
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#9881;</div>
         <h3>Intelligent Routing</h3>
-        <p>The orchestrator analyzes your intent and routes to the correct skill automatically &mdash; landscape, solution, comparator, or direct multi-AI.</p>
+        <p>Analyzes your intent and selects the right workflow automatically &mdash; no flags, no routing decisions, no skill names to remember.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#9889;</div>
@@ -553,7 +553,7 @@ footer .footer-links{display:flex;gap:24px}
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(251,191,36,.12);color:var(--amber)">&#128203;</div>
         <h3>Structured Reports</h3>
-        <p>Consolidator synthesizes raw responses into structured deliverables &mdash; CIRs, 9-section landscape reports, or free-form summaries.</p>
+        <p>Raw responses from all 7 platforms are synthesized into structured deliverables &mdash; 9-section landscape reports, product intelligence reports, or free-form summaries.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)">&#128200;</div>
@@ -572,13 +572,13 @@ footer .footer-links{display:flex;gap:24px}
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#128736;</div>
-        <h3>Self-Improving Skills</h3>
-        <p>Each skill appends a timestamped run log after every execution and can update its own templates and scripts based on learnings.</p>
+        <h3>Self-Improving</h3>
+        <p>A timestamped run log is appended after every execution. Templates and scripts can be updated based on learnings from each run.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#127757;</div>
         <h3>Shared Domain Knowledge</h3>
-        <p><code>domains/{domain}.md</code> is enriched by both research skills after every run. New archetypes, terminology, and trends persist across sessions.</p>
+        <p><code>domains/{domain}.md</code> is enriched after every research run. New archetypes, terminology, and trends accumulate across sessions.</p>
       </div>
     </div>
   </div>
@@ -588,98 +588,77 @@ footer .footer-links{display:flex;gap:24px}
 <section id="skills">
   <div class="container">
     <div class="text-center">
-      <div class="section-label">Skills</div>
-      <h2 class="section-title">Five Skills, One Coherent Pipeline</h2>
-      <p class="section-desc centered">Each skill handles a specific research workflow. The orchestrator routes automatically &mdash; or you can invoke directly.</p>
+      <div class="section-label">The Skill</div>
+      <h2 class="section-title">One Skill. Four Workflows.</h2>
+      <p class="section-desc centered">Just describe what you need. <code>/multai</code> figures out the rest.</p>
     </div>
 
     <div class="grid grid-2 mt-6" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">
 
-      <!-- Orchestrator -->
+      <!-- Market Landscape -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multai:orchestrator</div>
-          <h3>Orchestrator</h3>
-          <p>Intelligent router + engine owner. Entry point for all workflows.</p>
-          <span class="tag tag-purple">Router</span>
-          <span class="tag tag-green">Engine</span>
-        </div>
-        <div class="skill-phases">
-          <div class="skill-phase"><div class="phase-num">0</div><div class="phase-text">Route decision &mdash; landscape, solution, comparator, or direct</div></div>
-          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Prompt confirmed / built</div></div>
-          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Pre-flight rate limit check + budget display</div></div>
-          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine invoked &mdash; parallel 7-platform submission</div></div>
-          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Results reviewed + consolidation</div></div>
-        </div>
-      </div>
-
-      <!-- Landscape Researcher -->
-      <div class="skill-card fade-in">
-        <div class="skill-header">
-          <div class="skill-name">/multai:landscape-researcher</div>
-          <h3>Landscape Researcher</h3>
-          <p>Produces 9-section Market Landscape Reports for any solution category.</p>
-          <span class="tag tag-pink">Research</span>
+          <div class="skill-name">/multai</div>
+          <h3>Market Landscape Reports</h3>
+          <p>Ask about a product category or market — get a 9-section structured report with Top 20 commercial and OSS solutions, positioning matrices, and trend analysis.</p>
+          <span class="tag tag-pink">Landscape</span>
           <span class="tag tag-amber">9 Sections</span>
         </div>
         <div class="skill-phases">
-          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Extract: category, audience, scope modifiers</div></div>
-          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Build prompt from template + domain knowledge</div></div>
-          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine run (DEEP mode, all platforms)</div></div>
-          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Consolidate into 9-section report</div></div>
-          <div class="skill-phase"><div class="phase-num">5</div><div class="phase-text">Launch report viewer + domain enrichment</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Run a market landscape on DevOps platforms for SMBs"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Give me a competitive landscape for observability tools"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"What's the API gateway ecosystem look like right now?"</div></div>
         </div>
       </div>
 
-      <!-- Solution Researcher -->
+      <!-- Product Deep-Dive -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multai:solution-researcher</div>
-          <h3>Solution Researcher</h3>
-          <p>Deep-dive on a specific product &mdash; capabilities, pricing, competitive context.</p>
+          <div class="skill-name">/multai</div>
+          <h3>Product Deep-Dives</h3>
+          <p>Name a product or URL — get a Competitive Intelligence Report covering capabilities, integrations, pricing, and competitive context. Optionally scored in the comparison matrix.</p>
           <span class="tag tag-cyan">Product</span>
           <span class="tag tag-green">CIR</span>
         </div>
         <div class="skill-phases">
-          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Confirm product + scope + optional focus areas</div></div>
-          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Build research prompt from template</div></div>
-          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Engine run (DEEP mode) + consolidation into CIR</div></div>
-          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Optional: update comparison matrix</div></div>
-          <div class="skill-phase"><div class="phase-num">5</div><div class="phase-text">Domain knowledge enrichment</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Research humanitec.com"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Evaluate Backstage vs Port.io"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Analyze Cortex — focus on developer portal capabilities"</div></div>
         </div>
       </div>
 
-      <!-- Comparator -->
+      <!-- Comparison Matrix -->
       <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multai:comparator</div>
-          <h3>Comparator</h3>
-          <p>Maintains XLSX capability matrices with weighted scores and combo columns.</p>
+          <div class="skill-name">/multai</div>
+          <h3>Comparison Matrix</h3>
+          <p>Maintain an XLSX capability matrix — add vendors, update scores, apply combo columns, reorder by weighted total, and verify coverage.</p>
           <span class="tag tag-amber">XLSX</span>
           <span class="tag tag-purple">Matrix</span>
         </div>
         <div class="skill-phases">
-          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Parse operation: add, score, reorder, combo, verify</div></div>
-          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Read CIR or feature list</div></div>
-          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Execute via matrix_ops.py / matrix_builder.py</div></div>
-          <div class="skill-phase"><div class="phase-num">4</div><div class="phase-text">Validate: orphan check, score recalc, reorder</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Add Harness to the comparison matrix"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Update the score for Cortex on developer portal"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Rebuild the matrix from archived responses"</div></div>
         </div>
       </div>
 
-      <!-- Consolidator -->
-      <div class="skill-card fade-in" style="grid-column:1/-1;max-width:500px;margin:0 auto">
+      <!-- Direct Multi-AI -->
+      <div class="skill-card fade-in">
         <div class="skill-header">
-          <div class="skill-name">/multai:consolidator</div>
-          <h3>Consolidator</h3>
-          <p>Synthesizes raw multi-AI responses into unified structured reports. Called automatically by other skills.</p>
-          <span class="tag tag-green">Synthesis</span>
+          <div class="skill-name">/multai</div>
+          <h3>Direct Multi-AI Queries</h3>
+          <p>For anything else — submit your question to all 7 platforms simultaneously and get a synthesized answer drawing on every perspective.</p>
+          <span class="tag tag-green">Direct</span>
+          <span class="tag tag-purple">7 Platforms</span>
         </div>
         <div class="skill-phases">
-          <div class="skill-phase"><div class="phase-num">1</div><div class="phase-text">Read raw archive + assess per-source reliability</div></div>
-          <div class="skill-phase"><div class="phase-num">2</div><div class="phase-text">Apply consolidation guide (if provided) as structural authority</div></div>
-          <div class="skill-phase"><div class="phase-num">3</div><div class="phase-text">Produce final report: consensus-first, union for 2+ sources</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"What are the trade-offs between Rust and Go for backend services?"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"Summarize the current state of WebAssembly on the server"</div></div>
+          <div class="skill-phase"><div class="phase-num">&#10003;</div><div class="phase-text">"What consensus is emerging on LLM memory management?"</div></div>
         </div>
       </div>
+
     </div>
   </div>
 </section>
@@ -700,7 +679,7 @@ footer .footer-links{display:flex;gap:24px}
       <div class="flow-step fade-in">
         <div class="flow-num">2</div>
         <h4>Auto-Route</h4>
-        <p>Orchestrator selects landscape-researcher and builds the prompt</p>
+        <p>/multai analyzes your intent, selects the right workflow, and builds the prompt</p>
       </div>
       <div class="flow-step fade-in">
         <div class="flow-num">3</div>
@@ -710,7 +689,7 @@ footer .footer-links{display:flex;gap:24px}
       <div class="flow-step fade-in">
         <div class="flow-num">4</div>
         <h4>Structured Report</h4>
-        <p>Consolidator produces a 9-section landscape report with Top 20 vendors</p>
+        <p>Responses are synthesized into a 9-section landscape report with Top 20 vendors</p>
       </div>
     </div>
 
@@ -719,12 +698,12 @@ footer .footer-links{display:flex;gap:24px}
 <span class="hl-amber">You</span> (Claude Code)
   <span class="hl-purple">|</span>
   <span class="hl-purple">v</span>
-<span class="hl-purple">Orchestrator</span> ── Phase 0: Route Decision
+<span class="hl-purple">/multai</span> ── analyzes intent
   <span class="hl-purple">|</span>
-  <span class="hl-purple">|--></span> <span class="hl-pink">landscape-researcher</span>  --> engine --> consolidator --> report
-  <span class="hl-purple">|--></span> <span class="hl-cyan">solution-researcher</span>   --> engine --> consolidator --> CIR --> comparator
-  <span class="hl-purple">|--></span> <span class="hl-amber">comparator</span>             --> matrix_ops.py (direct)
-  <span class="hl-purple">|--></span> <span class="hl-green">direct multi-AI</span>        --> engine --> consolidator (generic)
+  <span class="hl-purple">|--></span> <span class="hl-pink">landscape</span>   --> 7 platforms (DEEP) --> 9-section report
+  <span class="hl-purple">|--></span> <span class="hl-cyan">deep-dive</span>   --> 7 platforms (DEEP) --> CIR + optional XLSX
+  <span class="hl-purple">|--></span> <span class="hl-amber">matrix</span>      --> XLSX operations
+  <span class="hl-purple">|--></span> <span class="hl-green">direct</span>      --> 7 platforms --> synthesized answer
       </div>
     </div>
   </div>
@@ -788,7 +767,7 @@ footer .footer-links{display:flex;gap:24px}
     <div class="text-center">
       <div class="section-label">Examples</div>
       <h2 class="section-title">Just Describe What You Need</h2>
-      <p class="section-desc centered">The orchestrator routes to the right skill based on your intent. No slash commands needed.</p>
+      <p class="section-desc centered"><code>/multai</code> analyzes your intent and routes automatically. No flags or skill names needed.</p>
     </div>
 
     <div class="grid grid-2 mt-6">
@@ -797,8 +776,8 @@ footer .footer-links{display:flex;gap:24px}
         <div class="code-block mt-2" style="font-size:.82rem">
 <span class="string">"Run a market landscape analysis of Internal Developer Platforms for platform engineering teams"</span>
 
-<span class="comment">&#8594; Routes to landscape-researcher</span>
 <span class="comment">&#8594; 9-section report + Top 20 vendors</span>
+<span class="comment">&#8594; Auto-launched report viewer</span>
         </div>
       </div>
       <div class="feature-card fade-in">
@@ -806,8 +785,8 @@ footer .footer-links{display:flex;gap:24px}
         <div class="code-block mt-2" style="font-size:.82rem">
 <span class="string">"Research Humanitec.com &#8212; I want a Competitive Intelligence Report covering their IDP capabilities"</span>
 
-<span class="comment">&#8594; Routes to solution-researcher</span>
-<span class="comment">&#8594; CIR + optional XLSX update</span>
+<span class="comment">&#8594; Competitive Intelligence Report</span>
+<span class="comment">&#8594; Optional XLSX matrix update</span>
         </div>
       </div>
       <div class="feature-card fade-in">
@@ -815,8 +794,8 @@ footer .footer-links{display:flex;gap:24px}
         <div class="code-block mt-2" style="font-size:.82rem">
 <span class="string">"Add Spinnaker to the comparison matrix based on the latest CIR"</span>
 
-<span class="comment">&#8594; Routes to comparator</span>
-<span class="comment">&#8594; Extracts features, ticks XLSX</span>
+<span class="comment">&#8594; Extracts capabilities from CIR</span>
+<span class="comment">&#8594; Updates XLSX matrix</span>
         </div>
       </div>
       <div class="feature-card fade-in">
@@ -824,8 +803,8 @@ footer .footer-links{display:flex;gap:24px}
         <div class="code-block mt-2" style="font-size:.82rem">
 <span class="string">"What are the main trade-offs between microservices and monoliths?"</span>
 
-<span class="comment">&#8594; Direct multi-AI run</span>
-<span class="comment">&#8594; 7 responses consolidated</span>
+<span class="comment">&#8594; All 7 platforms queried in parallel</span>
+<span class="comment">&#8594; Single synthesized answer</span>
         </div>
       </div>
     </div>
