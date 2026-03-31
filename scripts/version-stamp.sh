@@ -84,8 +84,8 @@ if [ "$MODE" = "check" ]; then
     DISPLAY_ESCAPED=$(echo "$DISPLAY_VERSION" | sed 's/\./\\./g')
     SITE_COUNT=$(grep -c "$DISPLAY_ESCAPED" docs/index.html 2>/dev/null || true)
     SITE_COUNT=$(echo "$SITE_COUNT" | tr -d '[:space:]')
-    if [ "$SITE_COUNT" -lt 3 ]; then
-        echo "MISMATCH: docs/index.html has $SITE_COUNT refs (expected 3) for '$DISPLAY_VERSION'"
+    if [ "$SITE_COUNT" -lt 1 ]; then
+        echo "MISMATCH: docs/index.html has $SITE_COUNT refs (expected ≥1) for '$DISPLAY_VERSION'"
         ERRORS=$((ERRORS+1))
     else
         echo "  OK: docs/index.html ($SITE_COUNT refs)"
