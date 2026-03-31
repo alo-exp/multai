@@ -6,6 +6,24 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.260401B Alpha — SENTINEL Security Audit Remediations
+
+**Date:** 2026-04-01
+
+### Security: 9 Findings Addressed (SENTINEL v2.3 Audit)
+
+- **[Critical] F-4.1** — Removed `Login Data` (saved passwords) from Chrome profile copy; restricted `~/.chrome-playwright/` to owner-only permissions (0700)
+- **[High] F-5.1** — Removed broad `Bash(python3:*)` wildcard permission from `settings.json`; specific script allowlist entries cover all legitimate use cases
+- **[High] F-1.1** — Wrapped all platform responses in `<untrusted_platform_response>` XML tags in collated archive; added trust boundary preamble to consolidator skill to prevent indirect prompt injection
+- **[Medium] F-5.2** — Added path traversal guard: `--output-dir` is now validated to be within the project root
+- **[Medium] F-3.1** — CDP debug port now explicitly bound to `127.0.0.1` via `--remote-debugging-host`
+- **[Medium] F-8.1** — Added explicit user consent gate in orchestrator Phase 0 listing all 7 external AI services before transmitting any prompt
+- **[Medium] F-7.1** — Pinned all dependencies to exact versions in `setup.sh` and `orchestrator.py`; added `requirements.txt`; fixed `browser-use` version inconsistency between `setup.sh` and `orchestrator.py`
+- **[Medium] F-1.2** — Added 500 KB size limit check for `--prompt-file` input
+- **[Low] F-9.1** — Markdown structural characters now escaped in `task_name` used in archive header
+
+---
+
 ## 0.2.260401A Alpha — Rename orchestrator skill to `/multai`
 
 **Date:** 2026-04-01
