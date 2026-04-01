@@ -93,19 +93,24 @@ export GOOGLE_API_KEY="..."      # free from aistudio.google.com — enables Gem
 export ANTHROPIC_API_KEY="..."   # from console.anthropic.com — enables Claude agent fallback
 ```
 
-### 5 — Use `/multai`
+### 5 — Use the skills
 
+**`/multai`** — research, landscape analysis, direct multi-AI queries, and matrix operations:
 ```
 /multai Run a market landscape analysis on DevOps platforms for SMBs
-
 /multai Research humanitec.com
-
 /multai Add Harness to the comparison matrix
-
 /multai What are the main trade-offs between Rust and Go for backend services?
 ```
 
-`/multai` announces its routing decision before proceeding — you can always override it.
+**`/comparator`** — standalone head-to-head comparisons without a prior research run:
+```
+/comparator Compare Humanitec vs Port.io
+/comparator Which is better for a startup — Backstage or Cortex?
+/comparator Compare these two products and give me a weighted score
+```
+
+Both skills announce their plan before acting — you can always override or adjust.
 
 ---
 
@@ -130,13 +135,25 @@ Deep research on a specific product — capabilities, integrations, pricing, com
 
 **Output:** `reports/{task-name}/{Product} - Consolidated Intelligence Report.md`
 
+### Head-to-head comparisons — `/comparator`
+
+> "Compare Humanitec vs Port.io"
+> "Which is better for SMBs — Backstage or Cortex?"
+> "Compare these two products and score them"
+
+Standalone skill for comparing any two (or more) solutions. Derives a capability framework from available evidence (CIRs, documents, or LLM knowledge), optionally lets you set feature priorities, scores each solution with priority-weighted ticks, and produces both an XLSX matrix and a readable Markdown summary with per-category winners and key differentiators. No prior research run required — works from LLM knowledge alone if needed.
+
+**Output:** `reports/{domain}/{domain}-matrix.xlsx` + `reports/{domain}/{task-name}-comparison-summary.md`
+
+Can also be triggered via `/multai` — it routes automatically when comparison intent is detected.
+
 ### Comparison matrix operations
 
 > "Add Harness to the comparison matrix"
 > "Update the score for Cortex on the developer portal capability"
-> "Rebuild the matrix from archived responses"
+> "Reorder the matrix by score"
 
-Maintains the capability comparison XLSX spreadsheet — adding platforms, updating scores, applying combo columns, verifying coverage.
+Maintains an existing XLSX capability matrix — adding platforms, updating scores, applying combo columns, reordering, and verifying coverage.
 
 ### Direct multi-AI queries
 
@@ -168,7 +185,7 @@ multai/
 │   ├── consolidator/         ← Response synthesis (internal)
 │   ├── landscape-researcher/ ← Market landscape workflow (internal)
 │   ├── solution-researcher/  ← Product deep-dive workflow (internal)
-│   └── comparator/           ← XLSX matrix operations (internal)
+│   └── comparator/           ← /comparator skill — head-to-head comparisons + XLSX matrix
 ├── domains/                  ← Shared domain knowledge (enriched per run)
 ├── reports/
 │   └── preview.html          ← Report viewer
