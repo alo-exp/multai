@@ -1,6 +1,6 @@
 # MultAI — Contributor Guide
 
-**Version:** 0.2.26040102 Alpha | **Date:** 2026-03-18
+**Version:** 0.2.26040104 Alpha | **Date:** 2026-03-18
 
 > **Looking for the end-user guide?** See [USER-GUIDE.md](USER-GUIDE.md).
 
