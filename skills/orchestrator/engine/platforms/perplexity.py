@@ -49,52 +49,124 @@ class Perplexity(BasePlatform):
         return None
 
     async def configure_mode(self, page: Page, mode: str) -> str:
-        """Select Sonar model; optionally enable Deep Research toggle."""
-        # Click model picker
+        """Select Sonar model; optionally enable Research toggle.
+
+        Guards strictly against accidentally selecting the "Perplexity Computer"
+        feature — that is a paid/credit feature unrelated to chat responses.
+        """
+        model_selected = ""
+
+        # --- Model selection (optional — skip if picker unavailable) ---
         try:
-            model_btn = page.locator('button:has-text("Model")').first
-            if await model_btn.count() == 0:
-                # Try alternative selector
-                model_btn = page.locator('[data-testid="model-selector"]').first
-            if await model_btn.count() > 0 and await model_btn.is_visible():
+            # Try known model selector entry points
+            model_btn = None
+            for sel in [
+                'button[data-testid="model-selector"]',
+                'button:has-text("Model")',
+                '[aria-label*="model" i]',
+            ]:
+                btn = page.locator(sel).first
+                if await btn.count() > 0 and await btn.is_visible(timeout=2000):
+                    model_btn = btn
+                    break
+
+            if model_btn is not None:
                 await model_btn.click()
+                await page.wait_for_timeout(600)
+
+                # Find all visible model options and pick the safest Sonar variant.
+                # CRITICAL: skip any option containing "computer" (case-insensitive) —
+                # that is the "Perplexity Computer" paid feature, not a chat model.
+                chosen = False
+                for candidate_text in ["Sonar Pro", "Sonar"]:
+                    options = page.get_by_text(candidate_text, exact=False)
+                    count = await options.count()
+                    for i in range(count):
+                        opt = options.nth(i)
+                        if not await opt.is_visible(timeout=1000):
+                            continue
+                        label = (await opt.inner_text()).strip().lower()
+                        if "computer" in label:
+                            log.warning(f"[Perplexity] Skipping option '{label}' — contains 'computer'")
+                            continue
+                        await opt.click()
+                        model_selected = candidate_text
+                        log.info(f"[Perplexity] Selected model: {candidate_text}")
+                        chosen = True
+                        break
+                    if chosen:
+                        break
+
+                if not chosen:
+                    # Close picker without selecting; proceed with page default
+                    await page.keyboard.press("Escape")
+                    log.info("[Perplexity] No safe Sonar option found — using page default")
+
                 await page.wait_for_timeout(500)
 
-                # Select Sonar
-                sonar = page.get_by_text("Sonar", exact=False).first
-                if await sonar.count() > 0:
-                    await sonar.click()
-                    await page.wait_for_timeout(500)
-                    log.info("[Perplexity] Selected Sonar model")
         except Exception as exc:
             log.warning(f"[Perplexity] Model selection failed: {exc} — proceeding with default")
 
-        # DEEP mode: try to enable Deep Research toggle
+        # --- DEEP mode: try to enable Research toggle ---
+        # Guard: only click an option that clearly refers to Research and NOT Computer.
         if mode == "DEEP":
             try:
-                deep_toggle = page.get_by_text("Deep Research", exact=False).first
-                if await deep_toggle.count() > 0 and await deep_toggle.is_visible():
-                    await deep_toggle.click()
-                    log.info("[Perplexity] Enabled Deep Research")
-            except Exception:
-                log.info("[Perplexity] Deep Research toggle not found — proceeding without")
+                research_enabled = False
+                for candidate_text in ["Deep Research", "Research"]:
+                    toggles = page.get_by_text(candidate_text, exact=False)
+                    count = await toggles.count()
+                    for i in range(count):
+                        tog = toggles.nth(i)
+                        if not await tog.is_visible(timeout=1000):
+                            continue
+                        label = (await tog.inner_text()).strip().lower()
+                        if "computer" in label:
+                            log.warning(f"[Perplexity] Skipping research toggle '{label}' — contains 'computer'")
+                            continue
+                        await tog.click()
+                        log.info(f"[Perplexity] Enabled: {label}")
+                        research_enabled = True
+                        break
+                    if research_enabled:
+                        break
+                if not research_enabled:
+                    log.info("[Perplexity] Research toggle not found — proceeding without")
+            except Exception as exc:
+                log.info(f"[Perplexity] Research toggle error (non-fatal): {exc}")
 
-        return "Sonar" + (" + Deep Research" if mode == "DEEP" else "")
+        label = model_selected or "Sonar (default)"
+        return label + (" + Research" if mode == "DEEP" else "")
 
     async def inject_prompt(self, page: Page, prompt: str) -> None:
-        """Inject via contenteditable or textarea."""
-        # Perplexity uses contenteditable or textarea depending on version
-        ce = page.locator('div[contenteditable="true"]').first
-        ta = page.locator('textarea[placeholder]').first
+        """Inject prompt into Perplexity input.
 
-        if await ce.count() > 0 and await ce.is_visible():
+        Newer Perplexity UI uses a textarea at the bottom of the page.
+        Try textarea first (preferred for new UI), then fall back to contenteditable.
+        """
+        # Primary: textarea (new Perplexity UI — home page and conversation page)
+        for ta_sel in [
+            'textarea[placeholder*="Ask"]',
+            'textarea[placeholder*="Search"]',
+            'textarea[placeholder*="Message"]',
+            'textarea',
+        ]:
+            ta = page.locator(ta_sel).first
+            if await ta.count() > 0 and await ta.is_visible(timeout=2000):
+                await ta.click()
+                await page.wait_for_timeout(200)
+                await ta.fill(prompt)
+                # Dispatch input event so React state updates
+                await ta.dispatch_event("input")
+                log.info(f"[Perplexity] Filled textarea ({ta_sel}) with {len(prompt)} chars")
+                return
+
+        # Fallback: contenteditable (older Perplexity UI variant)
+        ce = page.locator('div[contenteditable="true"]').first
+        if await ce.count() > 0 and await ce.is_visible(timeout=2000):
             await self._inject_exec_command(page, prompt)
-        elif await ta.count() > 0 and await ta.is_visible():
-            await ta.click()
-            await ta.fill(prompt)
-            log.info(f"[Perplexity] Filled textarea with {len(prompt)} chars")
-        else:
-            raise RuntimeError("No input element found on Perplexity")
+            return
+
+        raise RuntimeError("No input element found on Perplexity")
 
     async def click_send(self, page: Page) -> None:
         """Click send button or press Enter."""

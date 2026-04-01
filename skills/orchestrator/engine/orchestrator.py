@@ -160,10 +160,12 @@ from config import (  # noqa: E402
     GLOBAL_TIMEOUT_REGULAR,
     PLATFORM_DISPLAY_NAMES,
     PLATFORM_URL_DOMAINS,
+    PLATFORM_URLS,
     REGULAR_MODE,
     STAGGER_DELAY,
     STATUS_FAILED,
     STATUS_ICONS,
+    STATUS_NEEDS_LOGIN,
     STATUS_RATE_LIMITED,
     STATUS_TIMEOUT,
     TIMEOUTS,
@@ -793,6 +795,71 @@ async def orchestrate(args: argparse.Namespace, effective_output_dir: str) -> li
                 })
             else:
                 final_results.append(r)
+
+        # ---------------------------------------------------------------
+        # Login retry — platforms that needed sign-in get a second chance.
+        # The other platforms have already completed; the user is notified
+        # and given 90s to sign in before the retry runs.
+        # ---------------------------------------------------------------
+        login_pending = [
+            (i, r) for i, r in enumerate(final_results)
+            if r.get("status") == STATUS_NEEDS_LOGIN
+        ]
+        if login_pending:
+            print("\n" + "=" * 72)
+            print("  🔑  SIGN-IN REQUIRED — the following platforms need you to log in:")
+            for _, r in login_pending:
+                url = PLATFORM_URLS.get(r["platform"], "")
+                print(f"     {r['display_name']:20s}  {url}")
+            print()
+            print("  All other platforms have already been collected.")
+            print("  Sign in to the platforms above in Chrome, then wait.")
+            print("  Retrying automatically in 90 seconds...")
+            print("=" * 72)
+            for remaining in range(90, 0, -10):
+                log.info(f"  Sign-in retry countdown: {remaining}s remaining...")
+                await asyncio.sleep(10)
+            log.info("Retrying sign-in-needed platforms...")
+            for idx, r in login_pending:
+                name = r["platform"]
+                log.info(f"[{PLATFORM_DISPLAY_NAMES.get(name, name)}] Retrying after sign-in wait...")
+                retry = await run_single_platform(
+                    name, context, full_prompt, condensed_prompt,
+                    prompt_sigs, args.mode, str(output_dir), agent_mgr,
+                    existing_page=None, followup=False,
+                )
+                limiter.record_usage(name, args.mode, retry["status"], retry.get("duration_s", 0))
+                final_results[idx] = retry
+
+        # ---------------------------------------------------------------
+        # Platform-level browser-use fallback — when all Playwright steps
+        # failed for a platform, attempt a complete agent-driven run.
+        # Only fires if ANTHROPIC_API_KEY (or GOOGLE_API_KEY) is set.
+        # ---------------------------------------------------------------
+        if agent_mgr.enabled:
+            failed_idxs = [
+                (i, r) for i, r in enumerate(final_results)
+                if r.get("status") == STATUS_FAILED
+            ]
+            if failed_idxs:
+                log.info(
+                    f"Attempting full browser-use fallback for "
+                    f"{len(failed_idxs)} failed platform(s)..."
+                )
+            for idx, r in failed_idxs:
+                url = PLATFORM_URLS.get(r["platform"], "")
+                if not url:
+                    continue
+                fallback = await agent_mgr.full_platform_run(
+                    platform_name=r["platform"],
+                    platform_url=url,
+                    display_name=r["display_name"],
+                    prompt=full_prompt,
+                    mode=args.mode,
+                    output_dir=str(output_dir),
+                )
+                if fallback:
+                    final_results[idx] = fallback
 
         # Disconnect Playwright from Chrome (does NOT close Chrome)
         try:

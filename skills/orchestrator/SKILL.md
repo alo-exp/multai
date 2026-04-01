@@ -170,6 +170,14 @@ ls skills/orchestrator/engine/.venv/bin/python 2>/dev/null && echo "venv OK" || 
 
 Do not proceed to Phase 2 until the venv exists.
 
+**Optional — enable browser-use fallback:**
+
+If `ANTHROPIC_API_KEY` (or `GOOGLE_API_KEY`) is set in the environment or `.env` file, two additional safety nets activate automatically:
+- **Per-step fallback:** when a Playwright selector fails at any individual step (configure, inject, send, extract), a browser-use agent takes over that step
+- **Platform-level fallback:** if a platform returns STATUS_FAILED after all Playwright steps failed, a full browser-use agent session retries the entire interaction from navigation to extraction
+
+Neither fallback is required — the engine runs without an API key.
+
 ---
 
 ## Phase 2 — Run the Engine (Code Tab)
@@ -362,7 +370,11 @@ After the engine completes, outputs are in `reports/<task-name>/`:
 | `{Platform}-raw-response.md` | Individual raw response per platform |
 | `{task-name} - Raw AI Responses.md` | **Auto-generated archive** — all responses collated |
 
-Platform statuses: `complete` / `partial` / `failed` / `timeout` / `rate_limited`
+Platform statuses: `complete` / `partial` / `failed` / `timeout` / `rate_limited` / `needs_login`
+
+**Login-needed platforms (`needs_login`):** the engine automatically waits 90 seconds after the parallel run completes, printing a sign-in prompt for each affected platform. After the countdown, those platforms are retried. Inform the user of this if any platform shows `needs_login` in the output — they should watch the terminal and sign in during the countdown.
+
+**Genuinely failed platforms (`failed`):** if `ANTHROPIC_API_KEY` is set, the engine will attempt a full browser-use agent run for each failed platform after the main run.
 
 ---
 
