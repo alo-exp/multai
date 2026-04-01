@@ -6,6 +6,48 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040202 Alpha — Orchestrator: Login Retry, Perplexity Fix, Platform-Level Fallback
+
+**Date:** 2026-04-02
+
+### Fix: Login-needed platforms are now retried, not skipped
+
+Previously, if a platform returned `needs_login` (sign-in page detected), it was
+permanently skipped for that run. Now:
+- After all 7 platforms complete in parallel, the engine prints a clear sign-in prompt
+  for each `needs_login` platform (with URL) and waits 90 seconds
+- The user signs in to those platforms in Chrome during the countdown
+- The platforms are retried automatically after the countdown
+- All other platforms' results are already collected — only the login-needed ones wait
+
+### Fix: Perplexity — "Computer" feature no longer triggered
+
+`configure_mode` was inadvertently activating "Perplexity Computer" (a paid, credit-based
+computer-use feature) instead of a standard Sonar model or Research mode. Fixed:
+- All model picker options containing "computer" (case-insensitive) are explicitly skipped
+- Research toggle selection has the same guard
+- Model selection falls back gracefully if no safe Sonar option is found (uses page default)
+- `inject_prompt` updated to prefer textarea (new Perplexity UI) over contenteditable
+
+### Feature: Platform-level browser-use fallback
+
+When a platform returns `STATUS_FAILED` (all Playwright steps failed), and
+`ANTHROPIC_API_KEY` or `GOOGLE_API_KEY` is set, a full browser-use agent session
+now retries the entire platform interaction (navigate → type → send → wait → extract).
+Uses up to 25 agent steps in DEEP mode, 15 in REGULAR mode. Results are saved in
+the same format as normal platform output.
+
+This is additive — existing per-step fallbacks are unchanged.
+
+### Files changed
+
+- `skills/orchestrator/engine/orchestrator.py` — login retry loop + platform-level fallback call
+- `skills/orchestrator/engine/agent_fallback.py` — `full_platform_run()` method added
+- `skills/orchestrator/engine/platforms/perplexity.py` — `configure_mode` Computer guard, `inject_prompt` textarea-first
+- `skills/orchestrator/SKILL.md` — Phase 1 browser-use docs, Phase 3 login-retry docs
+
+---
+
 ## 0.2.26040201 Alpha — `/consolidator` Redesigned as Standalone Skill
 
 **Date:** 2026-04-02

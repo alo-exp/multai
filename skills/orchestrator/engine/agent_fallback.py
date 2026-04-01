@@ -22,6 +22,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from config import STATUS_COMPLETE, STATUS_NEEDS_LOGIN  # noqa: E402 (config has no external deps)
+
 log = logging.getLogger(__name__)
 
 
@@ -201,6 +203,126 @@ class AgentFallbackManager:
             )
             # Re-raise the ORIGINAL error (not the agent error)
             raise original_error from agent_exc
+
+    async def full_platform_run(
+        self,
+        platform_name: str,
+        platform_url: str,
+        display_name: str,
+        prompt: str,
+        mode: str,
+        output_dir: str,
+    ) -> dict | None:
+        """Full browser-use agent run for a platform where all Playwright steps failed.
+
+        Returns a result dict (same shape as run_single_platform) on success, or None.
+        Uses higher max_steps than per-step fallbacks since it owns the full lifecycle.
+        """
+        if not self._enabled or not platform_url:
+            return None
+
+        # Truncate prompt to keep agent task description manageable.
+        # The agent needs to type the full prompt, so we pass it inline; we truncate
+        # only the task description string, not what the agent actually types.
+        prompt_for_task = prompt[:3000] + ("\n...[prompt continues — type all of it]" if len(prompt) > 3000 else "")
+
+        task = (
+            f"Automate a browser to get an AI response from {display_name}. "
+            f"Step 1: Go to {platform_url}. "
+            f"Step 2: If you see a sign-in or login page, stop immediately and return the text 'NEEDS_LOGIN'. "
+            f"Step 3: Find the main text input (textarea or contenteditable area for typing messages). "
+            f"Step 4: Type the following prompt exactly into that input:\n\n"
+            f"{prompt_for_task}\n\n"
+            f"Step 5: Click the Send or Submit button. "
+            f"Step 6: Wait for the AI to finish generating (loading indicator gone, "
+            f"no stop/cancel button visible). This may take several minutes. "
+            f"Step 7: Extract and return the COMPLETE text of the AI's response."
+        )
+
+        max_steps = 25 if mode == "DEEP" else 15
+        t0 = time.monotonic()
+
+        async with self._lock:
+            try:
+                from browser_use import Agent, BrowserSession
+                from config import AGENT_MODEL_ANTHROPIC, AGENT_MODEL_GOOGLE
+
+                session = BrowserSession(cdp_url=self._cdp_url)
+
+                if self._llm_provider == "anthropic":
+                    from browser_use.llm.anthropic.chat import ChatAnthropic
+                    llm = ChatAnthropic(
+                        model=AGENT_MODEL_ANTHROPIC, timeout=120, max_tokens=8192,
+                    )
+                else:
+                    from browser_use.llm.google.chat import ChatGoogle
+                    llm = ChatGoogle(
+                        model=AGENT_MODEL_GOOGLE, api_key=os.environ.get("GOOGLE_API_KEY"),
+                    )
+
+                agent = Agent(
+                    task=task, llm=llm, browser_session=session, max_steps=max_steps,
+                )
+                history = await agent.run()
+                raw = history.final_result() if history else None
+                result_text = str(raw).strip() if raw is not None else ""
+                duration = round(time.monotonic() - t0, 1)
+
+                event = FallbackEvent(
+                    timestamp=datetime.now().isoformat(),
+                    platform=platform_name,
+                    step="full_platform_run",
+                    original_error="Playwright failed on all steps",
+                    agent_task=task[:500],
+                    agent_result=result_text[:500],
+                    agent_success=bool(result_text and len(result_text) > 200),
+                    duration_s=duration,
+                )
+                self._events.append(event)
+                self._save_log()
+
+                if result_text and "NEEDS_LOGIN" in result_text:
+                    log.warning(f"[{display_name}] Full agent fallback: NEEDS_LOGIN")
+                    return {
+                        "platform": platform_name,
+                        "display_name": display_name,
+                        "status": STATUS_NEEDS_LOGIN,
+                        "chars": 0,
+                        "file": "",
+                        "mode_used": f"{mode}-agent",
+                        "error": "Sign-in required (detected by agent fallback)",
+                        "duration_s": duration,
+                    }
+
+                if result_text and len(result_text) > 200:
+                    filename = f"{display_name.replace(' ', '-')}-raw-response.md"
+                    filepath = Path(output_dir) / filename
+                    filepath.parent.mkdir(parents=True, exist_ok=True)
+                    filepath.write_text(result_text, encoding="utf-8")
+                    log.info(
+                        f"[{display_name}] Full agent fallback SUCCEEDED: "
+                        f"{len(result_text)} chars in {duration}s"
+                    )
+                    return {
+                        "platform": platform_name,
+                        "display_name": display_name,
+                        "status": STATUS_COMPLETE,
+                        "chars": len(result_text),
+                        "file": str(filepath),
+                        "mode_used": f"{mode}-agent-fallback",
+                        "error": "",
+                        "duration_s": duration,
+                    }
+
+                log.warning(
+                    f"[{display_name}] Full agent fallback returned insufficient content "
+                    f"({len(result_text)} chars)"
+                )
+
+            except Exception as exc:
+                log.error(f"[{display_name}] Full agent fallback error: {exc}")
+
+        return None
 
     def _save_log(self) -> None:
         """Persist all fallback events to agent-fallback-log.json."""
