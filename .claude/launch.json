@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "docs-preview",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "7790", "--directory", "docs"],
-      "port": 7790
-    },
-    {
       "name": "report-preview",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "7788", "--directory", "reports"],
-      "port": 7788
+      "runtimeExecutable": "/opt/homebrew/bin/python3.13",
+      "runtimeArgs": ["reports/serve.py"],
+      "autoPort": true
     }
   ]
 }
