@@ -6,6 +6,48 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040304 Alpha — Report Viewer Polish, CI Fix, Gitignore Cleanup
+
+**Date:** 2026-04-02
+
+### Features
+
+- **Report Viewer — generic Landscape Report viewer**: `reports/preview.html` decoupled from
+  hardcoded Platform Engineering data via `chart-data.json` sidecar pattern. Each report directory
+  carries its own data file; viewer falls back to built-in defaults when absent.
+- **Report Viewer — empty state**: polished hero card with icon, heading, subtitle, and styled
+  launch command code block.
+- **Report Viewer — export buttons**: Copy, PDF, Compare buttons now have visible `border` for
+  clear affordance.
+- **Report Viewer — orphan lines removed**: `#stats:empty { display:none }`, `#sidebarFooter`
+  border-top, and `#solutionNav` border-bottom removed to eliminate bare lines in empty state.
+- **Silver Bullet enforcement**: `.silver-bullet.json` and `docs/workflows/full-dev-cycle.md`
+  initialised for the project.
+- **`chart-data.json` skeleton generation**: `launch_report.py` now creates a skeleton sidecar
+  alongside each new report, pre-populated with domain-aware placeholder titles and empty data arrays.
+
+### Fixes
+
+- **8 issues from MULTAI-ISSUE-REPORT-2026-04-02**: chart data reset on each `loadFile()` call,
+  per-report title override, configurable chart titles/anchors, vendor pill fallback for table-based
+  reports, `collectVendorNames` tier-heading guard, `addPills` scroll fallback.
+- **Preview server**: switched to Homebrew Python 3.13 + `PORT`-aware `serve.py`; system Python 3.9
+  failed with `PermissionError` on `--directory` flag in sandboxed environment.
+- **`launch_report.py` CI fix**: `mkdir(parents=True, exist_ok=True)` before writing
+  `chart-data.json` — directory may not exist in test contexts.
+- **`setup.sh`**: added `git pull --rebase` so reinstall always fetches latest source.
+- **Docs sync**: restored 6 remote doc files that Silver Bullet scaffold had replaced with
+  incorrect stubs (`SRS.md`, `CICD-Strategy-and-Plan.md`, `Test-Strategy-and-Plan.md`,
+  `Architecture-and-Design.md`, `CNAME`, `index.html`).
+
+### Chores
+
+- **Gitignore**: `reports/*/` — all generated MultAI output (raw AI responses, CIRs, landscape
+  reports, comparison matrices) excluded from tracking. SENTINEL audit files remain tracked.
+- **Version sync**: `CONTRIBUTOR-GUIDE.md` and `USER-GUIDE.md` stamped to current version.
+
+---
+
 ## 0.2.26040303 Alpha — SENTINEL Security Audit: XSS Fix, CDN Hardening, Temp File Cleanup
 
 **Date:** 2026-04-03
