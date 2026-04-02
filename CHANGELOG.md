@@ -6,6 +6,39 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040203 Alpha — Report Viewer: Ālo Design System Redesign
+
+**Date:** 2026-04-02
+
+### Enhancement: `reports/preview.html` redesigned with Ālo Design System
+
+The landscape report viewer UI has been thoroughly redesigned using the Ālo Design System:
+
+- **Light mode default** (previously dark-only sidebar + light body) with persistent dark mode toggle
+  stored in `localStorage`. Toggle is in the sidebar with ☀️/🌙 icon.
+- **Inter font** (Google Fonts) replaces system UI stack across all UI chrome
+- **Indigo/violet/pink accent palette** (`#4f46e5`, `#7c3aed`, `#db2777`) replaces GitHub blue
+  throughout: headings, sidebar links, nav pills, progress bar, buttons, callouts, vendor cards
+- **Gradient brand** (`linear-gradient(135deg, #4f46e5, #7c3aed, #db2777)`) applied to:
+  export/compare buttons, reading progress bar, and card top-border reveal on hover
+- **Vendor cards** and **trend cards** now use a silver-bullet-style gradient top-border hover
+  effect (`::before` pseudo-element, `opacity: 0 → 1` on hover)
+- **Token-based CSS custom properties** inlined in the file: all colors, shadows, radii, and
+  transitions reference `var(--color-*)` tokens that flip between light/dark themes
+- **Chart colors** updated to match the brand palette: indigo/green/pink/violet for quadrant
+  categories; brighter pastel series colors for the value curve
+- **Section color coding** (8 `sec-color-N` classes) now uses the brand palette instead of
+  GitHub greens/blues/reds
+- **Callout boxes** use brand-color accent fills (indigo insight, amber signal, red risk, green stat)
+- **Filter bar pills** and **nav pills** use pill-radius, gradient active state, and
+  token-aware borders
+- **Toast notifications** and **comparison drawer** use `--color-surface` / `--color-border` tokens
+
+All JavaScript logic (chart rendering, vendor cards, TOC, breadcrumb, comparison drawer,
+filter bar, PDF export, Google Docs copy) is preserved exactly — only styling was changed.
+
+---
+
 ## 0.2.26040202 Alpha — Orchestrator: Login Retry, Perplexity Fix, Platform-Level Fallback
 
 **Date:** 2026-04-02
