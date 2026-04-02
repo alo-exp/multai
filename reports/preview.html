@@ -147,7 +147,7 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif;
 .info-card-body.open { display: block; }
 
 #stats { font-size: 11px; color: var(--color-text-muted); margin-top: 8px; padding-top: 8px;
-         border-top: 1px solid var(--color-border); display: none; }
+         border-top: 1px solid var(--color-border); }
 
 /* ── Chart frames ── */
 .chart-frame { background: var(--color-surface); border: 1px solid var(--color-border);
@@ -219,7 +219,7 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--color-text-primary);
 }
 #sidebarFooter {
-  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--color-border);
+  margin-top: 16px; padding-top: 12px;
   font-size: 11px;
 }
 #sidebarFooter a {
@@ -240,7 +240,6 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif;
               backdrop-filter: blur(8px); z-index: 9998;
               display: flex; align-items: center; padding: 0 28px;
               font-size: 12px; letter-spacing: 0.3px; color: var(--color-text-muted);
-              border-bottom: 1px solid var(--color-border);
               transition: var(--transition-default); }
 
 /* ── Section Colour Coding — 8 brand palette colours ── */
@@ -1301,9 +1300,8 @@ async function loadFile(path) {
     const md = await r.text();
     document.getElementById('content').innerHTML = DOMPurify.sanitize(marked.parse(md), {USE_PROFILES: {html: true}});
     buildTOC();
-    const statsEl = document.getElementById('stats');
-    statsEl.textContent = `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
-    statsEl.style.display = '';
+    document.getElementById('stats').textContent =
+      `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
     window.scrollTo(0, 0);
     // Update browser tab title from report H1
     const h1 = document.querySelector('#content h1');
