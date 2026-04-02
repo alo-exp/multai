@@ -92,6 +92,10 @@ class BasePlatform:
         max_wait = timeout.deep if mode == "DEEP" else timeout.regular
 
         try:
+            # Register dialog handler once per page — auto-accepts browser alert()/confirm()/prompt()
+            # dialogs that would otherwise block indefinitely.
+            self._setup_dialog_handler(page)
+
             if followup:
                 # Follow-up mode: reuse existing conversation — skip navigation and mode config
                 log.info(f"[{self.display_name}] Follow-up mode: continuing existing conversation")
@@ -115,8 +119,17 @@ class BasePlatform:
                         raise RuntimeError(f"Navigation failed: {exc}") from exc
                 await page.wait_for_timeout(3000)  # Let JS frameworks initialise
 
-                # 1b. Sign-in detection — catches the case where the user isn't logged in
+                # 1b. Dismiss any overlay popups (cookie banners, GDPR notices, modals)
+                await self.dismiss_popups(page)
+
+                # 1c. Sign-in detection — catches the case where the user isn't logged in
                 if await self.is_sign_in_page(page):
+                    # Notify immediately so the user can act without waiting for all platforms
+                    print(
+                        f"\n  🔑  [{self.display_name}] Sign-in required — "
+                        f"please log in at: {self.url}",
+                        flush=True,
+                    )
                     log.warning(f"[{self.display_name}] Sign-in page detected — attempting agent recovery")
                     try:
                         await self._agent_fallback(
@@ -139,7 +152,7 @@ class BasePlatform:
                             duration_s=time.monotonic() - t0,
                         )
 
-                # 1c. Rate limit pre-check (before any interaction)
+                # 1d. Rate limit pre-check (before any interaction)
                 rate_msg = await self.check_rate_limit(page)
                 if rate_msg:
                     log.warning(f"[{self.display_name}] Rate limited on page load: {rate_msg}")
@@ -149,6 +162,29 @@ class BasePlatform:
                         error=f"Rate limited: {rate_msg}",
                         duration_s=time.monotonic() - t0,
                     )
+
+                # 1e. Unexpected UI check — if the chat interface is not in a ready state,
+                # hand control to browser-use which can visually navigate to the right UI.
+                if not await self.is_chat_ready(page):
+                    log.warning(
+                        f"[{self.display_name}] Chat UI not in expected state — "
+                        f"triggering browser-use agent takeover"
+                    )
+                    try:
+                        await self._agent_fallback(
+                            page, "navigate",
+                            RuntimeError("Chat UI not in expected ready state"),
+                            f"On {self.display_name}: the chat interface is not showing correctly. "
+                            f"Navigate to {self.url}, dismiss any popups or modals, and confirm "
+                            f"that the main chat input area is visible and ready.",
+                        )
+                        await page.wait_for_timeout(2000)
+                        await self.dismiss_popups(page)
+                    except Exception as exc:
+                        log.warning(
+                            f"[{self.display_name}] Agent could not recover unexpected UI: {exc}"
+                        )
+                        # Continue — configure_mode may still succeed
 
                 # 2. Configure mode
                 log.info(f"[{self.display_name}] Configuring mode: {mode}")
@@ -164,6 +200,9 @@ class BasePlatform:
                     except Exception:
                         log.warning(f"[{self.display_name}] configure_mode failed, continuing: {exc}")
                     mode_label = "Agent-configured"
+
+                # Dismiss any popups that appeared after mode selection (e.g. upsell modals)
+                await self.dismiss_popups(page)
 
             # 3. Inject prompt
             log.info(f"[{self.display_name}] Injecting prompt ({len(prompt)} chars)")
@@ -196,6 +235,9 @@ class BasePlatform:
                     log.warning(f"[{self.display_name}] click_send failed, pressing Enter: {exc}")
                     await page.keyboard.press("Enter")
             await page.wait_for_timeout(2000)
+
+            # Dismiss any post-send popups (share prompts, sign-up overlays, etc.)
+            await self.dismiss_popups(page)
 
             # 5. Post-send hook (skip for follow-ups — research mode already active)
             if not followup:
@@ -431,6 +473,113 @@ class BasePlatform:
     async def post_send(self, page: Page, mode: str) -> None:
         """Hook for actions after sending (e.g., Gemini 'Start research' click)."""
         pass
+
+    # ------------------------------------------------------------------
+    # Dialog and popup handling
+    # ------------------------------------------------------------------
+
+    def _setup_dialog_handler(self, page: Page) -> None:
+        """Register a one-time-per-page handler that auto-accepts browser dialogs.
+
+        Playwright raises an error and the page hangs if a dialog (alert, confirm, prompt)
+        fires and no handler is attached. This handler accepts all dialogs immediately so
+        that overlays created by alert() / confirm() never block automation.
+        """
+        async def _accept_dialog(dialog) -> None:
+            try:
+                log.debug(
+                    f"[{self.display_name}] Auto-accepting browser dialog "
+                    f"({dialog.type}): {dialog.message[:80] if dialog.message else ''}"
+                )
+                await dialog.accept()
+            except Exception:
+                pass  # Dialog may have already been dismissed
+
+        # on() is idempotent-safe: registering the same named function twice
+        # would add it twice, but since we create a new page per run this is fine.
+        page.on("dialog", _accept_dialog)
+
+    @staticmethod
+    async def dismiss_popups(page: Page) -> None:
+        """Attempt to dismiss common CSS overlay popups.
+
+        Covers cookie banners, GDPR notices, sign-up modals, and other overlays
+        that can block interaction with the underlying chat UI. Failures are silent
+        — if no popup is present the selectors simply find nothing.
+        """
+        dismiss_selectors = [
+            # Explicit close / dismiss buttons
+            'button[aria-label="Close"]',
+            'button[aria-label="close"]',
+            'button[aria-label="Dismiss"]',
+            'button[aria-label="dismiss"]',
+            '[data-testid="close-button"]',
+            '[data-testid="modal-close"]',
+            # Cookie / GDPR accept buttons
+            'button:has-text("Accept all")',
+            'button:has-text("Accept All")',
+            'button:has-text("Accept cookies")',
+            'button:has-text("Got it")',
+            'button:has-text("I agree")',
+            'button:has-text("Agree")',
+            'button:has-text("OK")',
+            'button:has-text("Dismiss")',
+            'button:has-text("Close")',
+            'button:has-text("No thanks")',
+            'button:has-text("Maybe later")',
+            # Generic overlay close patterns
+            '[class*="modal"] [class*="close"]',
+            '[class*="dialog"] [class*="close"]',
+            '[class*="overlay"] [class*="close"]',
+            '[class*="popup"] [class*="close"]',
+            '[class*="cookie"] button',
+            '[class*="banner"] [class*="close"]',
+            '[class*="toast"] [class*="close"]',
+        ]
+        for selector in dismiss_selectors:
+            try:
+                el = page.locator(selector).first
+                if await el.count() > 0 and await el.is_visible(timeout=500):
+                    await el.click(timeout=1000)
+                    await page.wait_for_timeout(300)
+                    log.debug(f"Dismissed popup via: {selector}")
+                    break
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
+    # Chat readiness check (subclasses CAN override)
+    # ------------------------------------------------------------------
+
+    async def is_chat_ready(self, page: Page) -> bool:
+        """Return True if the chat UI is in the expected ready state.
+
+        The default checks that we are not on a sign-in page, not on a blank or
+        error page. Subclasses can override to add platform-specific checks
+        (e.g. verifying that the message textarea is present).
+
+        Called just before configure_mode so that unexpected UI states (redirect
+        to a billing page, an interstitial, a 404) are caught early and handed
+        off to the browser-use agent for recovery.
+        """
+        # Already on a sign-in page — not ready
+        if await self.is_sign_in_page(page):
+            return False
+        # Blank or empty tab
+        url = page.url.lower()
+        if url in ("about:blank", "chrome://newtab/", ""):
+            return False
+        # Common HTTP error page text
+        try:
+            error_texts = ["404", "page not found", "500 internal server error", "503 service unavailable"]
+            for text in error_texts:
+                el = page.get_by_text(text, exact=False).first
+                if await el.count() > 0 and await el.is_visible(timeout=500):
+                    log.debug(f"[is_chat_ready] Error text found on page: '{text}'")
+                    return False
+        except Exception:
+            pass
+        return True
 
     # ------------------------------------------------------------------
     # Agent fallback
