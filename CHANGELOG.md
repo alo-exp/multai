@@ -6,6 +6,63 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040302 Alpha — Hardened Release: Security Fixes, Code Review Pass
+
+**Date:** 2026-04-03
+
+Three-iteration code review pass across the entire plugin. All Critical, Important, and
+Suggestion findings addressed — zero remaining issues.
+
+### Security
+
+- **XSS fix** in `reports/preview.html`: error handler now uses `textContent` + `createElement`
+  instead of `innerHTML` interpolation with unsanitised error objects.
+
+### Fix: `is_chat_ready()` false-positive detection
+
+The readiness check previously scanned **all visible page text** for patterns like "404", which
+triggered false positives on normal AI responses mentioning HTTP status codes. Now checks
+`document.title` only — far more reliable. Added `502 Bad Gateway` pattern.
+
+### Fix: `dismiss_popups()` scoped to overlay containers
+
+Broad selectors like `button:has-text("OK")` could accidentally click legitimate chat UI buttons.
+All selectors are now scoped to `[role="dialog"]`, `[aria-modal="true"]`, or `[class*="modal"]`
+containers. Consent/cookie selectors scoped to `[class*="cookie"]`, `[class*="consent"]`,
+`[class*="banner"]`, `[id*="cookie"]`, `[id*="consent"]` containers. Handles layered popups
+(up to 3 per call) instead of stopping after the first dismissal.
+
+### Fix: Dialog handler idempotency
+
+Follow-up mode reuses the same `Page` object, which previously caused duplicate dialog handler
+registration. Now uses a class-level `WeakSet` to track registered pages — safe for garbage
+collection, no monkey-patching of Playwright objects.
+
+### Fix: Duplicate sign-in notifications
+
+Previously three separate notifications for the same sign-in event. Consolidated to one real-time
+print in `BasePlatform.run()` plus the existing 90s countdown block.
+
+### Fix: Installation verification reliability
+
+- `setup.sh` Chromium verification now has a 30s timeout (portable `perl alarm` for macOS).
+- `_verify_playwright()` caches results via a `.playwright-verified` stamp file keyed by
+  Playwright version — eliminates 5-10s headless launch on every subsequent run.
+- `importlib.metadata` imported cleanly at module level (removed `__import__` hack).
+
+### Fix: Compare badge visibility
+
+`compareBadge` was invisible (white-on-white) after the button restyling. Now uses
+`var(--color-accent-primary)` background with white text.
+
+### Fix: `full_platform_run` prompt truncation
+
+Documented that prompts > 3000 chars are truncated for the browser-use agent fallback path.
+The truncation suffix now honestly states `[truncated]` instead of the misleading
+`[prompt continues — type all of it]`. A `log.warning` is emitted when truncation occurs.
+
+---
+
 ## 0.2.26040301 Alpha — Orchestrator: Popup Dismissal, Readiness Check, Real-Time Sign-In, Verified Install
 
 **Date:** 2026-04-03

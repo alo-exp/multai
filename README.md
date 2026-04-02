@@ -24,8 +24,12 @@ You type one prompt. `/multai` figures out what you need, runs it across all pla
 | **DEEP mode** | Activates Deep Research on each platform where available |
 | **Rate limiting** | Per-platform budget tracking across sessions; never silently skips a platform |
 | **Agent fallback** | Vision-based fallback via `browser-use` when a UI selector fails |
+| **Login retry** | Real-time sign-in notification; 90-second countdown + automatic retry for platforms that need login |
+| **Popup dismissal** | Auto-accepts browser dialogs; dismisses cookie banners, GDPR notices, and modal overlays |
+| **Chat readiness** | Detects unexpected UI states (error pages, redirects) and hands control to `browser-use` for recovery |
+| **Verified install** | Playwright import + headless Chromium launch verified on setup; cached for fast subsequent runs |
 | **Tab reuse** | Existing browser tabs reused across runs; `--followup` continues open conversations |
-| **Report viewer** | Browser-rendered Markdown reports with positioning charts |
+| **Report viewer** | Ālo Design System report viewer with light/dark toggle, gradient accents, and interactive charts |
 
 ---
 
@@ -62,7 +66,7 @@ You type one prompt. `/multai` figures out what you need, runs it across all pla
 
 > Run `/reload-plugins` if `/multai` doesn't appear immediately.
 
-Python dependencies (`playwright`, `openpyxl`, Chromium) are **installed automatically** on first session start via a `SessionStart` hook. No manual setup required.
+Python dependencies (`playwright`, `openpyxl`, Chromium) are **installed and verified automatically** on first session start via a `SessionStart` hook. The engine confirms Playwright imports correctly and Chromium launches headlessly — no manual setup required.
 
 > **Agent fallback (optional):** For the vision-based `browser-use` fallback:
 > ```bash
@@ -229,13 +233,29 @@ The engine tracks per-platform usage across sessions and warns when a budget is 
 
 ---
 
-## Agent Fallback
+## Resilience
+
+### Agent Fallback
 
 When a Playwright selector fails, a `browser-use` vision agent takes over automatically:
 
 1. `ANTHROPIC_API_KEY` set → Claude Sonnet is the agent LLM
 2. `GOOGLE_API_KEY` set → Gemini 2.0 Flash (free tier at aistudio.google.com)
 3. Neither key → fallback disabled; Playwright exception propagates
+
+If all Playwright steps fail for a platform, a full agent-driven run is attempted as a last resort.
+
+### Login Handling
+
+When a platform requires sign-in, the engine notifies you immediately (not after all platforms finish) and retries automatically after a 90-second countdown. No manual re-runs needed.
+
+### Popup & Dialog Handling
+
+Browser `alert()`/`confirm()` dialogs are auto-accepted. CSS overlays (cookie banners, GDPR notices, sign-up modals) are dismissed automatically via scoped selectors targeting modal and consent containers. The engine handles up to 3 layered popups per lifecycle step.
+
+### Chat Readiness Check
+
+Before interacting with any platform, the engine verifies the chat UI is in the expected state — checking for sign-in redirects, HTTP error pages (404, 500, 502, 503), and blank tabs. If the UI is unexpected and `browser-use` is available, the agent takes over to navigate back to the chat interface.
 
 ---
 
