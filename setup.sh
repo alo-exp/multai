@@ -6,6 +6,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Pull latest source before installing — ensures reinstall always gets the newest version
+if git -C "$SCRIPT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+  echo "  → Pulling latest from remote..."
+  git -C "$SCRIPT_DIR" pull --rebase --quiet || echo "  ⚠ git pull failed — continuing with local version"
+fi
+
 ENGINE_DIR="$SCRIPT_DIR/skills/orchestrator/engine"
 VENV_DIR="$ENGINE_DIR/.venv"
 WITH_FALLBACK=false
