@@ -6,6 +6,56 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040303 Alpha — SENTINEL Security Audit: XSS Fix, CDN Hardening, Temp File Cleanup
+
+**Date:** 2026-04-03
+
+Full SENTINEL v2.3 adversarial security audit performed across all 30+ plugin files. Audit report
+saved to `SENTINEL-audit-multai.md`. Two HIGH findings remediated, one MEDIUM improved.
+
+### Security Fix: XSS via unsanitized AI responses in report viewer (FINDING-9, HIGH)
+
+`preview.html` rendered AI platform responses via `marked.parse()` → `innerHTML` without
+sanitization. A malicious AI response containing `<img onerror="...">` or `<script>` would
+execute JavaScript in the user's browser when viewing the report.
+
+**Fix:** Added [DOMPurify 3.2.4](https://github.com/cure53/DOMPurify) as a CDN dependency.
+All markdown-to-HTML output is now sanitized via `DOMPurify.sanitize(marked.parse(md))` before
+`innerHTML` assignment.
+
+### Security Fix: Unpinned CDN dependency + missing SRI hashes (FINDING-7, MEDIUM)
+
+The `marked` library was loaded from CDN without a version pin (`npm/marked/marked.min.js`),
+meaning a CDN compromise could inject malicious JavaScript into every report viewer. Combined
+with the lack of sanitization (FINDING-9), this created a HIGH-risk vulnerability chain (VC-3).
+
+**Fix:**
+- `marked` pinned to `@15.0.7`
+- All four CDN scripts (`marked`, `DOMPurify`, `chart.js`, `chartjs-plugin-datalabels`) now include
+  `integrity="sha384-..."` SRI hashes and `crossorigin="anonymous"` attributes
+
+### Security Fix: Temp prompt files left on disk (FINDING-8 sub-finding)
+
+Prompts written to `/tmp/orchestrator-prompt.md` (and similar) persisted after the engine run,
+leaving potentially sensitive prompt content readable by other processes.
+
+**Fix:** `orchestrator.py` now deletes `/tmp/` prompt files after collation completes (best-effort
+cleanup — failures are non-fatal).
+
+### Audit Summary
+
+| Severity | Count | Action |
+|---|---|---|
+| CRITICAL | 0 | — |
+| HIGH | 2 | Both fixed (FINDING-8 by-design + consent, FINDING-9 XSS) |
+| MEDIUM | 4 | FINDING-7 fixed; others have adequate existing mitigations |
+| LOW | 2 | Adequate existing mitigations |
+
+**Deployment recommendation:** Deploy with monitoring (upgraded from "Deploy with mitigations"
+after applying fixes).
+
+---
+
 ## 0.2.26040302 Alpha — Hardened Release: Security Fixes, Code Review Pass
 
 **Date:** 2026-04-03
