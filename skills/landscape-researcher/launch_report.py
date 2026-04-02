@@ -118,6 +118,7 @@ def ensure_chart_data_skeleton(report_dir_path: pathlib.Path, report_file: str) 
         "vc_oss": [],
         "link_pairs": [],
     }
+    report_dir_path.mkdir(parents=True, exist_ok=True)
     with open(chart_data_path, "w", encoding="utf-8") as f:
         json.dump(skeleton, f, indent=2, ensure_ascii=False)
     print(f"  Created skeleton chart-data.json → {chart_data_path}")
