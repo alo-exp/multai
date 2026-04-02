@@ -147,7 +147,7 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif;
 .info-card-body.open { display: block; }
 
 #stats { font-size: 11px; color: var(--color-text-muted); margin-top: 8px; padding-top: 8px;
-         border-top: 1px solid var(--color-border); }
+         border-top: 1px solid var(--color-border); display: none; }
 
 /* ── Chart frames ── */
 .chart-frame { background: var(--color-surface); border: 1px solid var(--color-border);
@@ -178,7 +178,6 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif;
   position: fixed; top: 0; left: 260px; right: 0; z-index: 10000;
   background: rgba(var(--color-bg-rgb), 0.94);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--color-border);
   padding: 8px 20px 8px;
   display: flex; flex-direction: column; gap: 4px;
   transition: var(--transition-default);
@@ -1302,8 +1301,9 @@ async function loadFile(path) {
     const md = await r.text();
     document.getElementById('content').innerHTML = DOMPurify.sanitize(marked.parse(md), {USE_PROFILES: {html: true}});
     buildTOC();
-    document.getElementById('stats').textContent =
-      `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
+    const statsEl = document.getElementById('stats');
+    statsEl.textContent = `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
+    statsEl.style.display = '';
     window.scrollTo(0, 0);
     // Update browser tab title from report H1
     const h1 = document.querySelector('#content h1');
