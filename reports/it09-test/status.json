@@ -1,9 +1,0 @@
-{
-  "Claude.ai": {"status": "complete", "chars": 5432, "duration_s": 45.2, "mode_used": "REGULAR"},
-  "ChatGPT": {"status": "complete", "chars": 4821, "duration_s": 38.1, "mode_used": "REGULAR"},
-  "Microsoft-Copilot": {"status": "timeout", "chars": 0, "duration_s": 120.0, "mode_used": "REGULAR"},
-  "Perplexity": {"status": "complete", "chars": 3901, "duration_s": 29.4, "mode_used": "REGULAR"},
-  "Grok": {"status": "failed", "chars": 0, "duration_s": 5.0, "mode_used": "REGULAR"},
-  "DeepSeek": {"status": "complete", "chars": 6100, "duration_s": 52.3, "mode_used": "REGULAR"},
-  "Google-Gemini": {"status": "complete", "chars": 4200, "duration_s": 41.0, "mode_used": "REGULAR"}
-}
