@@ -1055,6 +1055,16 @@ def main():
     from collate_responses import collate  # noqa: E402 (imported late — after bootstrap)
     collate(effective_output_dir, args.task_name or Path(effective_output_dir).name)
 
+    # Clean up temporary prompt files (security: avoids leaving sensitive prompts on disk)
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if prompt_path.exists() and str(prompt_path).startswith("/tmp/"):
+            try:
+                prompt_path.unlink()
+                log.debug(f"Cleaned up temp prompt file: {prompt_path}")
+            except OSError:
+                pass  # Non-fatal — best-effort cleanup
+
     # Exit with non-zero if no platforms completed
     complete = sum(1 for r in results if r["status"] in ("complete", "partial"))
     sys.exit(0 if complete > 0 else 1)
