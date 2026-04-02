@@ -70,17 +70,54 @@ info "Installing Playwright Chromium browser..."
 "$PYTHON_VENV" -m playwright install chromium
 success "Chromium installed"
 
+# ── Verify Playwright import ──────────────────────────────────────────────────
+info "Verifying Playwright import..."
+if "$PYTHON_VENV" -c "from playwright.async_api import async_playwright; print('OK')" 2>/dev/null | grep -q "OK"; then
+  success "Playwright import OK"
+else
+  warn "Playwright import failed — run: $PIP install playwright==1.58.0"
+fi
+
+# ── Verify Playwright can launch Chromium ─────────────────────────────────────
+info "Verifying Playwright Chromium launch (headless)..."
+LAUNCH_RESULT=$("$PYTHON_VENV" - 2>/dev/null <<'PYEOF'
+import asyncio, sys
+from playwright.async_api import async_playwright
+async def _t():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(headless=True)
+        pg = await b.new_page()
+        await pg.goto("about:blank")
+        await b.close()
+        print("OK")
+asyncio.run(_t())
+PYEOF
+)
+if echo "$LAUNCH_RESULT" | grep -q "OK"; then
+  success "Playwright Chromium launch OK"
+else
+  warn "Playwright Chromium launch failed — run: $PYTHON_VENV -m playwright install chromium"
+fi
+
 # ── Optional: browser-use fallback ───────────────────────────────────────────
 if [[ "$WITH_FALLBACK" == true ]]; then
   info "Installing browser-use agent fallback (--with-fallback)..."
   "$PIP" install --quiet "browser-use==0.12.2" "anthropic==0.76.0" "fastmcp==2.0.0"
   success "browser-use fallback installed"
+
+  # Verify browser-use import
+  info "Verifying browser-use import..."
+  if "$PYTHON_VENV" -c "from browser_use import Agent; print('OK')" 2>/dev/null | grep -q "OK"; then
+    success "browser-use import OK"
+  else
+    warn "browser-use import failed — run: $PIP install browser-use==0.12.2"
+  fi
 else
   warn "Skipping browser-use fallback (add --with-fallback to enable it)"
 fi
 
-# ── Smoke test ────────────────────────────────────────────────────────────────
-info "Running smoke test..."
+# ── Engine smoke test ─────────────────────────────────────────────────────────
+info "Running engine smoke test..."
 if smoke_output=$("$PYTHON_VENV" "$ENGINE_DIR/orchestrator.py" --prompt "x" --budget --tier free 2>&1); then
   success "Engine smoke test passed"
 else

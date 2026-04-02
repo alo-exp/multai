@@ -93,6 +93,74 @@ def _ensure_venv() -> None:
     os.execv(str(venv_python), [str(venv_python)] + sys.argv)
 
 
+def _verify_playwright(python_exe: str) -> None:
+    """Verify that Playwright is importable and Chromium can be launched headlessly.
+
+    Prints a warning (does not exit) if verification fails so the user knows
+    their installation is broken before they hit a confusing runtime error.
+    """
+    # Import check
+    try:
+        result = subprocess.run(
+            [python_exe, "-c", "from playwright.async_api import async_playwright; print('OK')"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0 or "OK" not in result.stdout:
+            print(
+                "  WARNING: Playwright is installed but failed to import. "
+                "Run: pip install playwright==1.58.0"
+            )
+            return
+    except Exception as exc:
+        print(f"  WARNING: Could not verify Playwright import: {exc}")
+        return
+
+    # Headless launch check
+    _LAUNCH_SCRIPT = (
+        "import asyncio\n"
+        "from playwright.async_api import async_playwright\n"
+        "async def _t():\n"
+        "    async with async_playwright() as p:\n"
+        "        b = await p.chromium.launch(headless=True)\n"
+        "        pg = await b.new_page()\n"
+        "        await pg.goto('about:blank')\n"
+        "        await b.close()\n"
+        "        print('OK')\n"
+        "asyncio.run(_t())\n"
+    )
+    try:
+        result = subprocess.run(
+            [python_exe, "-c", _LAUNCH_SCRIPT],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0 or "OK" not in result.stdout:
+            print(
+                "  WARNING: Playwright is installed but Chromium failed to launch. "
+                "Run: python3 -m playwright install chromium"
+            )
+    except Exception as exc:
+        print(f"  WARNING: Could not verify Playwright Chromium launch: {exc}")
+
+
+def _verify_browser_use(python_exe: str) -> None:
+    """Verify that browser-use Agent can be imported.
+
+    Prints a warning (does not exit) if verification fails.
+    """
+    try:
+        result = subprocess.run(
+            [python_exe, "-c", "from browser_use import Agent; print('OK')"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0 or "OK" not in result.stdout:
+            print(
+                "  WARNING: browser-use is installed but failed to import. "
+                "Run: pip install browser-use==0.12.2"
+            )
+    except Exception as exc:
+        print(f"  WARNING: Could not verify browser-use import: {exc}")
+
+
 def _ensure_dependencies() -> None:
     """Auto-install required Python packages and browser binaries on first use."""
     installed = False
@@ -119,6 +187,9 @@ def _ensure_dependencies() -> None:
             sys.exit(1)
         installed = True
 
+    # Verify playwright import and Chromium availability
+    _verify_playwright(sys.executable)
+
     # 2. Optional: browser-use (only when ANTHROPIC_API_KEY or GOOGLE_API_KEY is set)
     if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
         optional = []
@@ -137,6 +208,7 @@ def _ensure_dependencies() -> None:
                 # Don't exit — these are optional
             else:
                 installed = True
+                _verify_browser_use(sys.executable)
 
     if installed:
         print("  All dependencies ready.\n")
@@ -399,6 +471,19 @@ async def _staggered_run(
         status=result["status"],
         duration_s=result.get("duration_s", 0),
     )
+
+    # Real-time sign-in notification — printed as soon as this platform reports
+    # NEEDS_LOGIN so the user can act immediately rather than waiting for all
+    # parallel platforms to finish before seeing the 90s countdown block.
+    if result["status"] == STATUS_NEEDS_LOGIN:
+        url = PLATFORM_URLS.get(platform_name, "")
+        display = result.get("display_name", PLATFORM_DISPLAY_NAMES.get(platform_name, platform_name))
+        print(
+            f"\n  ⚠  [{display}] Sign-in required. "
+            f"Please log in at {url} — a retry will run automatically.",
+            flush=True,
+        )
+
     return result
 
 

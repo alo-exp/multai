@@ -6,6 +6,62 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040301 Alpha — Orchestrator: Popup Dismissal, Readiness Check, Real-Time Sign-In, Verified Install
+
+**Date:** 2026-04-03
+
+### Enhancement: Auto-dismiss browser dialogs and CSS overlay popups
+
+- **Browser dialogs** (`alert()`, `confirm()`, `prompt()`): a `page.on("dialog")` handler is
+  registered once per page at the start of `run()`. Any dialog that fires is accepted immediately,
+  preventing the page from hanging indefinitely while waiting for user interaction.
+- **CSS overlay popups** (cookie banners, GDPR notices, sign-up modals, toasts): a new
+  `dismiss_popups()` static method on `BasePlatform` tries 20+ common selectors (close buttons,
+  "Accept all", "Got it", "Dismiss", modal/overlay close patterns). It is called at three points:
+  - After navigation + initial page wait (before any interaction)
+  - After `configure_mode` (catches upsell modals that appear after model selection)
+  - After `click_send` (catches share/sign-up prompts that appear after sending)
+
+### Enhancement: Chat readiness check → Browser-Use takeover on unexpected UI
+
+- New `is_chat_ready(page)` method on `BasePlatform` (subclasses can override). Called between
+  the rate limit check and `configure_mode`. Checks for sign-in redirect, blank/error pages, and
+  HTTP error text (404, 500, 503).
+- If not ready and the browser-use agent is available, it triggers an agent fallback to navigate
+  back to the chat UI, dismiss any blocking overlays, and confirm the input area is visible.
+- If not ready and no agent is available, it logs a warning and continues — `configure_mode` may
+  still recover.
+
+### Enhancement: Real-time sign-in notifications
+
+Previously the sign-in prompt was printed only after **all** parallel platforms completed (at the
+90-second countdown block). Now sign-in is surfaced at two earlier points:
+
+1. **Immediately in `BasePlatform.run()`** when `is_sign_in_page()` first detects a login wall —
+   prints the platform name and URL to stdout so the user can act right away.
+2. **Immediately in `_staggered_run()`** when a platform returns `STATUS_NEEDS_LOGIN` — prints a
+   second notice reminding the user a retry will run automatically.
+
+The existing 90-second countdown + retry block is preserved unchanged.
+
+### Enhancement: Playwright and browser-use installation verification
+
+Both `setup.sh` and `_ensure_dependencies()` now verify that installed packages actually work,
+not just that `pip install` exited 0:
+
+**`setup.sh`** (run via `bash setup.sh`):
+- After installing Playwright: imports `async_playwright` and prints a warning if import fails.
+- After installing Chromium: runs a headless `page.goto("about:blank")` smoke test; warns if launch fails.
+- After installing browser-use (with `--with-fallback`): imports `Agent` and warns if import fails.
+
+**`_ensure_dependencies()`** (auto-run on every `orchestrator.py` invocation):
+- Calls `_verify_playwright()`: subprocess import check + headless launch check. Prints a warning
+  (does not exit) if either fails, so the error is visible before hitting a cryptic runtime crash.
+- Calls `_verify_browser_use()` (only when a new browser-use install occurred): subprocess import
+  check. Prints a warning if import fails.
+
+---
+
 ## 0.2.26040203 Alpha — Report Viewer: Ālo Design System Redesign
 
 **Date:** 2026-04-02
