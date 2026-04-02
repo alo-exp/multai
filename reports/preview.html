@@ -346,18 +346,15 @@ a.sec-color-7 { border-left: 3px solid #ec4899; padding-left: 6px; }
   display: flex; align-items: center; gap: 10px;
 }
 .export-btn {
-  color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius-pill);
+  color: #0f172a; border: none; padding: 10px 20px; border-radius: var(--radius-pill);
   font-size: 13px; font-weight: 600; cursor: pointer;
-  background: var(--gradient-brand); box-shadow: var(--shadow-btn);
+  background: #ffffff; box-shadow: none;
   display: flex; align-items: center; justify-content: center; gap: 6px; line-height: 1;
-  transition: box-shadow 0.2s ease, transform 0.2s ease; white-space: nowrap;
+  transition: background 0.2s ease; white-space: nowrap;
   font-family: 'Inter', system-ui, sans-serif;
 }
-.export-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-btn-hover); }
-.export-btn:active { transform: translateY(0); }
+.export-btn:hover { background: #f1f5f9; }
 .export-btn .btn-icon { font-size: 15px; }
-#copyGdocsBtn {}
-#pdfExportBtn {}
 
 /* ── Toast notification ── */
 .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
@@ -369,14 +366,14 @@ a.sec-color-7 { border-left: 3px solid #ec4899; padding-left: 6px; }
 .toast.fade { opacity: 0; }
 
 /* ── Vendor Comparison Drawer ── */
-#compareBtn { background: var(--gradient-brand); color: #fff;
+#compareBtn { background: #ffffff; color: #0f172a;
               padding: 10px 20px; border-radius: var(--radius-pill);
               cursor: pointer; font-size: 13px; font-weight: 600; border: none;
-              box-shadow: var(--shadow-btn);
-              transition: box-shadow 0.2s ease, transform 0.2s ease;
+              box-shadow: none;
+              transition: background 0.2s ease;
               display: flex; align-items: center; gap: 6px; white-space: nowrap;
               font-family: 'Inter', system-ui, sans-serif; }
-#compareBtn:hover { box-shadow: var(--shadow-btn-hover); transform: translateY(-2px); }
+#compareBtn:hover { background: #f1f5f9; }
 #compareBadge { display: inline-flex; align-items: center; justify-content: center;
                 width: 18px; height: 18px; background: rgba(255,255,255,0.25);
                 border-radius: 50%; font-size: 10px; margin-left: 6px; }
@@ -1295,7 +1292,12 @@ async function loadFile(path) {
       setTimeout(() => { linkify(); setTimeout(() => postRender(), 0); }, 0);
     }
   } catch(e) {
-    document.getElementById('content').innerHTML = `<pre style="color:var(--color-error)">${e}</pre>`;
+    const errPre = document.createElement('pre');
+    errPre.style.color = 'var(--color-error)';
+    errPre.textContent = String(e);
+    const contentEl = document.getElementById('content');
+    contentEl.innerHTML = '';
+    contentEl.appendChild(errPre);
   }
 }
 

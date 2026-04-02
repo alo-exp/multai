@@ -484,7 +484,15 @@ class BasePlatform:
         Playwright raises an error and the page hangs if a dialog (alert, confirm, prompt)
         fires and no handler is attached. This handler accepts all dialogs immediately so
         that overlays created by alert() / confirm() never block automation.
+
+        Safe for follow-up mode: uses a page attribute flag to skip re-registration
+        when the same Page object is reused across multiple run() calls.
         """
+        # Guard: don't register duplicate handlers on the same page (follow-up mode)
+        if getattr(page, "_multai_dialog_handler", False):
+            return
+        page._multai_dialog_handler = True
+
         async def _accept_dialog(dialog) -> None:
             try:
                 log.debug(
@@ -495,8 +503,6 @@ class BasePlatform:
             except Exception:
                 pass  # Dialog may have already been dismissed
 
-        # on() is idempotent-safe: registering the same named function twice
-        # would add it twice, but since we create a new page per run this is fine.
         page.on("dialog", _accept_dialog)
 
     @staticmethod
@@ -507,43 +513,51 @@ class BasePlatform:
         that can block interaction with the underlying chat UI. Failures are silent
         — if no popup is present the selectors simply find nothing.
         """
-        dismiss_selectors = [
-            # Explicit close / dismiss buttons
-            'button[aria-label="Close"]',
-            'button[aria-label="close"]',
-            'button[aria-label="Dismiss"]',
-            'button[aria-label="dismiss"]',
+        # --- Phase 1: Scoped selectors inside modal/dialog containers ---
+        # These are safe — they only target buttons within overlay containers,
+        # so they won't accidentally click a chat UI button.
+        scoped_selectors = [
+            # Buttons inside modal / dialog / overlay containers
+            '[role="dialog"] button[aria-label*="lose"]',
+            '[role="dialog"] button[aria-label*="ismiss"]',
+            '[aria-modal="true"] button[aria-label*="lose"]',
+            '[aria-modal="true"] button[aria-label*="ismiss"]',
             '[data-testid="close-button"]',
             '[data-testid="modal-close"]',
-            # Cookie / GDPR accept buttons
-            'button:has-text("Accept all")',
-            'button:has-text("Accept All")',
-            'button:has-text("Accept cookies")',
-            'button:has-text("Got it")',
-            'button:has-text("I agree")',
-            'button:has-text("Agree")',
-            'button:has-text("OK")',
-            'button:has-text("Dismiss")',
-            'button:has-text("Close")',
-            'button:has-text("No thanks")',
-            'button:has-text("Maybe later")',
-            # Generic overlay close patterns
             '[class*="modal"] [class*="close"]',
             '[class*="dialog"] [class*="close"]',
             '[class*="overlay"] [class*="close"]',
             '[class*="popup"] [class*="close"]',
-            '[class*="cookie"] button',
-            '[class*="banner"] [class*="close"]',
             '[class*="toast"] [class*="close"]',
         ]
-        for selector in dismiss_selectors:
+        # --- Phase 2: Cookie / GDPR / consent banners ---
+        # Scoped to cookie/consent/banner containers to avoid misclicks.
+        consent_selectors = [
+            '[class*="cookie"] button:has-text("Accept")',
+            '[class*="cookie"] button:has-text("OK")',
+            '[class*="consent"] button:has-text("Accept")',
+            '[class*="consent"] button:has-text("Agree")',
+            '[class*="consent"] button:has-text("Got it")',
+            '[class*="banner"] button:has-text("Accept")',
+            '[class*="banner"] button:has-text("Got it")',
+            '[class*="banner"] button:has-text("Dismiss")',
+            '[class*="banner"] [class*="close"]',
+            '[id*="cookie"] button',
+            '[id*="consent"] button',
+        ]
+        # Try all phases; continue after each successful dismiss to catch layered popups
+        dismissed_count = 0
+        max_dismissals = 3  # Safety cap to prevent infinite loops
+        for selector in scoped_selectors + consent_selectors:
+            if dismissed_count >= max_dismissals:
+                break
             try:
                 el = page.locator(selector).first
                 if await el.count() > 0 and await el.is_visible(timeout=500):
                     await el.click(timeout=1000)
                     await page.wait_for_timeout(300)
                     log.debug(f"Dismissed popup via: {selector}")
-                    break
+                    dismissed_count += 1
             except Exception:
                 pass
 
@@ -569,14 +583,19 @@ class BasePlatform:
         url = page.url.lower()
         if url in ("about:blank", "chrome://newtab/", ""):
             return False
-        # Common HTTP error page text
+        # Check page title for HTTP error patterns (title is far less likely
+        # to contain false positives than scanning all visible text).
         try:
-            error_texts = ["404", "page not found", "500 internal server error", "503 service unavailable"]
-            for text in error_texts:
-                el = page.get_by_text(text, exact=False).first
-                if await el.count() > 0 and await el.is_visible(timeout=500):
-                    log.debug(f"[is_chat_ready] Error text found on page: '{text}'")
-                    return False
+            title = (await page.title()).lower()
+            error_title_patterns = [
+                "404", "not found", "page not found",
+                "500", "internal server error",
+                "503", "service unavailable",
+                "access denied", "forbidden",
+            ]
+            if any(pattern in title for pattern in error_title_patterns):
+                log.debug(f"[is_chat_ready] Error title detected: '{title}'")
+                return False
         except Exception:
             pass
         return True

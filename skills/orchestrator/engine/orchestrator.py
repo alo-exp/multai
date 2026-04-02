@@ -98,7 +98,24 @@ def _verify_playwright(python_exe: str) -> None:
 
     Prints a warning (does not exit) if verification fails so the user knows
     their installation is broken before they hit a confusing runtime error.
+
+    Results are cached via a stamp file in the venv directory. The stamp records
+    the Playwright package version; if it matches, the expensive headless launch
+    check is skipped on subsequent runs.
     """
+    venv_dir = Path(python_exe).parent.parent  # .../engine/.venv/
+    stamp_file = venv_dir / ".playwright-verified"
+    try:
+        pw_version = importlib.util.find_spec("playwright") and __import__("importlib.metadata").metadata.version("playwright")
+    except Exception:
+        pw_version = None
+    if pw_version and stamp_file.exists():
+        try:
+            if stamp_file.read_text(encoding="utf-8").strip() == pw_version:
+                return  # Already verified for this version
+        except Exception:
+            pass
+
     # Import check
     try:
         result = subprocess.run(
@@ -138,8 +155,17 @@ def _verify_playwright(python_exe: str) -> None:
                 "  WARNING: Playwright is installed but Chromium failed to launch. "
                 "Run: python3 -m playwright install chromium"
             )
+            return
     except Exception as exc:
         print(f"  WARNING: Could not verify Playwright Chromium launch: {exc}")
+        return
+
+    # Write stamp on successful verification
+    if pw_version:
+        try:
+            stamp_file.write_text(pw_version, encoding="utf-8")
+        except Exception:
+            pass  # Non-fatal — will just re-verify next time
 
 
 def _verify_browser_use(python_exe: str) -> None:
@@ -471,18 +497,6 @@ async def _staggered_run(
         status=result["status"],
         duration_s=result.get("duration_s", 0),
     )
-
-    # Real-time sign-in notification — printed as soon as this platform reports
-    # NEEDS_LOGIN so the user can act immediately rather than waiting for all
-    # parallel platforms to finish before seeing the 90s countdown block.
-    if result["status"] == STATUS_NEEDS_LOGIN:
-        url = PLATFORM_URLS.get(platform_name, "")
-        display = result.get("display_name", PLATFORM_DISPLAY_NAMES.get(platform_name, platform_name))
-        print(
-            f"\n  ⚠  [{display}] Sign-in required. "
-            f"Please log in at {url} — a retry will run automatically.",
-            flush=True,
-        )
 
     return result
 
