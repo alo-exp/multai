@@ -14,8 +14,72 @@ This guide defines the structure, synthesis rules, and quality criteria for prod
 
 ## Output
 
-**Filename:** `{Solution Category} - Market Landscape Report.md`
-**Location:** `reports/{task-name}/`
+**Primary report:**
+- **Filename:** `{Solution Category} - Market Landscape Report.md`
+- **Location:** `reports/{task-name}/`
+
+**Required side-car — `chart-data.json`:**
+- **Filename:** `chart-data.json`
+- **Location:** `reports/{task-name}/` (same directory as the Markdown report)
+
+`preview.html` fetches this file at load time to populate all charts, titles, axis labels, and auto-links. Without it, the viewer falls back to built-in Platform Engineering defaults. `launch_report.py` creates a skeleton file automatically — the consolidator must populate the data arrays.
+
+### `chart-data.json` schema
+
+```json
+{
+  "anchors": {
+    "mq":   ["3A", "<H3 keyword that identifies the 2×2 section>"],
+    "wave": ["3B", "<H3 keyword that identifies the Wave section>"],
+    "vc":   ["3C", "<H3 keyword that identifies the Value Curve section>"]
+  },
+  "titles": {
+    "mq":   "3A-1 · <Domain> Positioning Matrix",
+    "mq_x": "← Low <X concept>         High <X concept> →",
+    "mq_y": "← Low <Y concept>         High <Y concept> →",
+    "gmq":  "3A-2 · Magic Quadrant — <Domain>",
+    "wave": "3B · Wave-Style Assessment — <Domain>",
+    "vc":   "3C · Blue Ocean Value Curve — <Domain>"
+  },
+  "mq_data": [
+    { "label": "VendorName", "x": 7.5, "y": 7.5, "q": "QuadrantName" }
+  ],
+  "mq_colors": {
+    "QuadrantName1": "#4f46e5",
+    "QuadrantName2": "#059669",
+    "QuadrantName3": "#d97706",
+    "QuadrantName4": "#94a3b8"
+  },
+  "gmq_data": [
+    { "label": "VendorName", "x": 8.0, "y": 8.0, "q": "Leaders" }
+  ],
+  "gmq_colors": {
+    "Leaders": "#4f46e5", "Challengers": "#7c3aed",
+    "Visionaries": "#d97706", "Niche Players": "#94a3b8"
+  },
+  "wave_data": [
+    { "label": "VendorName", "offering": 3.5, "strategy": 3.5, "presence": 3 }
+  ],
+  "vc_kcfs": ["KCF1", "KCF2"],
+  "vc_commercial": [
+    { "label": "VendorName", "data": [1,2,3,4,5], "color": "#4f46e5" }
+  ],
+  "vc_oss": [
+    { "label": "VendorName", "data": [1,2,3,4,5], "color": "#22d3ee" }
+  ],
+  "link_pairs": [
+    ["VendorName", "https://vendor.com"]
+  ]
+}
+```
+
+**Population rules:**
+- `anchors`: Include a substring that matches the exact H3 heading used in the report for each chart section (e.g. `"Governance Matrix"` if the H3 reads `### Governance × Coordination Matrix`)
+- `mq_data` / `gmq_data`: x/y scores on a 1–10 scale; `q` must match a key in the corresponding `_colors` map
+- `wave_data`: `offering` / `strategy` on a 1–4 scale; `presence` is 1–4 (controls bubble size)
+- `vc_kcfs`: list of Key Competitive Factors in table-stakes → differentiating order
+- `vc_commercial` / `vc_oss`: `data` array length must equal `vc_kcfs` length; scores 1–5
+- `link_pairs`: vendor names listed longest-first to prevent partial over-matching
 
 The report must begin with this exact title block (no preamble):
 

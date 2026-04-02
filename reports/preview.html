@@ -482,10 +482,10 @@ marked.setOptions({ breaks: true, gfm: true });
   });
 })();
 
-// ─── Chart data ─────────────────────────────────────────────────────────────
+// ─── Chart data (defaults = Platform Engineering — overridden per-report by chart-data.json) ────
 // 3A-1 Primary 2×2: X = Self-Service Maturity (1–10), Y = Platform Simplicity (higher = less burden)
 // Quadrant names are domain-specific, NOT Gartner MQ terminology
-const MQ_DATA = [
+const _DEFAULT_MQ_DATA = [
   { label:'Humanitec',          x:8.5, y:8.5,  q:'Full-Platform'      },
   { label:'Port',               x:9.0, y:9.0,  q:'Full-Platform'      },
   { label:'Cortex',             x:8.2, y:8.8,  q:'Full-Platform'      },
@@ -500,7 +500,7 @@ const MQ_DATA = [
   { label:'Crossplane',         x:6.8, y:2.2,  q:'Infra Builders'     },
   { label:'Backstage (OSS)',    x:7.8, y:1.8,  q:'Infra Builders'     },
 ];
-const MQ_COLORS = {
+const _DEFAULT_MQ_COLORS = {
   'Full-Platform':    '#4f46e5',
   'Developer-Centric':'#059669',
   'Emerging':         '#d97706',
@@ -508,7 +508,7 @@ const MQ_COLORS = {
 };
 
 // 3A-2 Gartner Magic Quadrant: X = Completeness of Vision, Y = Ability to Execute
-const GMQ_DATA = [
+const _DEFAULT_GMQ_DATA = [
   // Leaders (top-right: high vision + high execution)
   { label:'Humanitec',       x:8.5, y:8.8, q:'Leaders'      },
   { label:'Port',            x:8.8, y:8.5, q:'Leaders'      },
@@ -527,7 +527,7 @@ const GMQ_DATA = [
   { label:'Mia-Platform',    x:3.8, y:4.5, q:'Niche Players'},
   { label:'Crossplane',      x:4.5, y:3.2, q:'Niche Players'},
 ];
-const GMQ_COLORS = {
+const _DEFAULT_GMQ_COLORS = {
   'Leaders':      '#4f46e5',
   'Challengers':  '#7c3aed',
   'Visionaries':  '#d97706',
@@ -536,7 +536,7 @@ const GMQ_COLORS = {
 
 // Forrester Wave: X = Strategy (1–4), Y = Offering (1–4), r = Market Presence
 // Values spread to avoid bubble overlap
-const WAVE_DATA = [
+const _DEFAULT_WAVE_DATA = [
   { label:'Humanitec', offering:4.0, strategy:4.0, presence:4 },
   { label:'Port',      offering:3.8, strategy:3.8, presence:3 },
   { label:'Cortex',    offering:3.7, strategy:3.1, presence:3 },
@@ -546,24 +546,21 @@ const WAVE_DATA = [
   { label:'OpsLevel',  offering:3.0, strategy:2.8, presence:2 },
   { label:'Compass',   offering:3.2, strategy:2.1, presence:4 },
 ];
-const WAVE_COLORS = [
-  '#4f46e5','#059669','#db2777','#7c3aed','#d97706','#6366f1','#a855f7','#ec4899'
-];
 
 // Blue Ocean Value Curve — KCFs ordered table-stakes → differentiating
-const VC_KCFS = [
+const _DEFAULT_VC_KCFS = [
   'Security','Governance','Setup Ease','Infra Abstraction','Portal UX',
   'Ecosystem','Multi-Cloud','Extensibility','FinOps','AI/GenAI','SMB Scale'
 ];
-// Data reordered to match new KCF sequence: [Security,Gov,Setup,Infra,Portal,Eco,MC,Ext,FinOps,AI,SMB]
-const VC_COMMERCIAL = [
+// Data reordered to match KCF sequence: [Security,Gov,Setup,Infra,Portal,Eco,MC,Ext,FinOps,AI,SMB]
+const _DEFAULT_VC_COMMERCIAL = [
   { label:'Humanitec', data:[5,5,4,5,4,5,4,4,3,4,5], color:'#818cf8' },
   { label:'Port',      data:[4,4,5,3,5,5,4,5,3,4,5], color:'#34d399' },
   { label:'Cortex',    data:[4,4,5,3,5,4,3,4,3,3,5], color:'#f472b6' },
   { label:'Qovery',    data:[4,4,5,4,4,4,3,3,4,2,5], color:'#fbbf24' },
   { label:'Cycloid',   data:[5,5,4,4,4,5,5,5,5,3,4], color:'#c084fc' },
 ];
-const VC_OSS = [
+const _DEFAULT_VC_OSS = [
   { label:'Backstage',  data:[3,3,2,3,4,5,4,5,2,2,3], color:'#22d3ee' },
   { label:'Crossplane', data:[4,4,2,5,2,4,5,5,3,2,3], color:'#fb7185' },
   { label:'Argo CD',    data:[5,4,3,4,3,5,4,4,2,2,4], color:'#4ade80' },
@@ -571,12 +568,41 @@ const VC_OSS = [
   { label:'Score',      data:[3,3,4,5,3,3,3,4,2,2,5], color:'#60a5fa' },
 ];
 
+// Working variables — reset to defaults on each loadFile(), overridden by chart-data.json if present
+let MQ_DATA       = _DEFAULT_MQ_DATA;
+let MQ_COLORS     = { ..._DEFAULT_MQ_COLORS };
+let GMQ_DATA      = _DEFAULT_GMQ_DATA;
+let GMQ_COLORS    = { ..._DEFAULT_GMQ_COLORS };
+let WAVE_DATA     = _DEFAULT_WAVE_DATA;
+const WAVE_COLORS = ['#4f46e5','#059669','#db2777','#7c3aed','#d97706','#6366f1','#a855f7','#ec4899'];
+let VC_KCFS       = _DEFAULT_VC_KCFS;
+let VC_COMMERCIAL = _DEFAULT_VC_COMMERCIAL;
+let VC_OSS        = _DEFAULT_VC_OSS;
+
 // ─── Chart registry to destroy on reload ───────────────────────────────────
 const _charts = [];
 function destroyCharts() { _charts.forEach(c => c.destroy()); _charts.length = 0; }
 
+// ─── Chart config (titles, axis labels, anchor patterns — overridden by chart-data.json) ────────
+const _DEFAULT_CHART_CFG = {
+  anchors: {
+    mq:   ['3A', 'Primary 2×2', '2x2'],
+    wave: ['3B', 'Wave-Style', 'Wave'],
+    vc:   ['3C', 'Value Curve'],
+  },
+  titles: {
+    mq:   '3A-1 · Platform Engineering Positioning Matrix',
+    mq_x: '← Lower Self-Service Maturity         Higher Self-Service Maturity →',
+    mq_y: '← High Ops Burden         Low Ops Burden (SaaS/Managed) →',
+    gmq:  '3A-2 · Magic Quadrant (Gartner-style)',
+    wave: '3B · Wave-Style Vendor Assessment (Forrester Wave-style)',
+    vc:   '3C · Blue Ocean Value Curve Analysis',
+  },
+};
+let _chartCfg = JSON.parse(JSON.stringify(_DEFAULT_CHART_CFG));
+
 // ─── Hyperlinks ──────────────────────────────────────────────────────────────
-const LINK_PAIRS = [
+const _DEFAULT_LINK_PAIRS = [
   // Long phrases first (prevents partial over-matching)
   ['Internal Developer Portal',   'https://internaldeveloperplatform.org'],
   ['Internal Developer Platform', 'https://internaldeveloperplatform.org'],
@@ -628,6 +654,7 @@ const LINK_PAIRS = [
   ['GCP',           'https://cloud.google.com'],
   ['Azure',         'https://azure.microsoft.com'],
 ];
+let LINK_PAIRS = _DEFAULT_LINK_PAIRS;
 function linkify() {
   const sorted = [...LINK_PAIRS].sort((a, b) => b[0].length - a[0].length);
   const lu = new Map(sorted.map(([t, u]) => [t, u]));
@@ -673,7 +700,7 @@ function inject2x2(anchorH3) {
   const wrap = document.createElement('div');
   wrap.className = 'chart-frame';
   wrap.innerHTML = `
-    <div class="chart-title">3A-1 · Platform Engineering Positioning Matrix</div>
+    <div class="chart-title">${_chartCfg.titles.mq}</div>
     <div class="chart-subtitle">
       X-axis: Developer Self-Service Maturity &nbsp;|&nbsp; Y-axis: Platform-Team Operational Simplicity (higher = lower ops burden)
     </div>
@@ -710,14 +737,14 @@ function inject2x2(anchorH3) {
       scales: {
         x: {
           min: 0, max: 10,
-          title: { display: true, text: '← Lower Self-Service Maturity         Higher Self-Service Maturity →',
+          title: { display: true, text: _chartCfg.titles.mq_x,
                    font: { size: 11 }, color: '#94a3b8' },
           grid: { color: 'rgba(var(--color-border), 0.5)' },
           ticks: { display: false },
         },
         y: {
           min: 0, max: 10,
-          title: { display: true, text: '← High Ops Burden         Low Ops Burden (SaaS/Managed) →',
+          title: { display: true, text: _chartCfg.titles.mq_y,
                    font: { size: 11 }, color: '#94a3b8' },
           grid: { color: 'rgba(148,163,184,0.2)' },
           ticks: { display: false },
@@ -795,7 +822,7 @@ function injectGMQ(afterEl) {
   const wrap = document.createElement('div');
   wrap.className = 'chart-frame';
   wrap.innerHTML = `
-    <div class="chart-title">3A-2 · Magic Quadrant (Gartner-style)</div>
+    <div class="chart-title">${_chartCfg.titles.gmq}</div>
     <div class="chart-subtitle">
       X-axis: Completeness of Vision &nbsp;|&nbsp; Y-axis: Ability to Execute
     </div>
@@ -910,7 +937,7 @@ function injectWave(anchorH3) {
   const wrap = document.createElement('div');
   wrap.className = 'chart-frame';
   wrap.innerHTML = `
-    <div class="chart-title">3B · Wave-Style Vendor Assessment (Forrester Wave-style)</div>
+    <div class="chart-title">${_chartCfg.titles.wave}</div>
     <div class="chart-subtitle">
       X-axis: Strength of Strategy &nbsp;|&nbsp; Y-axis: Strength of Offering &nbsp;|&nbsp;
       Bubble size = Market Presence &nbsp;·&nbsp; Strong=4 · Good=3 · Moderate=2
@@ -1105,7 +1132,7 @@ function injectValueCurve(anchorH3) {
   const wrap = document.createElement('div');
   wrap.className = 'chart-frame';
   wrap.innerHTML = `
-    <div class="chart-title">3C · Blue Ocean Value Curve Analysis</div>
+    <div class="chart-title">${_chartCfg.titles.vc}</div>
     <div class="chart-subtitle">
       Hover a line to highlight it · Scale 1–5 across 11 Key Competitive Factors
     </div>
@@ -1256,11 +1283,12 @@ function findNextTable(el) {
 
 function injectCharts() {
   destroyCharts();
+  const anchors = _chartCfg.anchors;
   document.querySelectorAll('#content h3').forEach(h3 => {
     const t = h3.textContent.trim();
-    if (t.includes('3A') || t.includes('Primary 2×2') || t.includes('2x2')) inject2x2(h3);
-    else if (t.includes('3B') || t.includes('Wave-Style') || t.includes('Wave')) injectWave(h3);
-    else if (t.includes('3C') || t.includes('Value Curve'))                       injectValueCurve(h3);
+    if      (anchors.mq.some(k => t.includes(k)))   inject2x2(h3);
+    else if (anchors.wave.some(k => t.includes(k))) injectWave(h3);
+    else if (anchors.vc.some(k => t.includes(k)))   injectValueCurve(h3);
   });
 }
 
@@ -1277,6 +1305,41 @@ async function loadFile(path) {
     document.getElementById('stats').textContent =
       `${(md.length/1000).toFixed(1)}K chars · ${md.split('\n').length} lines`;
     window.scrollTo(0, 0);
+    // Update browser tab title from report H1
+    const h1 = document.querySelector('#content h1');
+    if (h1) document.title = h1.textContent.trim() + ' — MultAI Report Viewer';
+    // Reset chart data and config to defaults before applying report-specific overrides
+    MQ_DATA       = _DEFAULT_MQ_DATA;
+    MQ_COLORS     = { ..._DEFAULT_MQ_COLORS };
+    GMQ_DATA      = _DEFAULT_GMQ_DATA;
+    GMQ_COLORS    = { ..._DEFAULT_GMQ_COLORS };
+    WAVE_DATA     = _DEFAULT_WAVE_DATA;
+    VC_KCFS       = _DEFAULT_VC_KCFS;
+    VC_COMMERCIAL = _DEFAULT_VC_COMMERCIAL;
+    VC_OSS        = _DEFAULT_VC_OSS;
+    LINK_PAIRS    = _DEFAULT_LINK_PAIRS;
+    _chartCfg     = JSON.parse(JSON.stringify(_DEFAULT_CHART_CFG));
+    // Try to load report-specific chart-data.json (generated alongside each report)
+    if (path.includes('Market Landscape Report') || path.includes('Consolidated Intelligence Report')) {
+      const reportDir = path.split('/')[0];
+      try {
+        const cdResp = await fetch('/' + reportDir + '/chart-data.json');
+        if (cdResp.ok) {
+          const cd = await cdResp.json();
+          if (cd.mq_data)       MQ_DATA       = cd.mq_data;
+          if (cd.mq_colors)     MQ_COLORS     = cd.mq_colors;
+          if (cd.gmq_data)      GMQ_DATA      = cd.gmq_data;
+          if (cd.gmq_colors)    GMQ_COLORS    = cd.gmq_colors;
+          if (cd.wave_data)     WAVE_DATA     = cd.wave_data;
+          if (cd.vc_kcfs)       VC_KCFS       = cd.vc_kcfs;
+          if (cd.vc_commercial) VC_COMMERCIAL = cd.vc_commercial;
+          if (cd.vc_oss)        VC_OSS        = cd.vc_oss;
+          if (cd.link_pairs)    LINK_PAIRS    = cd.link_pairs;
+          if (cd.anchors)       _chartCfg.anchors = cd.anchors;
+          if (cd.titles)        _chartCfg.titles  = cd.titles;
+        }
+      } catch (_) { /* chart-data.json absent — using defaults */ }
+    }
     // Show/hide vendor nav rows based on content type
     const isReport = path.includes('Report') || path.includes('report');
     const commRow = document.getElementById('snavCommercial');
@@ -1324,7 +1387,10 @@ function buildTOC() {
   if (report) {
     loadFile(decodeURIComponent(report));
   } else {
-    loadFile('market-landscape-20260315-2128/Platform Engineering Solutions - Market Landscape Report.md');
+    document.getElementById('content').innerHTML =
+      '<p style="color:var(--color-text-muted);padding:60px 24px;font-size:15px;">' +
+      'No report loaded. Run <code>python3 skills/landscape-researcher/launch_report.py ' +
+      '--report-dir &lt;dir&gt; --report-file &lt;file&gt;</code> to open a report.</p>';
   }
 })();
 
@@ -1521,7 +1587,7 @@ async function exportToPDF() {
     const printHTML = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
-<title>Platform Engineering Solutions — Market Landscape Report</title>
+<title>${document.title || 'MultAI Report Viewer'}</title>
 <style>
   @page {
     size: A4;
@@ -1795,11 +1861,11 @@ function _inlineStylesForGDocs(root) {
   let _compareSet = new Set();
 
   // ── Vendor sets (exact match) ─────────────────────────────────────────────────
-  const COMMERCIAL_LABELS = new Set(VC_COMMERCIAL.map(s => s.label));
-  const OSS_LABELS        = new Set(VC_OSS.map(s => s.label));
-  const ALL_VENDORS       = new Set([...MQ_DATA.map(d => d.label)]);
-  const LEADER_LABELS     = new Set(GMQ_DATA.filter(d => d.q === 'Leaders').map(d => d.label));
-  const CHALLENGER_LABELS = new Set(GMQ_DATA.filter(d => d.q === 'Challengers').map(d => d.label));
+  let COMMERCIAL_LABELS = new Set(VC_COMMERCIAL.map(s => s.label));
+  let OSS_LABELS        = new Set(VC_OSS.map(s => s.label));
+  let ALL_VENDORS       = new Set([...MQ_DATA.map(d => d.label)]);
+  let LEADER_LABELS     = new Set(GMQ_DATA.filter(d => d.q === 'Leaders').map(d => d.label));
+  let CHALLENGER_LABELS = new Set(GMQ_DATA.filter(d => d.q === 'Challengers').map(d => d.label));
 
   // ── Colour palette ────────────────────────────────────────────────────────────
   const PALETTE      = ['#4f46e5','#059669','#db2777','#7c3aed','#d97706','#6366f1','#a855f7','#ec4899'];
@@ -1820,6 +1886,12 @@ function _inlineStylesForGDocs(root) {
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   function postRender() {
+    // Refresh derived vendor sets from current chart data (updated by chart-data.json if present)
+    COMMERCIAL_LABELS = new Set(VC_COMMERCIAL.map(s => s.label));
+    OSS_LABELS        = new Set(VC_OSS.map(s => s.label));
+    ALL_VENDORS       = new Set([...MQ_DATA.map(d => d.label)]);
+    LEADER_LABELS     = new Set(GMQ_DATA.filter(d => d.q === 'Leaders').map(d => d.label));
+    CHALLENGER_LABELS = new Set(GMQ_DATA.filter(d => d.q === 'Challengers').map(d => d.label));
     _progressBar = document.getElementById('readProgressBar');
     _bcSection   = document.getElementById('bcSection');
     _bcSep       = document.getElementById('bcSep');
@@ -2269,9 +2341,27 @@ function _inlineStylesForGDocs(root) {
           let sib = h2.nextElementSibling;
           while (sib && sib.tagName !== 'H2') {
             if (sib.tagName === 'H3') {
-              names.push(sib.textContent.replace(/^[▸▾]\s*/, '').trim());
+              const text = sib.textContent.replace(/^[▸▾]\s*/, '').trim();
+              // Skip tier/group headings — they are section dividers, not vendor names
+              if (!/^Tier\s+\d|^Group\s+\d/i.test(text)) names.push(text);
             }
             sib = sib.nextElementSibling;
+          }
+          // Fallback: if no vendor H3s found, extract names from table rows (column index 1 = name)
+          if (names.length === 0) {
+            sib = h2.nextElementSibling;
+            while (sib && sib.tagName !== 'H2') {
+              if (sib.tagName === 'TABLE') {
+                sib.querySelectorAll('tbody tr').forEach(tr => {
+                  const cells = tr.querySelectorAll('td');
+                  if (cells.length > 1) {
+                    const name = cells[1].textContent.replace(/^\*+|\*+$/g, '').trim();
+                    if (name && !/^Tier\s+\d|^Group\s+\d/i.test(name)) names.push(name);
+                  }
+                });
+              }
+              sib = sib.nextElementSibling;
+            }
           }
           break;
         }
@@ -2295,11 +2385,26 @@ function _inlineStylesForGDocs(root) {
         btn.dataset.vendor = raw;
         btn.addEventListener('click', () => {
           const card = document.querySelector(`.vendor-card[data-vendor="${CSS.escape(raw)}"]`);
+          const navH = navEl.offsetHeight;
+          const bcH  = document.getElementById('breadcrumb')?.offsetHeight || 0;
           if (card) {
-            const navH = navEl.offsetHeight;
-            const bcH  = document.getElementById('breadcrumb')?.offsetHeight || 0;
-            const top  = card.getBoundingClientRect().top + window.scrollY - navH - bcH - 12;
+            const top = card.getBoundingClientRect().top + window.scrollY - navH - bcH - 12;
             window.scrollTo({ top, behavior: 'smooth' });
+          } else {
+            // Fallback for table-based reports: find vendor name in a <td> and scroll to that row
+            const content = document.getElementById('content');
+            if (!content) return;
+            const lcName = name.toLowerCase();
+            for (const td of content.querySelectorAll('td')) {
+              if (td.textContent.replace(/^\*+|\*+$/g, '').trim().toLowerCase() === lcName) {
+                const tr = td.closest('tr');
+                if (tr) {
+                  const top = tr.getBoundingClientRect().top + window.scrollY - navH - bcH - 12;
+                  window.scrollTo({ top, behavior: 'smooth' });
+                }
+                break;
+              }
+            }
           }
         });
         row.appendChild(btn);
