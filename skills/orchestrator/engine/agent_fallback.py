@@ -217,14 +217,27 @@ class AgentFallbackManager:
 
         Returns a result dict (same shape as run_single_platform) on success, or None.
         Uses higher max_steps than per-step fallbacks since it owns the full lifecycle.
+
+        Note: Prompts longer than 3000 characters are truncated in the agent's task
+        description. The agent sees the first 3000 chars and a note that the prompt
+        continues, but it **cannot** type the unseen portion. For very long prompts,
+        this fallback may produce a partial-prompt submission. The primary Playwright
+        path should be used for long prompts; this is a best-effort recovery.
         """
         if not self._enabled or not platform_url:
             return None
 
-        # Truncate prompt to keep agent task description manageable.
-        # The agent needs to type the full prompt, so we pass it inline; we truncate
-        # only the task description string, not what the agent actually types.
-        prompt_for_task = prompt[:3000] + ("\n...[prompt continues — type all of it]" if len(prompt) > 3000 else "")
+        # Truncate prompt for the agent task description. The agent can only type
+        # what it can see, so prompts > 3000 chars will be partially submitted.
+        # This is acceptable as a fallback — the Playwright path handles long prompts.
+        if len(prompt) > 3000:
+            prompt_for_task = prompt[:3000] + "\n...[truncated — prompt too long for agent fallback]"
+            log.warning(
+                f"[{display_name}] full_platform_run: prompt truncated from "
+                f"{len(prompt)} to 3000 chars for agent task"
+            )
+        else:
+            prompt_for_task = prompt
 
         task = (
             f"Automate a browser to get an AI response from {display_name}. "

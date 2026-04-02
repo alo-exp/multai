@@ -80,7 +80,8 @@ fi
 
 # ── Verify Playwright can launch Chromium ─────────────────────────────────────
 info "Verifying Playwright Chromium launch (headless)..."
-LAUNCH_RESULT=$("$PYTHON_VENV" - 2>/dev/null <<'PYEOF'
+# Use perl-based timeout (portable to macOS which lacks GNU timeout)
+LAUNCH_RESULT=$(perl -e 'alarm 30; exec @ARGV' "$PYTHON_VENV" - 2>/dev/null <<'PYEOF'
 import asyncio, sys
 from playwright.async_api import async_playwright
 async def _t():
