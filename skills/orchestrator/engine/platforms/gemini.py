@@ -154,7 +154,7 @@ class Gemini(BasePlatform):
         max_retries = 3
 
         for attempt in range(max_retries + 1):
-            await page.wait_for_timeout(10000)  # Wait for plan to appear
+            await page.wait_for_timeout(20000)  # Wait for plan to appear (complex prompts take longer)
 
             # Check for capacity error
             try:
@@ -180,9 +180,10 @@ class Gemini(BasePlatform):
                     await start_btn.click()
                     log.info("[Gemini] Clicked 'Start research' button")
 
-                    # Verify crawl started — look for stop button
-                    await page.wait_for_timeout(3000)
-                    for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]']:
+                    # Verify crawl started — look for stop OR cancel button
+                    await page.wait_for_timeout(5000)
+                    for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]',
+                                'button:has-text("Cancel")', 'button[aria-label*="Cancel"]']:
                         stop = page.locator(sel).first
                         if await stop.count() > 0:
                             log.info("[Gemini] Research crawl started")
@@ -192,7 +193,8 @@ class Gemini(BasePlatform):
                 log.debug(f"[Gemini] Start research button not found yet: {exc}")
 
             # If no plan appeared and no error, Gemini may have started automatically
-            for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]']:
+            for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]',
+                        'button:has-text("Cancel")', 'button[aria-label*="Cancel"]']:
                 stop = page.locator(sel).first
                 if await stop.count() > 0:
                     log.info("[Gemini] Research started automatically (no plan step)")
@@ -202,9 +204,17 @@ class Gemini(BasePlatform):
 
     async def completion_check(self, page: Page) -> bool:
         """Check for completion — multi-signal with stable-state fallback."""
-        # 1. Check for stop button
+        # 1. Check for stop/cancel button.
+        # In Deep Research mode Gemini uses "Cancel" (not "Stop") while research
+        # is running.  Check both labels so _seen_stop is correctly set and the
+        # early-12-poll bail-out is never triggered prematurely.
         has_stop = False
-        for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]']:
+        for sel in [
+            'button:has-text("Stop")',
+            'button[aria-label*="Stop"]',
+            'button:has-text("Cancel")',
+            'button[aria-label*="Cancel"]',
+        ]:
             try:
                 stop = page.locator(sel).first
                 if await stop.count() > 0 and await stop.is_visible():
@@ -213,9 +223,25 @@ class Gemini(BasePlatform):
             except Exception:
                 pass
 
+        # Also treat the Deep Research "Thinking" progress indicator as "still running"
+        if not has_stop:
+            try:
+                # Gemini shows a "Thinking" label while Deep Research is in progress.
+                # Scope to the response/progress area to avoid false matches in
+                # other visible text.
+                thinking_el = page.locator(
+                    '[class*="progress"] :text("Thinking"), '
+                    '[class*="deep-research"] :text("Thinking"), '
+                    'model-response :text("Thinking")'
+                ).first
+                if await thinking_el.count() > 0 and await thinking_el.is_visible():
+                    has_stop = True
+            except Exception:
+                pass
+
         if has_stop:
             self._no_stop_polls = 0
-            self._seen_stop = True  # Research started — stop button was visible
+            self._seen_stop = True  # Research started — stop/cancel/thinking was visible
             return False
 
         self._no_stop_polls += 1
@@ -270,11 +296,13 @@ class Gemini(BasePlatform):
             log.info("[Gemini] No stop button for 3 polls after research started — declaring complete")
             return True
 
-        # 5. Extended fallback: if still no stop ever seen after 12 polls (~2 min),
-        #    something is wrong (post_send may have missed "Start research").
-        #    Declare complete so the run doesn't hang forever.
-        if self._no_stop_polls >= 12:
-            log.warning("[Gemini] 12 polls with no stop button ever seen — post_send may have missed 'Start research'. Declaring complete.")
+        # 5. Extended fallback: if still no stop/cancel/thinking signal seen after
+        #    40 polls (~6.7 min), something is wrong (post_send may have missed
+        #    "Start research", or the DR UI changed).  Declare complete.
+        #    Raised from 12 → 40 because Deep Research for complex prompts takes
+        #    5–30 min; the old 2-min limit was triggering prematurely.
+        if self._no_stop_polls >= 40:
+            log.warning("[Gemini] 40 polls with no stop/cancel/thinking ever seen — declaring complete.")
             return True
 
         return False

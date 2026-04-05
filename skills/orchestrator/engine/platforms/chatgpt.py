@@ -424,7 +424,12 @@ class ChatGPT(BasePlatform):
                     return resp;
                 })()
             """)
-            if text and len(text) > 500 and not is_prompt_echo(text, self.prompt_sigs):
+            is_echo = is_prompt_echo(text, self.prompt_sigs)
+            # Long responses (> 3 000 chars) are real AI answers even if they reuse
+            # the prompt's section-header phrases (e.g. the CMF prompt explicitly
+            # instructs "SECTION A", "SECTION B" — so the AI response legitimately
+            # contains those strings).  Only reject if it's short AND is an echo.
+            if text and len(text) > 500 and (not is_echo or len(text) > 3000):
                 # Handle DOM duplication — slice at "End of Report."
                 end_idx = text.find("End of Report.")
                 if end_idx > 0:
@@ -445,7 +450,8 @@ class ChatGPT(BasePlatform):
                     return '';
                 })()
             """)
-            if text and len(text) > 200 and not is_prompt_echo(text, self.prompt_sigs):
+            is_echo_main = is_prompt_echo(text, self.prompt_sigs)
+            if text and len(text) > 200 and (not is_echo_main or len(text) > 3000):
                 # Guard: if DEEP mode and the main container text contains DR
                 # quota-exhaustion phrases, tag as rate-limited.  No length
                 # threshold — main.innerText includes UI chrome (buttons,
@@ -479,10 +485,14 @@ class ChatGPT(BasePlatform):
         # If we're in DEEP mode and got nothing better, return "" so that
         # base.py triggers the Agent fallback (vision-based interaction
         # with the DR panel's download / "Copy contents" flow).
-        if self._mode == "DEEP" and (len(text) < 15000 or is_prompt_echo(text, self.prompt_sigs)):
+        # Only bail out if body is short (UI chrome only) AND is an echo.
+        # If body is short but NOT an echo, there might be a brief response — use it.
+        # If body is long but contains prompt section headers, the AI was
+        # instructed to use those headers — not a real echo.
+        if self._mode == "DEEP" and len(text) < 15000 and is_prompt_echo(text, self.prompt_sigs):
             log.warning(
                 f"[ChatGPT] DEEP mode: DR panel + blob interceptor both failed. "
-                f"body only {len(text)} chars — returning empty to trigger Agent fallback."
+                f"body {len(text)} chars is short + prompt echo — returning empty to trigger Agent fallback."
             )
             return ""
 

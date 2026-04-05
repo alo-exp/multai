@@ -261,14 +261,23 @@ class Perplexity(BasePlatform):
         except Exception:
             pass
 
-        # 4. Stable-state: page text stopped growing for 3 consecutive polls (~30s)
-        if self._no_stop_polls >= 3 and self._last_page_len > 5000:
-            log.info(f"[Perplexity] Page text stable at {self._last_page_len} chars for {self._no_stop_polls} polls — declaring complete")
+        # 4. Stable-state: page text stopped growing for 6 consecutive polls (~60s).
+        #    Require a larger threshold (> 10 000 chars) so pre-loaded old-session
+        #    content (from a reused tab) does not trigger premature completion.
+        #    Also verify the page URL is NOT the plain homepage — if we're still on
+        #    the root URL the query may not have been submitted yet.
+        current_url = page.url
+        is_on_conversation = (
+            "perplexity.ai/search" in current_url
+            or "perplexity.ai/p/" in current_url
+        )
+        if self._no_stop_polls >= 6 and self._last_page_len > 10000 and is_on_conversation:
+            log.info(f"[Perplexity] Page text stable at {self._last_page_len} chars for 6 polls on conversation page — declaring complete")
             return True
 
-        # Extended stable-state: 6 polls (~60s) regardless
-        if self._no_stop_polls >= 6:
-            log.info("[Perplexity] No activity for 6 polls — declaring complete")
+        # Extended stable-state: 12 polls (~120s) regardless of page length
+        if self._no_stop_polls >= 12:
+            log.info("[Perplexity] No activity for 12 polls — declaring complete")
             return True
 
         return False

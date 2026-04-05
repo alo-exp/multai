@@ -6,6 +6,34 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040603 Alpha — ChatGPT Echo Detection Fix, Gemini Cancel Button, Perplexity Stable-State Guard
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT false-positive echo rejection**: `chatgpt.py` `extract_response` article and main-
+  container selectors now allow long responses (> 3 000 chars) even when they contain the
+  prompt's section-header phrases (e.g. "SECTION A", "SECTION B"). Previously, prompts that
+  explicitly instructed the AI to use those headers caused `is_prompt_echo` to return True on
+  the actual response, resulting in 0 chars extracted for the CMF research prompt.  Also
+  changed the DEEP-mode body-fallback guard from `len<15000 OR echo` to `len<15000 AND echo`.
+
+- **Gemini Deep Research cancel/thinking detection**: `gemini.py` `completion_check` now checks
+  for `button:has-text("Cancel")` and `button[aria-label*="Cancel"]` in addition to "Stop",
+  and detects the Deep Research "Thinking" progress indicator as a "still running" signal.
+  Raised the no-signal fallback from 12 → 40 polls (6.7 min) so complex research prompts are
+  not prematurely declared complete.  Also bumped `post_send` plan-wait from 10s → 20s and
+  extended the post-click stop/cancel verification timeout from 3s → 5s.
+
+- **Perplexity premature stable-state completion**: `perplexity.py` `completion_check` increased
+  the primary stable-state guard from 3 polls (30s) to 6 polls (60s) + requires > 10 000 chars
+  + requires the page URL to be a conversation URL (not the plain homepage). Extended the
+  fallback from 6 polls to 12 polls (120s). This prevents old-session tab content from
+  triggering premature completion when a reused tab has prior response data.
+
+---
+
 ## 0.2.26040602 Alpha — Gemini & DeepSeek Response Extraction Fixes
 
 **Date:** 2026-04-06
