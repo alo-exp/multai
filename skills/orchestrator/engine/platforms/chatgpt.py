@@ -332,6 +332,11 @@ class ChatGPT(BasePlatform):
             'button:has-text("Stop researching")',
             'button[aria-label*="Stop researching"]',
             '[class*="deep-research"] button:has-text("Stop")',
+            # Additional cancel-style buttons for DR
+            'button[aria-label*="Cancel"]',
+            'button[aria-label*="cancel"]',
+            '[aria-label="Stop generating"]',
+            '[data-testid*="stop"]',
         ]
         for sel in stop_selectors:
             try:
@@ -394,9 +399,11 @@ class ChatGPT(BasePlatform):
             if self._no_stop_polls >= 12 and self._seen_stop:
                 log.info("[ChatGPT] DEEP: No stop for 12 polls after research started — declaring complete")
                 return True
-            # Extended fallback: if stop was never seen after 20 polls (~200s), give up
-            if self._no_stop_polls >= 20:
-                log.warning("[ChatGPT] DEEP: 20 polls with no stop ever seen — declaring complete")
+            # Extended fallback: if stop was never seen after 60 polls (~600s/10 min).
+            # Complex DR prompts can take 5-15 min. The 20-poll limit was too short,
+            # causing the fallback to fire before the research completes.
+            if self._no_stop_polls >= 60:
+                log.warning("[ChatGPT] DEEP: 60 polls with no stop ever seen — declaring complete")
                 return True
         else:
             if self._no_stop_polls >= 3:
