@@ -220,20 +220,36 @@ class Gemini(BasePlatform):
 
         self._no_stop_polls += 1
 
-        # 2. UI completion signals (Copy/Share/Export buttons)
-        for sel in [
-            'button:has-text("Copy")',
-            'button:has-text("Share")',
-            'button:has-text("Export")',
-            'button[aria-label*="Copy"]',
-            'button[aria-label*="Share"]',
-        ]:
-            try:
-                btn = page.locator(sel).first
-                if await btn.count() > 0 and await btn.is_visible():
-                    return True
-            except Exception:
-                pass
+        # 2. UI completion signals — scoped to the response container only.
+        # Gemini's page header always shows Share/Export/Copy buttons, causing
+        # false positives. Only count these signals when:
+        #   (a) the button is inside a model-response / message-content container, OR
+        #   (b) the button's aria-label specifically mentions "response" or "message", AND
+        #   (c) body text is already substantial (> 3000 chars), confirming real content.
+        try:
+            body_len_check = await page.evaluate("document.body.innerText.length")
+        except Exception:
+            body_len_check = 0
+
+        if body_len_check > 3000:
+            # Try response-scoped copy/share first (most reliable)
+            scoped_sels = [
+                '[class*="model-response"] button[aria-label*="Copy"]',
+                '[class*="model-response"] button[aria-label*="copy"]',
+                '[class*="message-content"] button[aria-label*="Copy"]',
+                '.markdown-main-panel button[aria-label*="Copy"]',
+                # Gemini response actions row (typically below the completed message)
+                '[class*="response-container"] button:has-text("Copy")',
+                '[class*="response-container"] button:has-text("Share")',
+            ]
+            for sel in scoped_sels:
+                try:
+                    btn = page.locator(sel).first
+                    if await btn.count() > 0 and await btn.is_visible():
+                        log.info(f"[Gemini] Completion: scoped copy/share button found ({sel!r})")
+                        return True
+                except Exception:
+                    pass
 
         # 3. Content-based: body text > 15 000 chars.
         #    Threshold raised from 10 000 (Harness OSS: plan-phase page chrome was ~3-4 k;

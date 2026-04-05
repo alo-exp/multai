@@ -6,6 +6,30 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040602 Alpha — Gemini & DeepSeek Response Extraction Fixes
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Gemini completion_check scoped selectors**: `gemini.py` `completion_check` now restricts
+  the Copy/Share button signal to response-container-scoped selectors
+  (`[class*="model-response"]`, `[class*="message-content"]`, `.markdown-main-panel`,
+  `[class*="response-container"]`) and requires `body.innerText.length > 3000` before
+  evaluating them. Previously, Gemini's persistent page-header Copy/Share buttons triggered
+  false completion at 7–17 seconds, returning truncated responses (~340 chars).
+
+- **DeepSeek extract_response leaf-block JS extraction**: `deepseek.py` `extract_response` now
+  uses a JS-based approach that (a) selects only **leaf** markdown blocks (elements with no
+  matching `.markdown-body` / `[class*="ds-markdown"]` descendants) to prevent parent/child
+  duplication, and (b) excludes blocks inside any ancestor with class names containing `think`,
+  `reasoning`, or `chain-of-thought` to strip the DeepThink chain-of-thought from the output.
+  Previously, extraction returned only the last block (conclusion paragraph, ~343 chars) or,
+  after a prior fix, included the thinking chain verbatim causing duplication (~988 chars).
+  Now returns the clean structured response (~4500 chars).
+
+---
+
 ## 0.2.26040601 Alpha — SKILL Auto-Invoke Fix, Non-Interactive Mode, Rate Limiter Cap
 
 **Date:** 2026-04-06

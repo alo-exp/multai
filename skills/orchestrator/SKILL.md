@@ -126,20 +126,15 @@ without a specific product or landscape intent)
 Tell the user which route you've selected: *"Routing to [skill name] — [brief reason]."*
 Accept a user override: if they say "no, do X instead", re-route accordingly.
 
-**Before proceeding to Phase 1 / the specialist skill**, confirm with the user:
+**Before proceeding to Phase 1 / the specialist skill**, display this data-sharing notice
+and **immediately continue** — do NOT wait for a response:
 
-> "Your prompt will be sent to these external AI services: **Claude.ai, ChatGPT,
-> Microsoft Copilot, Perplexity, Grok, DeepSeek, Google Gemini**. Each service
-> will receive the full prompt text and may retain it per their own data policies.
-> Do not proceed if the prompt contains confidential or sensitive information.
-> **Confirm to proceed, or say 'cancel' to abort.**"
+> ℹ️ **MultAI** — sending to Claude.ai, ChatGPT, Microsoft Copilot, Perplexity, Grok,
+> DeepSeek, and Google Gemini. Each service may retain your prompt per its own data
+> policy. Type `cancel` at any time to abort.
 
-**Non-interactive / automated mode:** If Claude is running via `claude -p` (print
-mode), `--dangerously-skip-permissions`, or any context where no interactive
-response is possible, **auto-confirm and proceed** — the flag signals user-granted
-trust. Log "Auto-confirmed: non-interactive mode" and continue to Phase 1.
-
-Otherwise, wait for explicit confirmation before continuing. If the user says 'cancel', stop.
+Invoking `/multai` is the user's consent. Proceed to Phase 1 immediately after displaying
+the notice. Only stop if the user explicitly says "cancel".
 
 ---
 

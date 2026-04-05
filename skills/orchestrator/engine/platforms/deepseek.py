@@ -227,17 +227,66 @@ class DeepSeek(BasePlatform):
 
     async def extract_response(self, page: Page) -> str:
         """Extract AI response from the last assistant message container."""
-        # Primary: try to find the last assistant message container
+        # Primary: use JS to collect ONLY response markdown blocks.
+        # Two problems in DeepThink mode:
+        # 1. Thinking-chain blocks must be excluded (parent has "think" class).
+        # 2. The selector '.markdown-body, [class*="ds-markdown"]' can match both
+        #    a parent and its child — causing duplicated text. Fix: take only
+        #    LEAF blocks (those that contain no other matching descendant).
         try:
-            # DeepSeek uses markdown-body or ds-markdown for AI responses
+            combined = await page.evaluate("""() => {
+                const sel = '.markdown-body, [class*="ds-markdown"]';
+                const blocks = [...document.querySelectorAll(sel)];
+
+                // Keep only leaf blocks (no matching descendants)
+                const leafBlocks = blocks.filter(el => !el.querySelector(sel));
+
+                // Exclude blocks inside thinking/reasoning containers
+                const responseBlocks = leafBlocks.filter(el => {
+                    let parent = el.parentElement;
+                    while (parent && parent !== document.body) {
+                        const cls = (parent.className || '').toLowerCase();
+                        if (cls.includes('think') || cls.includes('reasoning') ||
+                            cls.includes('chain-of-thought')) {
+                            return false;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    return true;
+                });
+
+                return responseBlocks
+                    .map(el => el.innerText.trim())
+                    .filter(t => t.length > 50)
+                    .join('\\n\\n');
+            }""")
+            if combined and len(combined) > 200:
+                log.info(f"[DeepSeek] Extracted {len(combined)} chars via JS leaf response blocks")
+                return combined
+        except Exception as exc:
+            log.debug(f"[DeepSeek] JS response-only extraction failed: {exc}")
+
+        # Fallback: collect all markdown blocks, skip very long thinking chains,
+        # and concatenate the rest.
+        try:
             md_blocks = page.locator('.markdown-body, [class*="ds-markdown"]')
             count = await md_blocks.count()
             if count > 0:
-                last_block = md_blocks.nth(count - 1)
-                text = await last_block.inner_text()
-                if len(text) > 200:
-                    log.info(f"[DeepSeek] Extracted {len(text)} chars via markdown container")
-                    return text
+                chunks: list[str] = []
+                for i in range(count):
+                    try:
+                        text = await md_blocks.nth(i).inner_text()
+                        text = text.strip()
+                        if len(text) < 50 or len(text) > 15000:
+                            continue
+                        chunks.append(text)
+                    except Exception:
+                        continue
+
+                if chunks:
+                    combined = "\n\n".join(chunks)
+                    log.info(f"[DeepSeek] Extracted {len(combined)} chars via {len(chunks)} fallback markdown block(s)")
+                    return combined
         except Exception as exc:
             log.debug(f"[DeepSeek] markdown extraction failed: {exc}")
 
