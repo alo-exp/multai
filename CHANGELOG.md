@@ -6,6 +6,24 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040605 Alpha — ChatGPT Stale DR Panel Fix, Gemini Nav Retry, base.py Nav Retry
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DR stale content from prior conversation**: `_extract_deep_research_panel` now
+  iterates frames in **reverse** order (most recently added first) and uses `.last` for the
+  frame_locator in method B, so the current conversation's DR iframe is tried before any
+  stale iframe from a previous session still in memory. Also added a 10s wait-and-retry if
+  all methods return empty (new DR iframe may not be populated yet at completion time).
+
+- **Gemini ERR_ABORTED navigation failure**: `base.py` navigation now retries once on failure
+  (waits 3s before retry) before attempting agent fallback. Handles transient ERR_ABORTED
+  errors that can occur when Chrome's window state changes during CDP-initiated navigation.
+
+---
+
 ## 0.2.26040604 Alpha — DEEP Mode Early Completion Fix, Perplexity Old-Content Fix, Chrome Focus Steal Fix
 
 **Date:** 2026-04-06
