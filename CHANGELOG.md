@@ -6,6 +6,27 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040606 Alpha — Gemini DR Stable-State Threshold, ChatGPT DEEP Echo Suppression
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Gemini Deep Research premature completion (30s stable-state)**: `gemini.py` adds
+  `_deep_mode: bool` instance flag set during `configure_mode` when Deep Research is
+  enabled. `completion_check` uses this flag to apply separate stable-state thresholds:
+  DR mode = 30 polls (300s / 5 min), non-DR = 3 polls (30s). Also raises body-text
+  completion threshold to 50k in DR mode (was 15k shared; Thinking-phase text + echoed
+  prompt easily exceeded 15k before research produced a substantial report).
+
+- **ChatGPT DEEP mode prompt-echo bleeding into article/main fallbacks**: `extract_response`
+  article and main-container selectors now explicitly reject prompt echoes in DEEP mode
+  regardless of length. Previously the `len > 3000` allowance for echoes meant the full
+  echoed CMF prompt (~6k chars) was returned when the DR iframe was empty. In DEEP mode
+  the real response lives in the DR iframe, not article elements.
+
+---
+
 ## 0.2.26040605 Alpha — ChatGPT Stale DR Panel Fix, Gemini Nav Retry, base.py Nav Retry
 
 **Date:** 2026-04-06
