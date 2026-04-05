@@ -105,20 +105,30 @@ class BasePlatform:
                 await page.wait_for_timeout(1000)
                 mode_label = f"{mode}-followup"
             else:
-                # 1. Navigate to new conversation
+                # 1. Navigate to new conversation — retry once on transient errors
+                # (e.g. ERR_ABORTED from in-flight Chrome window operations)
                 log.info(f"[{self.display_name}] Navigating to {self.url}")
-                try:
-                    await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
-                except Exception as exc:
-                    # Try agent fallback for navigation errors (e.g. redirect loops)
+                nav_exc: Exception | None = None
+                for nav_attempt in range(2):
+                    try:
+                        await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
+                        nav_exc = None
+                        break
+                    except Exception as exc:
+                        nav_exc = exc
+                        if nav_attempt == 0:
+                            log.warning(f"[{self.display_name}] Navigation attempt 1 failed ({type(exc).__name__}), retrying in 3s")
+                            await page.wait_for_timeout(3000)
+                if nav_exc is not None:
+                    # Both attempts failed — try agent fallback
                     try:
                         await self._agent_fallback(
-                            page, "navigate", exc,
+                            page, "navigate", nav_exc,
                             f"Navigate to {self.url} and wait for the {self.display_name} "
                             f"chat interface to load. Confirm when the page is ready.",
                         )
                     except Exception:
-                        raise RuntimeError(f"Navigation failed: {exc}") from exc
+                        raise RuntimeError(f"Navigation failed: {nav_exc}") from nav_exc
                 await page.wait_for_timeout(3000)  # Let JS frameworks initialise
 
                 # 1b. Dismiss any overlay popups (cookie banners, GDPR notices, modals)

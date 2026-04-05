@@ -173,112 +173,136 @@ class ChatGPT(BasePlatform):
           A) frame.evaluate() — direct CDP text extraction, no interaction needed
           B) frame_locator selector-based button click → clipboard
           C) Coordinate-based click → clipboard (calibrated from Harness OSS run)
+
+        Frames are iterated in REVERSE order (most-recently added first) so the
+        current conversation's DR iframe is tried before any stale iframe from a
+        previous conversation that may still be loaded in memory.
+
+        If all methods return < 1000 chars (new DR iframe not yet populated),
+        waits 10s and retries once before giving up.
         """
         _DR_PATTERNS = ["web-sandbox", "deep_research"]
 
-        # --- A: Direct CDP frame text extraction (no clicks required) ---
-        for frame in page.frames:
-            if any(pat in frame.url for pat in _DR_PATTERNS):
+        # Inner function: one extraction attempt across all three methods
+        async def _try_extract() -> str:
+            # --- A: Direct CDP frame text extraction (no clicks required) ---
+            # Iterate REVERSED so we get the MOST RECENTLY added DR iframe first.
+            # ChatGPT keeps old DR panels in memory when navigating to a new chat,
+            # so forward iteration would return stale content from a previous run.
+            for frame in reversed(page.frames):
+                if any(pat in frame.url for pat in _DR_PATTERNS):
+                    try:
+                        text = await frame.evaluate("document.body.innerText")
+                        if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
+                            log.info(f"[ChatGPT] Extracted {len(text)} chars via frame.evaluate() (frame: {frame.url[:60]})")
+                            return text
+                        log.debug(f"[ChatGPT] frame.evaluate() gave {len(text) if text else 0} chars (frame: {frame.url[:60]}) — trying next method")
+                    except Exception as exc:
+                        log.debug(f"[ChatGPT] frame.evaluate() failed ({frame.url[:60]}): {exc}")
+
+            # --- B: frame_locator selector-based button click + clipboard ---
+            # Use "last" iframe matching the pattern (most recent DR for this conversation).
+            for url_pat in _DR_PATTERNS:
                 try:
-                    text = await frame.evaluate("document.body.innerText")
-                    if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
-                        log.info(f"[ChatGPT] Extracted {len(text)} chars via frame.evaluate()")
-                        return text
-                    log.debug(f"[ChatGPT] frame.evaluate() gave {len(text) if text else 0} chars — trying next method")
+                    dr_frame = page.frame_locator(f'iframe[src*="{url_pat}"]').last
+                    for dl_sel in [
+                        '[aria-label*="Download"]',
+                        '[aria-label*="Export"]',
+                        '[title*="Download"]',
+                        '[title*="Export"]',
+                    ]:
+                        dl_btn = dr_frame.locator(dl_sel).first
+                        if await dl_btn.count() > 0:
+                            await dl_btn.click()
+                            await page.wait_for_timeout(500)
+                            log.info(f"[ChatGPT] Clicked DR download button via frame_locator ({dl_sel})")
+                            for copy_text in ["Copy contents", "Copy"]:
+                                copy_item = dr_frame.get_by_text(copy_text, exact=False).first
+                                if await copy_item.count() > 0:
+                                    await copy_item.click()
+                                    await page.wait_for_timeout(1000)
+                                    text = _read_clipboard()
+                                    if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
+                                        log.info(f"[ChatGPT] Extracted {len(text)} chars via frame_locator + clipboard")
+                                        return text
                 except Exception as exc:
-                    log.debug(f"[ChatGPT] frame.evaluate() failed ({frame.url[:60]}): {exc}")
+                    log.debug(f"[ChatGPT] frame_locator method failed (pat={url_pat}): {exc}")
 
-        # --- B: frame_locator selector-based button click + clipboard ---
-        for url_pat in _DR_PATTERNS:
+            # --- C: Coordinate-based fallback (proportional offsets relative to iframe) ---
+            # Uses percentage-based offsets instead of hardcoded pixels so it adapts
+            # to different window sizes and DR panel redesigns.  After clicking the
+            # download-icon area, waits for a dropdown menu to appear before clicking
+            # the "Copy contents" item (avoids blind second click).
             try:
-                dr_frame = page.frame_locator(f'iframe[src*="{url_pat}"]')
-                for dl_sel in [
-                    '[aria-label*="Download"]',
-                    '[aria-label*="Export"]',
-                    '[title*="Download"]',
-                    '[title*="Export"]',
-                ]:
-                    dl_btn = dr_frame.locator(dl_sel).first
-                    if await dl_btn.count() > 0:
-                        await dl_btn.click()
-                        await page.wait_for_timeout(500)
-                        log.info(f"[ChatGPT] Clicked DR download button via frame_locator ({dl_sel})")
-                        for copy_text in ["Copy contents", "Copy"]:
-                            copy_item = dr_frame.get_by_text(copy_text, exact=False).first
-                            if await copy_item.count() > 0:
-                                await copy_item.click()
-                                await page.wait_for_timeout(1000)
-                                text = _read_clipboard()
-                                if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
-                                    log.info(f"[ChatGPT] Extracted {len(text)} chars via frame_locator + clipboard")
-                                    return text
-            except Exception as exc:
-                log.debug(f"[ChatGPT] frame_locator method failed (pat={url_pat}): {exc}")
+                rect = await page.evaluate("""
+                    (() => {
+                        const iframe = document.querySelector('iframe[src*="web-sandbox"]')
+                                     || document.querySelector('iframe[src*="deep_research"]')
+                                     || document.querySelector('iframe[src*="openai"]');
+                        if (!iframe) return null;
+                        const r = iframe.getBoundingClientRect();
+                        return { top: r.top, right: r.right, bottom: r.bottom,
+                                 left: r.left, width: r.width, height: r.height };
+                    })()
+                """)
+                if not rect:
+                    log.debug("[ChatGPT] DR iframe not found for coordinate extraction")
+                    return ""
 
-        # --- C: Coordinate-based fallback (proportional offsets relative to iframe) ---
-        # Uses percentage-based offsets instead of hardcoded pixels so it adapts
-        # to different window sizes and DR panel redesigns.  After clicking the
-        # download-icon area, waits for a dropdown menu to appear before clicking
-        # the "Copy contents" item (avoids blind second click).
-        try:
-            rect = await page.evaluate("""
-                (() => {
-                    const iframe = document.querySelector('iframe[src*="web-sandbox"]')
-                                 || document.querySelector('iframe[src*="deep_research"]')
-                                 || document.querySelector('iframe[src*="openai"]');
-                    if (!iframe) return null;
-                    const r = iframe.getBoundingClientRect();
-                    return { top: r.top, right: r.right, bottom: r.bottom,
-                             left: r.left, width: r.width, height: r.height };
-                })()
-            """)
-            if not rect:
-                log.debug("[ChatGPT] DR iframe not found for coordinate extraction")
+                # Download icon: near top-right corner of the iframe header.
+                # Use proportional offsets: ~95% of width from left, ~3% of height from top
+                # (clamped to minimum 10px from edges).
+                dl_x = rect["left"] + max(rect["width"] * 0.95, rect["width"] - 40)
+                dl_y = rect["top"] + max(rect["height"] * 0.03, 10)
+                await page.mouse.click(dl_x, dl_y)
+                await page.wait_for_timeout(800)
+                log.info(f"[ChatGPT] Clicked DR download icon at ({dl_x:.0f}, {dl_y:.0f}) [proportional coordinate]")
+
+                # Wait for "Copy contents" / "Copy" text to appear in a dropdown menu
+                # rather than blind-clicking a hardcoded offset.
+                copied = False
+                for copy_text in ["Copy contents", "Copy"]:
+                    try:
+                        copy_item = page.get_by_text(copy_text, exact=False).first
+                        if await copy_item.count() > 0 and await copy_item.is_visible():
+                            await copy_item.click()
+                            await page.wait_for_timeout(1000)
+                            log.info(f"[ChatGPT] Clicked '{copy_text}' via text selector after coordinate click")
+                            copied = True
+                            break
+                    except Exception:
+                        pass
+
+                if not copied:
+                    # Fallback: click below the download icon (menu didn't render with
+                    # text-searchable elements, or it uses a canvas/shadow DOM).
+                    copy_x = dl_x - min(rect["width"] * 0.08, 115)
+                    copy_y = dl_y + min(rect["height"] * 0.06, 45)
+                    await page.mouse.click(copy_x, copy_y)
+                    await page.wait_for_timeout(1000)
+                    log.info(f"[ChatGPT] Clicked 'Copy contents' at ({copy_x:.0f}, {copy_y:.0f}) [blind offset]")
+
+                text = _read_clipboard()
+                if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
+                    log.info(f"[ChatGPT] Extracted {len(text)} chars via coordinate fallback + clipboard")
+                    return text
+
+                log.debug(f"[ChatGPT] Coordinate fallback clipboard: {len(text) if text else 0} chars — insufficient")
+                return ""
+            except Exception as exc:
+                log.debug(f"[ChatGPT] Coordinate fallback failed: {exc}")
                 return ""
 
-            # Download icon: near top-right corner of the iframe header.
-            # Use proportional offsets: ~95% of width from left, ~3% of height from top
-            # (clamped to minimum 10px from edges).
-            dl_x = rect["left"] + max(rect["width"] * 0.95, rect["width"] - 40)
-            dl_y = rect["top"] + max(rect["height"] * 0.03, 10)
-            await page.mouse.click(dl_x, dl_y)
-            await page.wait_for_timeout(800)
-            log.info(f"[ChatGPT] Clicked DR download icon at ({dl_x:.0f}, {dl_y:.0f}) [proportional coordinate]")
+        # First extraction attempt
+        result = await _try_extract()
+        if result:
+            return result
 
-            # Wait for "Copy contents" / "Copy" text to appear in a dropdown menu
-            # rather than blind-clicking a hardcoded offset.
-            copied = False
-            for copy_text in ["Copy contents", "Copy"]:
-                try:
-                    copy_item = page.get_by_text(copy_text, exact=False).first
-                    if await copy_item.count() > 0 and await copy_item.is_visible():
-                        await copy_item.click()
-                        await page.wait_for_timeout(1000)
-                        log.info(f"[ChatGPT] Clicked '{copy_text}' via text selector after coordinate click")
-                        copied = True
-                        break
-                except Exception:
-                    pass
-
-            if not copied:
-                # Fallback: click below the download icon (menu didn't render with
-                # text-searchable elements, or it uses a canvas/shadow DOM).
-                copy_x = dl_x - min(rect["width"] * 0.08, 115)
-                copy_y = dl_y + min(rect["height"] * 0.06, 45)
-                await page.mouse.click(copy_x, copy_y)
-                await page.wait_for_timeout(1000)
-                log.info(f"[ChatGPT] Clicked 'Copy contents' at ({copy_x:.0f}, {copy_y:.0f}) [blind offset]")
-
-            text = _read_clipboard()
-            if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
-                log.info(f"[ChatGPT] Extracted {len(text)} chars via coordinate fallback + clipboard")
-                return text
-
-            log.debug(f"[ChatGPT] Coordinate fallback clipboard: {len(text) if text else 0} chars — insufficient")
-            return ""
-        except Exception as exc:
-            log.debug(f"[ChatGPT] Coordinate fallback failed: {exc}")
-            return ""
+        # If all methods returned empty, DR iframe may not yet be populated.
+        # Wait 10s and try once more before giving up.
+        log.info("[ChatGPT] DR panel extraction returned empty — waiting 10s and retrying")
+        await page.wait_for_timeout(10000)
+        return await _try_extract()
 
     async def completion_check(self, page: Page) -> bool:
         """Check for completion — uses multi-signal approach.
