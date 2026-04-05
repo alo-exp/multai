@@ -6,6 +6,20 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040607 Alpha — ChatGPT DR Timeout Extension, Additional Cancel Selectors
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP mode timeout too short**: `chatgpt.py` extended the "no-stop-ever-seen"
+  fallback from 20 polls (200s) to 60 polls (600s/10 min). Complex DR prompts take 5-15
+  minutes; the 200s limit was firing before research completed and before progress
+  indicators became visible. Also added more stop/cancel selectors:
+  `button[aria-label*="Cancel"]`, `[aria-label="Stop generating"]`, `[data-testid*="stop"]`.
+
+---
+
 ## 0.2.26040606 Alpha — Gemini DR Stable-State Threshold, ChatGPT DEEP Echo Suppression
 
 **Date:** 2026-04-06
