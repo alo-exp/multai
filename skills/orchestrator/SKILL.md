@@ -25,11 +25,16 @@ description: >
   - Any other multi-AI task, arbitrary prompt, or general question →
     direct multi-AI (this skill runs the engine and consolidates generically)
 
-  USE THIS SKILL proactively whenever the user asks to run something across
-  multiple AIs, compare AI outputs, get multi-source perspectives, or whenever
-  a specialist skill (landscape-researcher, solution-researcher, comparator)
-  would be appropriate. When in doubt, activate this skill — it will route
-  correctly.
+  USE THIS SKILL proactively whenever:
+  - The user asks to run something across multiple AIs, compare AI outputs,
+    or get multi-source perspectives
+  - The prompt starts with "DEEP" or "REGULAR" (these are MultAI mode flags —
+    a prompt beginning with either word is always a MultAI invocation)
+  - A specialist skill (landscape-researcher, solution-researcher, comparator)
+    would be appropriate for the request
+  - The user sends any substantive research, analysis, or question prompt while
+    the MultAI plugin is loaded — this skill is the PRIMARY ENTRY POINT
+  When in doubt, activate this skill — it will route correctly.
 ---
 
 # Multi-AI Orchestrator Skill
@@ -129,7 +134,12 @@ Accept a user override: if they say "no, do X instead", re-route accordingly.
 > Do not proceed if the prompt contains confidential or sensitive information.
 > **Confirm to proceed, or say 'cancel' to abort.**"
 
-Wait for explicit confirmation before continuing. If the user says 'cancel', stop.
+**Non-interactive / automated mode:** If Claude is running via `claude -p` (print
+mode), `--dangerously-skip-permissions`, or any context where no interactive
+response is possible, **auto-confirm and proceed** — the flag signals user-granted
+trust. Log "Auto-confirmed: non-interactive mode" and continue to Phase 1.
+
+Otherwise, wait for explicit confirmation before continuing. If the user says 'cancel', stop.
 
 ---
 
@@ -139,14 +149,18 @@ Wait for explicit confirmation before continuing. If the user says 'cancel', sto
 
 ### Accept inputs:
 - **Prompt** — the full prompt text, or a path to a prompt file (required)
-- **Mode** — `DEEP` or `REGULAR` (default: REGULAR)
+- **Mode** — `DEEP` or `REGULAR` (default: REGULAR). **If the prompt text begins
+  with `DEEP` or `REGULAR` as its very first word/line (MultAI mode prefix), extract
+  that word as the mode and strip it from the prompt text before writing to the temp
+  file.** The cleaned prompt (without the prefix) is what gets sent to platforms.
 - **Condensed prompt** *(optional)* — shorter version for constrained platforms
 - **Topic label** *(optional)* — used for naming the output archive
 
-If the prompt is inline text, write it to a temp file:
+If the prompt is inline text, extract any leading mode prefix, then write the
+cleaned prompt to a temp file:
 ```bash
 cat > /tmp/orchestrator-prompt.md << 'PROMPT_EOF'
-[PROMPT TEXT HERE]
+[PROMPT TEXT HERE — without the leading DEEP/REGULAR prefix word]
 PROMPT_EOF
 ```
 

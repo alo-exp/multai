@@ -69,8 +69,8 @@ def collate(output_dir: str, task_name: str) -> Path | None:
     if status_path.exists():
         try:
             status = json.loads(status_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"  [collate] WARNING: Could not parse status.json: {exc} — metadata omitted from archive")
 
     mode = status.get("mode", "REGULAR")
     timestamp = status.get("timestamp", datetime.now().isoformat())
@@ -139,7 +139,7 @@ def collate(output_dir: str, task_name: str) -> Path | None:
 
     # Assemble full archive
     total = len(all_stems)
-    _MD_ESCAPE = str.maketrans({"#": "\\#", "[": "\\[", "]": "\\]", "*": "\\*", "_": "\\_"})
+    _MD_ESCAPE = str.maketrans({"#": "\\#", "[": "\\[", "]": "\\]", "*": "\\*", "_": "\\_", "`": "\\`", "~": "\\~", "|": "\\|"})
     safe_header_name = task_name.strip().translate(_MD_ESCAPE)
     archive_lines = [
         f"# {safe_header_name} — Raw AI Responses",

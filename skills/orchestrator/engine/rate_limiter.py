@@ -221,10 +221,13 @@ class RateLimiter:
         # Check 3: Cooldown since last request
         effective_cooldown = config.cooldown_seconds
 
-        # Check 4: Exponential backoff if recently rate-limited
+        # Check 4: Exponential backoff if recently rate-limited (capped at 1 hour)
         if state.consecutive_rate_limits > 0:
             backoff_exp = min(state.consecutive_rate_limits, _MAX_BACKOFF_EXP)
-            effective_cooldown = config.cooldown_seconds * (2 ** backoff_exp)
+            effective_cooldown = min(
+                config.cooldown_seconds * (2 ** backoff_exp),
+                3600,  # Hard cap: never backoff longer than 1 hour
+            )
 
         last_ts = self._last_request_timestamp(platform, now)
         if last_ts is not None:
@@ -257,6 +260,9 @@ class RateLimiter:
         duration_s: float,
     ) -> None:
         """Record a platform invocation outcome and persist immediately."""
+        if mode not in ("DEEP", "REGULAR"):
+            log.warning(f"Invalid mode '{mode}' passed to record_usage — treating as REGULAR")
+            mode = "REGULAR"
         if platform not in self._state:
             self._state[platform] = PlatformUsageState()
 

@@ -6,6 +6,44 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040601 Alpha — SKILL Auto-Invoke Fix, Non-Interactive Mode, Rate Limiter Cap
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **SKILL auto-invoke (critical)**: `SKILL.md` description now includes `"DEEP"` and `"REGULAR"` as
+  explicit trigger keywords, and adds "any substantive research/analysis prompt while MultAI plugin
+  is loaded" as a trigger. Previously, `claude -p "DEEP\n..."` caused Claude to answer directly
+  without invoking the skill. Now the skill is invoked correctly for all research prompts.
+
+- **Non-interactive mode auto-confirm**: Phase 0 confirmation dialog now auto-confirms when running
+  via `claude -p` / `--dangerously-skip-permissions` / piped input where no interactive response
+  is possible. Previously the skill would deadlock waiting for user confirmation.
+
+- **DEEP/REGULAR prefix stripping (Phase 1)**: SKILL.md Phase 1 now explicitly instructs Claude to
+  detect a leading `DEEP` or `REGULAR` word in the prompt, extract it as the mode flag, and strip
+  it from the prompt text before writing the temp file. Previously `DEEP\n\n[content]` was sent
+  verbatim to all 7 platforms.
+
+- **Rate limiter backoff cap**: `rate_limiter.py` exponential backoff is now capped at 3600 seconds
+  (1 hour). The previous uncapped `cooldown × 2^4` formula could produce 16-hour lockouts for
+  Gemini (base cooldown 3600s × 16 = ~16 hours).
+
+- **Gemini free REGULAR cap corrected**: `config.py` `max_requests` for `gemini.free.REGULAR`
+  corrected from `4` to `5` to match the documented `5/day` budget.
+
+- **Collate markdown escape map extended**: `collate_responses.py` header escape map now also
+  escapes backticks, tildes, and pipes to prevent malformed archive headers.
+
+- **Collate silent status.json failure fixed**: `collate_responses.py` now prints a warning when
+  `status.json` is malformed rather than silently discarding the metadata.
+
+- **Rate limiter mode validation**: `rate_limiter.py` `record_usage()` now validates that `mode`
+  is `"DEEP"` or `"REGULAR"` and logs a warning + falls back to `"REGULAR"` if not.
+
+---
+
 ## 0.2.26040304 Alpha — Report Viewer Polish, CI Fix, Gitignore Cleanup
 
 **Date:** 2026-04-02
