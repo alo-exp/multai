@@ -19,6 +19,7 @@ class Gemini(BasePlatform):
         super().__init__()
         self._no_stop_polls: int = 0   # Consecutive polls with no stop button visible
         self._seen_stop: bool = False  # True once a stop button has been observed (research actually started)
+        self._deep_mode: bool = False  # True when Deep Research mode is active
 
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for Gemini-specific rate limit indicators.
@@ -119,6 +120,7 @@ class Gemini(BasePlatform):
                         await page.wait_for_timeout(500)
                         log.info("[Gemini] Enabled Deep Research")
                         label_parts.append("Deep Research")
+                        self._deep_mode = True  # Track for completion_check
                     else:
                         log.warning("[Gemini] Deep Research menu item not found or not visible — skipping")
 
@@ -277,27 +279,30 @@ class Gemini(BasePlatform):
                 except Exception:
                     pass
 
-        # 3. Content-based: body text > 15 000 chars.
-        #    Threshold raised from 10 000 (Harness OSS: plan-phase page chrome was ~3-4 k;
-        #    research-complete reports are 15 000+).
+        # 3. Content-based: body text threshold.
+        #    DR mode: require 50 000 chars (large prompt echo + Thinking text can push
+        #    body to 15-25 k before research actually produces a substantial report).
+        #    Non-DR: 15 000 chars is sufficient (page chrome ≈ 3-4 k).
         #    GUARD: require _seen_stop so this does not fire while the plan/prompt echo
-        #    is still on screen (the echoed prompt + Thinking text can easily exceed 15 k
-        #    before actual research begins).
+        #    is still on screen before actual research begins.
         try:
             body_len = await page.evaluate("document.body.innerText.length")
-            if body_len > 15000 and self._seen_stop:
-                log.info(f"[Gemini] Body text {body_len} > 15000 after research started — declaring complete")
+            threshold = 50000 if self._deep_mode else 15000
+            if body_len > threshold and self._seen_stop:
+                log.info(f"[Gemini] Body text {body_len} > {threshold} after research started — declaring complete")
                 return True
         except Exception:
             pass
 
-        # 4. Stable-state: no stop button for 3 consecutive polls (~30s).
+        # 4. Stable-state: no stop/cancel/thinking for N consecutive polls.
         #    REQUIRES _seen_stop — i.e. the stop button was previously visible,
         #    meaning research actually started and finished.
-        #    Without this guard, the check fires prematurely during the plan phase
-        #    (before "Start research" is clicked) because the plan UI has no stop button.
-        if self._no_stop_polls >= 3 and self._seen_stop:
-            log.info("[Gemini] No stop button for 3 polls after research started — declaring complete")
+        #    DR mode needs a MUCH longer stable window (30 polls = 5 min) because
+        #    Gemini briefly hides the Thinking indicator between research phases.
+        #    Non-DR mode: 3 polls (30s) is sufficient (regular responses finish quickly).
+        stable_threshold = 30 if self._deep_mode else 3
+        if self._no_stop_polls >= stable_threshold and self._seen_stop:
+            log.info(f"[Gemini] No stop button for {stable_threshold} polls after research started — declaring complete")
             return True
 
         # 5. Extended fallback: if still no stop/cancel/thinking signal seen after
