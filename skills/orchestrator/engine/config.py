@@ -260,7 +260,7 @@ RATE_LIMITS: dict[str, dict[str, dict[str, RateLimitConfig]]] = {
     },
     "gemini": {
         "free": {
-            "REGULAR": RateLimitConfig(4,  86400, 900, daily_cap=5, notes="5/day Pro model free"),
+            "REGULAR": RateLimitConfig(5,  86400, 900, daily_cap=5, notes="5/day Pro model free"),
             "DEEP":    RateLimitConfig(3,  2592000, 3600, daily_cap=5, notes="5/month free"),
         },
         "paid": {
