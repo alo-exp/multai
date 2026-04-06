@@ -6,6 +6,23 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040611 Alpha — ChatGPT DEEP completion gated on DR iframe content
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP returned 0c (iter 8)**: Frame isolation fix caused `_try_extract` to return
+  `""` early without trying methods B/C. Root cause remained: completion_check fired at ~40s
+  (ephemeral stop button + body>50k) before the DR iframe had any content; 12×30s retries
+  expired without finding a populated iframe. Fix: remove the body>50k check from DEEP mode
+  completion_check entirely. Instead, poll the newest DR iframe directly in completion_check;
+  only declare complete when the iframe has > 5000 chars. This correctly defers completion
+  until the DR report is actually rendered (5-15 min). 60-poll fallback still guards against
+  a broken DR flow.
+
+---
+
 ## 0.2.26040610 Alpha — ChatGPT DR frame isolation, extended retry
 
 **Date:** 2026-04-06
