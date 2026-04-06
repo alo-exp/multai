@@ -6,6 +6,28 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040617 Alpha — ChatGPT DR completion threshold 5k→20k; Gemini DR timeout 120→180 polls
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP still 0c (iter 14)**: Completion fired at ~36s because the DR iframe had
+  ~9500c (the echoed CMF prompt). Threshold was 5000c — below the prompt length. Fix: raise
+  DR iframe completion threshold from 5000 to 20000. Also raised `allow_echo` threshold in
+  `_try_extract` from 10000 to 20000 so completion threshold and extraction threshold are
+  consistent (completion only fires when extraction will succeed).
+
+- **Gemini DR 7k chars in iters 12–14 (was 50k in iters 7–11)**: `_seen_stop` never set
+  because Thinking/Cancel indicators undetected. 120-poll (20 min) fallback fires while
+  research is still running, producing partial content. Fixes:
+  - Raise `no_stop_limit` from 120 to 180 polls (30 min) in DR mode
+  - Add broader Thinking detection: `Searching the web`, `Reading`, `Searching`,
+    `:not(button):text-is("Thinking")` — catches DOM structure changes in Gemini
+  - Raise Gemini DR timeout in config from 1500s to 2400s (40 min) to match 180-poll limit
+
+---
+
 ## 0.2.26040616 Alpha — ChatGPT DR frame extraction: allow large responses that echo prompt headers
 
 **Date:** 2026-04-06
