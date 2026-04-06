@@ -127,7 +127,7 @@ class ClaudeAI(BasePlatform):
         # Bring tab to front every 5 min (30 polls × 10s) so Claude.ai renders the
         # report — the artifact panel is only visible when the tab has focus.
         self._total_polls += 1
-        if self._total_polls % 30 == 1:  # polls 1, 31, 61 … (first poll + every 5 min)
+        if self._total_polls % 30 == 0:  # polls 30, 60, 90 … (every 5 min, first at 5 min)
             try:
                 await page.bring_to_front()
                 log.debug("[Claude.ai] Brought tab to front")
