@@ -18,6 +18,7 @@ class ClaudeAI(BasePlatform):
     def __init__(self):
         super().__init__()
         self._no_stop_polls: int = 0  # Consecutive polls with no stop button visible
+        self._total_polls: int = 0    # Total polls since waiting started
 
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for Claude.ai-specific rate limit indicators."""
@@ -123,12 +124,15 @@ class ClaudeAI(BasePlatform):
         for 12 consecutive polls (~2 min), declare complete.  This handles
         REGULAR mode responses that are plain text (no artifact/download button).
         """
-        # Bring tab to front so Claude.ai renders the report — the artifact panel
-        # is only visible/interactive when the tab has focus.
-        try:
-            await page.bring_to_front()
-        except Exception:
-            pass
+        # Bring tab to front every 5 min (30 polls × 10s) so Claude.ai renders the
+        # report — the artifact panel is only visible when the tab has focus.
+        self._total_polls += 1
+        if self._total_polls % 30 == 1:  # polls 1, 31, 61 … (first poll + every 5 min)
+            try:
+                await page.bring_to_front()
+                log.debug("[Claude.ai] Brought tab to front")
+            except Exception:
+                pass
 
         # Check for stop button (still generating)
         has_stop = False
