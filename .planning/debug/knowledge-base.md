@@ -12,6 +12,14 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Files changed:** skills/orchestrator/engine/platforms/deepseek.py, skills/orchestrator/engine/platforms/base.py
 ---
 
+## claude-ai-research-connector-failure — Claude.ai DEEP mode Research always fails due to connector dialog not dismissed
+- **Date:** 2026-04-06
+- **Error patterns:** connector dialog, configure_mode, Research failed, Stopped No response on which connectors, aria-label connector, chip toggle, connector selection
+- **Root cause:** configure_mode() enables Research mode which triggers a mandatory connector selection dialog. The dismissal fallback selector [aria-label*="connector"] matches a connector chip toggle element (not a dismiss button), clicks it, and logs false success. Research starts with no connectors configured and fails ~4.5 min later.
+- **Fix:** Remove Research toggle from configure_mode DEEP mode handling entirely. Only enable Web search. Connector dialog is never triggered.
+- **Files changed:** skills/orchestrator/engine/platforms/claude_ai.py
+---
+
 ## deepseek-stop-detection-false-positive — DeepSeek SEND button mistaken for STOP button causes 600s timeout
 - **Date:** 2026-04-06
 - **Error patterns:** timed out after 600s, has_stop always True, ds-icon-button, completion_check, send button, stop button, false positive, DOM walk, input container
