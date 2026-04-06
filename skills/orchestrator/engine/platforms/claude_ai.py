@@ -17,8 +17,9 @@ class ClaudeAI(BasePlatform):
 
     def __init__(self):
         super().__init__()
-        self._no_stop_polls: int = 0  # Consecutive polls with no stop button visible
-        self._total_polls: int = 0    # Total polls since waiting started
+        self._no_stop_polls: int = 0    # Consecutive polls with no stop button visible
+        self._total_polls: int = 0     # Total polls since waiting started
+        self._artifact_clicked: bool = False  # Whether artifact card has been clicked already
 
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for Claude.ai-specific rate limit indicators."""
@@ -178,19 +179,24 @@ class ClaudeAI(BasePlatform):
             except Exception:
                 pass
 
-        # Try clicking artifact card to reveal report (Research mode quirk)
-        try:
-            artifact = page.locator('[class*="artifact"], [class*="document"]').first
-            if await artifact.count() > 0 and await artifact.is_visible():
-                await artifact.click()
-                await page.wait_for_timeout(1000)
-                # Re-check for Copy/Download
-                for sel in ['button:has-text("Copy")', 'button:has-text("Download")']:
-                    btn = page.locator(sel).first
-                    if await btn.count() > 0 and await btn.is_visible():
-                        return True
-        except Exception:
-            pass
+        # Try clicking artifact card to reveal report (Research mode quirk).
+        # Only click once — no reason to repeat every poll. Use JS dispatchEvent
+        # instead of Playwright click() to avoid stealing OS focus.
+        if not self._artifact_clicked:
+            try:
+                artifact = page.locator('[class*="artifact"], [class*="document"]').first
+                if await artifact.count() > 0 and await artifact.is_visible():
+                    await artifact.evaluate("el => el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))")
+                    self._artifact_clicked = True
+                    log.debug("[Claude.ai] Dispatched click on artifact card (no focus steal)")
+                    await page.wait_for_timeout(1000)
+                    # Re-check for Copy/Download
+                    for sel in ['button:has-text("Copy")', 'button:has-text("Download")']:
+                        btn = page.locator(sel).first
+                        if await btn.count() > 0 and await btn.is_visible():
+                            return True
+            except Exception:
+                pass
 
         # NOTE: body.innerText > 10 000 check removed — Claude.ai sidebar navigation
         # alone exceeds 10 000 chars, causing false completion detection.
