@@ -216,8 +216,11 @@ class ChatGPT(BasePlatform):
                     if text and len(text) > 1000 and not is_prompt_echo(text, self.prompt_sigs):
                         log.info(f"[ChatGPT] Extracted {len(text)} chars via frame.evaluate() (frame: {newest_dr_frame.url[:60]})")
                         return text
-                    log.debug(f"[ChatGPT] Newest DR frame has {len(text) if text else 0} chars — not ready yet ({newest_dr_frame.url[:60]})")
-                    return ""  # not ready; let outer loop retry
+                    log.debug(f"[ChatGPT] Newest DR frame has {len(text) if text else 0} chars ({newest_dr_frame.url[:60]})")
+                    # Don't fall through to older DR frames — return "" so outer retry waits.
+                    # (completion_check already verified DR iframe > 5000c, so this shouldn't
+                    # normally happen; it means the iframe content was lost or is an echo.)
+                    return ""
                 except Exception as exc:
                     log.debug(f"[ChatGPT] frame.evaluate() failed ({newest_dr_frame.url[:60]}): {exc}")
 
@@ -409,39 +412,40 @@ class ChatGPT(BasePlatform):
                 pass
 
         # 3. Body text threshold → immediate complete.
-        # DEEP mode: use a much higher threshold (50000) because the echoed prompt
-        # (~5000+ chars) + research UI can push the page well past 15000 before done.
-        # DEEP mode additionally requires _seen_stop AND _no_stop_polls >= 3 so this
-        # does NOT fire during active research (ChatGPT shows citations/sources in the
-        # page body while DR is still running, which can push body > 50k mid-research).
         # Regular mode: 15000 chars is enough (page chrome ≈ 7-8k).
-        try:
-            body_len = await page.evaluate("document.body.innerText.length")
-            threshold = 50000 if self._mode == "DEEP" else 15000
-            if body_len > threshold:
-                if self._mode == "DEEP":
-                    # Only fire when research has started AND been stable for ≥30s
-                    if self._seen_stop and self._no_stop_polls >= 3:
-                        log.info(f"[ChatGPT] DEEP body text {body_len} > {threshold} and stable — declaring complete")
-                        return True
-                else:
-                    log.info(f"[ChatGPT] Body text {body_len} > {threshold} — declaring complete")
+        # DEEP mode: NOT used for completion — see check #4.
+        if self._mode != "DEEP":
+            try:
+                body_len = await page.evaluate("document.body.innerText.length")
+                if body_len > 15000:
+                    log.info(f"[ChatGPT] Body text {body_len} > 15000 — declaring complete")
                     return True
-        except Exception:
-            pass
+            except Exception:
+                pass
 
-        # 4. Stable-state detection: no stop button for N consecutive polls.
-        # DEEP mode: require _seen_stop (research started) AND 12 polls (~120s).
+        # 4. Stable-state / DR-complete detection.
         # Regular mode: 3 polls (~30s) regardless.
+        # DEEP mode: only declare complete when the DR iframe is POPULATED (> 5000c).
+        #   Rationale: completion_check fires early (~40s) due to ephemeral stop button
+        #   + old DR content in page body. The actual DR report takes 5-15 min to appear
+        #   in the iframe. Polling the iframe here defers completion until DR is ready.
+        #   Fallback: 60 polls (~10 min) without ever seeing a populated iframe.
         if self._mode == "DEEP":
-            if self._no_stop_polls >= 12 and self._seen_stop:
-                log.info("[ChatGPT] DEEP: No stop for 12 polls after research started — declaring complete")
+            # Check newest DR iframe content
+            _DR_PATTERNS_INNER = ["web-sandbox", "deep_research"]
+            dr_frame_len = 0
+            for _frame in reversed(page.frames):
+                if any(pat in _frame.url for pat in _DR_PATTERNS_INNER):
+                    try:
+                        dr_frame_len = await _frame.evaluate("document.body.innerText.length")
+                    except Exception:
+                        pass
+                    break  # only check newest
+            if dr_frame_len > 5000:
+                log.info(f"[ChatGPT] DEEP: DR iframe has {dr_frame_len} chars — declaring complete")
                 return True
-            # Extended fallback: if stop was never seen after 60 polls (~600s/10 min).
-            # Complex DR prompts can take 5-15 min. The 20-poll limit was too short,
-            # causing the fallback to fire before the research completes.
             if self._no_stop_polls >= 60:
-                log.warning("[ChatGPT] DEEP: 60 polls with no stop ever seen — declaring complete")
+                log.warning("[ChatGPT] DEEP: 60 polls without populated DR iframe — declaring complete")
                 return True
         else:
             if self._no_stop_polls >= 3:
