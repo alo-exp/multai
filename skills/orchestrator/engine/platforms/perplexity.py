@@ -288,29 +288,44 @@ class Perplexity(BasePlatform):
 
     async def extract_response(self, page: Page) -> str:
         """Extract from .prose container or full page text."""
-        # Primary: .prose selector — use the LAST element (most recent response),
-        # not the first, to avoid returning old conversation content from a reused tab.
+        # Primary: .prose selector — join ALL prose divs (response can span multiple).
+        # A single response is split across many .prose elements; taking only the last
+        # one discards most of the content (seen in iters 19-20: 1k instead of 80k+).
         try:
             prose_els = page.locator('.prose')
             count = await prose_els.count()
             if count > 0:
-                prose = prose_els.nth(count - 1)  # last = most recent
-                text = await prose.inner_text()
+                parts = []
+                for i in range(count):
+                    try:
+                        t = await prose_els.nth(i).inner_text()
+                        if t.strip():
+                            parts.append(t)
+                    except Exception:
+                        pass
+                text = "\n\n".join(parts)
                 if len(text) > 500:
-                    log.info(f"[Perplexity] Extracted {len(text)} chars via .prose (last of {count})")
+                    log.info(f"[Perplexity] Extracted {len(text)} chars via .prose (all {count} divs joined)")
                     return text
         except Exception as exc:
             log.warning(f"[Perplexity] .prose extraction failed: {exc}")
 
-        # Fallback: try [class*="prose"] — also use last element
+        # Fallback: try [class*="prose"] — join all elements
         try:
             prose_alt_els = page.locator('[class*="prose"]')
             alt_count = await prose_alt_els.count()
             if alt_count > 0:
-                prose_alt = prose_alt_els.nth(alt_count - 1)
-                text = await prose_alt.inner_text()
+                parts = []
+                for i in range(alt_count):
+                    try:
+                        t = await prose_alt_els.nth(i).inner_text()
+                        if t.strip():
+                            parts.append(t)
+                    except Exception:
+                        pass
+                text = "\n\n".join(parts)
                 if len(text) > 500:
-                    log.info(f"[Perplexity] Extracted {len(text)} chars via [class*=prose] (last of {alt_count})")
+                    log.info(f"[Perplexity] Extracted {len(text)} chars via [class*=prose] (all {alt_count} divs joined)")
                     return text
         except Exception:
             pass

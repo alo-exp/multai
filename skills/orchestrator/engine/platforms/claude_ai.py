@@ -123,6 +123,13 @@ class ClaudeAI(BasePlatform):
         for 12 consecutive polls (~2 min), declare complete.  This handles
         REGULAR mode responses that are plain text (no artifact/download button).
         """
+        # Bring tab to front so Claude.ai renders the report — the artifact panel
+        # is only visible/interactive when the tab has focus.
+        try:
+            await page.bring_to_front()
+        except Exception:
+            pass
+
         # Check for stop button (still generating)
         has_stop = False
         for sel in ['button:has-text("Stop")', 'button[aria-label*="Stop"]']:
