@@ -6,6 +6,29 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040625 Alpha — Claude.ai: remove sidebar false-positive; conversation-turn extraction; 60 min timeout
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Claude.ai body > 10000 false positive (iter 19)**: `completion_check` had a
+  `document.body.innerText.length > 10000` early-completion signal. Claude.ai's sidebar
+  navigation alone exceeds 10 000 chars, so this fired when the stop button briefly
+  disappeared during Research mode, triggering extraction while the response was still
+  in-progress. Fixed: removed the body-length check.
+
+- **Claude.ai sidebar junk extraction (iter 19)**: When Research mode timed out at 50 min,
+  `extract_response` fell through to `document.body.innerText` which returned sidebar
+  navigation content (~9 500 chars) instead of the actual response. Fixed: added
+  conversation-turn selector (`[data-testid^="conversation-turn"]`, `.font-claude-message`,
+  `[class*="prose"]`, `.whitespace-pre-wrap`) before the body fallback.
+
+- **Claude.ai DEEP timeout too short**: Raised from 3 000 s (50 min) to 3 600 s (60 min) —
+  Research mode with complex prompts can take >50 min.
+
+---
+
 ## 0.2.26040624 Alpha — Gemini navigate to /app; more Tools-button selectors; wait for input area
 
 **Date:** 2026-04-06

@@ -83,7 +83,7 @@ class TimeoutConfig:
 
 
 TIMEOUTS = {
-    "claude_ai":  TimeoutConfig(deep=3000, regular=900),   # 50 min / 15 min
+    "claude_ai":  TimeoutConfig(deep=3600, regular=900),   # 60 min / 15 min
     "chatgpt":    TimeoutConfig(deep=3000, regular=600),   # 50 min / 10 min
     "copilot":    TimeoutConfig(deep=3000, regular=600),
     "perplexity": TimeoutConfig(deep=600,  regular=600),   # 10 min / 10 min
