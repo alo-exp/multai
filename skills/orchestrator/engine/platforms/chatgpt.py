@@ -237,9 +237,11 @@ class ChatGPT(BasePlatform):
                     is_echo = is_prompt_echo(text, self.prompt_sigs)
                     # The CMF prompt instructs the AI to use "SECTION A, B, C..." headers;
                     # the AI response legitimately repeats these headers — is_prompt_echo
-                    # would incorrectly flag a real 10k+ DR report as an echo.
-                    # Allow large responses (> 10000c) to bypass the echo filter.
-                    allow_echo = (len(text) > 10000)
+                    # would incorrectly flag a real DR report as an echo.
+                    # Allow large responses (> 20000c) to bypass the echo filter —
+                    # matches completion_check's DR-iframe threshold so extraction
+                    # accepts exactly the content that triggered completion.
+                    allow_echo = (len(text) > 20000)
                     if text and len(text) > 1000 and (not is_echo or allow_echo):
                         log.info(f"[ChatGPT] Extracted {len(text)} chars via frame.evaluate() (frame: {newest_dr_frame.url[:60]})")
                         return text
@@ -482,7 +484,10 @@ class ChatGPT(BasePlatform):
                             break
                     except Exception:
                         pass
-            if dr_frame_len > 5000:
+            # Threshold > CMF prompt length (~9500c) so prompt echo in the DR
+            # iframe doesn't trigger premature completion.  A real DR report
+            # for a complex prompt is 20 000–100 000 chars.
+            if dr_frame_len > 20000:
                 log.info(f"[ChatGPT] DEEP: DR iframe has {dr_frame_len} chars — declaring complete")
                 return True
             if self._no_stop_polls >= 60:

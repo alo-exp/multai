@@ -89,7 +89,7 @@ TIMEOUTS = {
     "perplexity": TimeoutConfig(deep=600,  regular=600),   # 10 min / 10 min
     "grok":       TimeoutConfig(deep=600,  regular=600),
     "deepseek":   TimeoutConfig(deep=600,  regular=600),
-    "gemini":     TimeoutConfig(deep=1500, regular=600),   # 25 min / 10 min
+    "gemini":     TimeoutConfig(deep=2400, regular=600),   # 40 min / 10 min
 }
 
 GLOBAL_TIMEOUT_DEEP = 3000       # 50-minute hard ceiling

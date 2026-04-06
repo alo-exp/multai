@@ -225,22 +225,28 @@ class Gemini(BasePlatform):
             except Exception:
                 pass
 
-        # Also treat the Deep Research "Thinking" progress indicator as "still running"
+        # Also treat the Deep Research "Thinking" / "Searching" progress indicator as "still running"
         if not has_stop:
             try:
-                # Gemini shows a "Thinking" label while Deep Research is in progress.
-                # Primary: scoped selectors for known response/progress containers.
-                # Fallback: any div/span with exact text "Thinking" (avoids the model-
-                # selector toolbar button which is a <button> element).
+                # Gemini shows "Thinking", "Searching the web", "Reading" etc. while DR runs.
+                # Avoid the model-selector toolbar button (a <button>) — scope to non-button elements.
+                # Scoped selectors (most precise) first, then broad non-button fallbacks.
                 thinking_el = page.locator(
                     '[class*="progress"] :text("Thinking"), '
                     '[class*="deep-research"] :text("Thinking"), '
                     'model-response :text("Thinking"), '
                     'div:text-is("Thinking"), '
-                    'span:text-is("Thinking")'
+                    'span:text-is("Thinking"), '
+                    # Broader DR progress phrases — Gemini shows these during research phases
+                    'div:has-text("Searching the web"), '
+                    'div:has-text("Reading"), '
+                    'span:has-text("Searching"), '
+                    # Any non-button element with "Thinking" text (catches DOM structure changes)
+                    ':not(button):text-is("Thinking")'
                 ).first
                 if await thinking_el.count() > 0 and await thinking_el.is_visible():
                     has_stop = True
+                    log.debug("[Gemini] DR progress indicator visible (Thinking/Searching/Reading)")
             except Exception:
                 pass
 
@@ -311,10 +317,10 @@ class Gemini(BasePlatform):
         # 5. Extended fallback: if still no stop/cancel/thinking signal seen after
         #    N polls, something is wrong (post_send may have missed "Start research",
         #    or the DR UI changed).  Declare complete.
-        #    DR mode: 120 polls (~20 min) — Gemini DR for complex prompts can take
-        #    15-30 min; 40 polls was triggering prematurely before _seen_stop was set.
+        #    DR mode: 180 polls (~30 min) — Gemini DR for complex prompts can take
+        #    25-35 min; raised from 120 because research was being cut off mid-run.
         #    Non-DR mode: 40 polls (~6.7 min).
-        no_stop_limit = 120 if self._deep_mode else 40
+        no_stop_limit = 180 if self._deep_mode else 40
         if self._no_stop_polls >= no_stop_limit:
             log.warning(f"[Gemini] {no_stop_limit} polls with no stop/cancel/thinking ever seen — declaring complete.")
             return True
