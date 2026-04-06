@@ -67,8 +67,16 @@ class Gemini(BasePlatform):
         label_parts = []
 
         # Extra wait — Gemini's Angular/Material UI can take a moment to render
-        # the toolbar buttons after page load.
-        await page.wait_for_timeout(2000)
+        # the toolbar buttons after page load.  Also wait for the input area to be
+        # visible before attempting to click any toolbar buttons.
+        await page.wait_for_timeout(3000)
+        try:
+            await page.wait_for_selector(
+                'div[contenteditable="true"], textarea[placeholder], [data-placeholder]',
+                state="visible", timeout=10000,
+            )
+        except Exception:
+            pass  # Input area check timed out — proceed anyway
 
         # Select Thinking model.
         # Gemini's default model is "Flash" (shown as "Fast" in the toolbar button).
@@ -137,6 +145,12 @@ class Gemini(BasePlatform):
                         tools_btn = page.get_by_role("button", name="Tools", exact=True).first
                     if await tools_btn.count() == 0:
                         tools_btn = page.get_by_text("Tools", exact=True).first
+                    if await tools_btn.count() == 0:
+                        # Gemini /app page: Tools button may be inside the input toolbar
+                        tools_btn = page.locator('[aria-label*="Tools"], [data-testid*="tools"]').first
+                    if await tools_btn.count() == 0:
+                        # Mat-icon-button or any element with "Tools" accessible name
+                        tools_btn = page.get_by_role("button", name="Tools").first
                     if await tools_btn.count() > 0 and await tools_btn.is_visible():
                         await tools_btn.click()
                         await page.wait_for_timeout(800)
