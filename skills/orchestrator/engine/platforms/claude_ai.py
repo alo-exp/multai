@@ -129,8 +129,22 @@ class ClaudeAI(BasePlatform):
         self._total_polls += 1
         if self._total_polls % 30 == 0:  # polls 30, 60, 90 … (every 5 min, first at 5 min)
             try:
-                await page.bring_to_front()
-                log.debug("[Claude.ai] Brought tab to front")
+                # Simulate tab becoming visible without stealing OS focus.
+                # page.bring_to_front() uses CDP activateTarget which hijacks the window;
+                # dispatching visibility/focus events triggers Claude.ai's rendering logic
+                # (lazy artifact reveal) without switching away from the user's active app.
+                await page.evaluate("""
+                    (() => {
+                        try {
+                            Object.defineProperty(document, 'visibilityState', {get: () => 'visible', configurable: true});
+                            Object.defineProperty(document, 'hidden', {get: () => false, configurable: true});
+                        } catch(e) {}
+                        document.dispatchEvent(new Event('visibilitychange'));
+                        window.dispatchEvent(new Event('focus'));
+                        window.dispatchEvent(new Event('pageshow'));
+                    })()
+                """)
+                log.debug("[Claude.ai] Dispatched visibility/focus events to tab")
             except Exception:
                 pass
 
