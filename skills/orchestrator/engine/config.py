@@ -45,7 +45,7 @@ PLATFORM_URLS = {
     "perplexity": "https://www.perplexity.ai",
     "grok":       "https://grok.com",
     "deepseek":   "https://chat.deepseek.com",
-    "gemini":     "https://gemini.google.com",
+    "gemini":     "https://gemini.google.com/app",
 }
 
 PLATFORM_DISPLAY_NAMES = {

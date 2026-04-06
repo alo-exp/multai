@@ -6,6 +6,24 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040624 Alpha — Gemini navigate to /app; more Tools-button selectors; wait for input area
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Gemini Tools button still not found (iter 18)**: Navigating to `gemini.google.com`
+  (landing page) shows a different/simplified UI — the Tools button may not appear until
+  the app UI is fully loaded. Fixes:
+  - Change Gemini URL from `https://gemini.google.com` to `https://gemini.google.com/app`
+    (loads the full conversation app, not the landing page)
+  - Wait for input area (contenteditable/textarea) to be visible before scanning for Tools
+  - Add more Tools-button selector fallbacks: `[aria-label*="Tools"]`,
+    `[data-testid*="tools"]`, `get_by_role("button", name="Tools")`
+  - Increase configure_mode page-load wait from 2s to 3s
+
+---
+
 ## 0.2.26040623 Alpha — Gemini DR toggle idempotent + post_send broader start-button detection
 
 **Date:** 2026-04-06
