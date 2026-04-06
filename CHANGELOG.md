@@ -6,6 +6,21 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040620 Alpha — Gemini DR stable_threshold 30→90 polls (was firing 5 min too early)
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Gemini DR 7722c prompt echo (iter 16: _seen_stop set but research unfinished)**:
+  `_seen_stop = True` was set briefly when progress indicator appeared; then it disappeared.
+  `stable_threshold = 30` fired after 5 min with no indicator — but Gemini DR was still
+  running (body < 50k). Raise `stable_threshold` from 30 to 90 polls (15 min) in DR mode.
+  The body > 50000c check already handles genuine early completion; this prevents a 15-min
+  false-stable window from cutting off active research.
+
+---
+
 ## 0.2.26040619 Alpha — ChatGPT completion_check: remove fallback-frame scan to prevent premature completion
 
 **Date:** 2026-04-06
