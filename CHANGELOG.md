@@ -6,6 +6,21 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040614 Alpha — ChatGPT DEEP: allow large responses that reuse prompt headers
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP still 0c (iter 11)**: Root cause identified. The CMF prompt instructs
+  the AI to use "SECTION A, B, C..." headers in its response. `is_prompt_echo` extracts
+  these ALL-CAPS headers as prompt signatures and flags the AI's article response as a
+  prompt echo, causing the article and main-container fallback paths to reject it. Fix:
+  in DEEP mode, `allow_echo = (len(text) > 20000)` — a 20k+ response can't be the 6k
+  prompt alone, even if it reuses the instructed section headers.
+
+---
+
 ## 0.2.26040613 Alpha — ChatGPT DR: include all non-main frames + body fallback
 
 **Date:** 2026-04-06
