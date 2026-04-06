@@ -573,12 +573,14 @@ class ChatGPT(BasePlatform):
             # the prompt's section-header phrases (e.g. the CMF prompt explicitly
             # instructs "SECTION A", "SECTION B" — so the AI response legitimately
             # contains those strings).  Only reject if it's short AND is an echo.
-            # DEEP mode exception: if DR panel extraction already failed, article
-            # content with a prompt echo is just the echoed research prompt
-            # (the real DR report lives in the iframe, not an article). Always
-            # reject echoes in DEEP mode here; the final body fallback has its
-            # own guard that will correctly suppress or allow.
-            allow_echo = (len(text) > 3000) and (self._mode != "DEEP")
+            # DEEP mode: the CMF prompt instructs "SECTION A, B, C..." headers
+            # which the AI response also uses. This causes is_prompt_echo to
+            # incorrectly flag the AI's response as a prompt echo. Allow large
+            # responses (> 20000c) in DEEP mode — they can't be just the 6k prompt.
+            if self._mode == "DEEP":
+                allow_echo = (len(text) > 20000)
+            else:
+                allow_echo = (len(text) > 3000)
             if text and len(text) > 500 and (not is_echo or allow_echo):
                 # Handle DOM duplication — slice at "End of Report."
                 end_idx = text.find("End of Report.")
@@ -601,7 +603,7 @@ class ChatGPT(BasePlatform):
                 })()
             """)
             is_echo_main = is_prompt_echo(text, self.prompt_sigs)
-            allow_echo_main = (len(text) > 3000) and (self._mode != "DEEP")
+            allow_echo_main = (len(text) > 20000) if self._mode == "DEEP" else (len(text) > 3000)
             if text and len(text) > 200 and (not is_echo_main or allow_echo_main):
                 # Guard: if DEEP mode and the main container text contains DR
                 # quota-exhaustion phrases, tag as rate-limited.  No length
