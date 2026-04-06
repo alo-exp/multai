@@ -167,13 +167,8 @@ class ClaudeAI(BasePlatform):
         except Exception:
             pass
 
-        # Content-based: body text > 10 000 chars → likely a substantial response
-        try:
-            body_len = await page.evaluate("document.body.innerText.length")
-            if body_len > 10000:
-                return True
-        except Exception:
-            pass
+        # NOTE: body.innerText > 10 000 check removed — Claude.ai sidebar navigation
+        # alone exceeds 10 000 chars, causing false completion detection.
 
         # Stable-state: no stop and no copy button for 12 consecutive polls (~2 min).
         # Handles REGULAR mode plain-text responses that never produce an artifact.
@@ -268,6 +263,37 @@ class ClaudeAI(BasePlatform):
                         return text
         except Exception:
             pass
+
+        # Conversation-turn: extract text from the last AI response turn.
+        # Avoids sidebar navigation content which inflates body.innerText.
+        try:
+            turns = await page.evaluate("""
+                (() => {
+                    // Claude.ai response turns are inside [data-testid="conversation-turn-N"]
+                    // or divs with class patterns like "font-claude-message"
+                    const selectors = [
+                        '[data-testid^="conversation-turn"]',
+                        '.font-claude-message',
+                        '[class*="prose"]',
+                        '.whitespace-pre-wrap',
+                    ];
+                    for (const sel of selectors) {
+                        const nodes = document.querySelectorAll(sel);
+                        if (nodes.length > 0) {
+                            // Take the last one (most recent response)
+                            const last = nodes[nodes.length - 1];
+                            const text = last.innerText || '';
+                            if (text.length > 1000) return text;
+                        }
+                    }
+                    return '';
+                })()
+            """)
+            if turns and len(turns) > 1000 and not is_prompt_echo(turns, self.prompt_sigs):
+                log.info(f"[Claude.ai] Extracted {len(turns)} chars via conversation-turn selector")
+                return turns
+        except Exception as exc:
+            log.debug(f"[Claude.ai] conversation-turn extraction failed: {exc}")
 
         # Last resort: full body text (with prompt-echo guard)
         try:
