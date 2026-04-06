@@ -6,6 +6,25 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040627 Alpha — Claude.ai bring_to_front; Perplexity join all prose divs
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **Claude.ai report not visible until tab activated**: Claude.ai generates the report
+  quickly but the artifact panel only renders when the tab has focus. Fixed: call
+  `page.bring_to_front()` at the start of every `completion_check` poll (every 10s)
+  so the tab is always active and the Copy/Download buttons appear as soon as the
+  report is ready.
+
+- **Perplexity extracting only last .prose div (iters 19-20: ~1k instead of 80k+)**:
+  A Perplexity response is split across many `.prose` divs. The extractor was taking
+  only `nth(count - 1)` (the last div). Fixed: iterate all divs and join them —
+  same for the `[class*="prose"]` fallback.
+
+---
+
 ## 0.2.26040626 Alpha — Gemini: quick-response fallback when DR cap exhausted
 
 **Date:** 2026-04-06
