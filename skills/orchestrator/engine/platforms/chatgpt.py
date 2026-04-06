@@ -212,18 +212,18 @@ class ChatGPT(BasePlatform):
                     newest_dr_frame = frame
                     break
             if newest_dr_frame is None:
-                # Fallback: scan all child/sub-frames for large non-echo content
-                log.debug("[ChatGPT] No DR-pattern frame found — scanning all child frames")
+                # Fallback: scan ALL non-main frames with substantial content.
+                # Includes same-origin chatgpt.com sub-path iframes and blank iframes
+                # (ChatGPT may use about:blank or about:srcdoc for the DR panel).
+                log.debug("[ChatGPT] No DR-pattern frame found — scanning all non-main frames")
                 for frame in reversed(page.frames):
-                    if frame.parent_frame is None:
-                        continue  # skip main frame
-                    if frame.url.startswith("https://chatgpt.com") or frame.url in ("", "about:blank"):
-                        continue
+                    if frame == page.main_frame:
+                        continue  # skip main page frame only
                     try:
                         flen = await frame.evaluate("document.body.innerText.length")
-                        if flen > 1000:
+                        if flen > 2000:
                             newest_dr_frame = frame
-                            log.debug(f"[ChatGPT] Using child frame as DR: {frame.url[:80]} ({flen}c)")
+                            log.debug(f"[ChatGPT] Using non-main frame as DR: {frame.url[:80]} ({flen}c)")
                             break
                     except Exception:
                         pass
@@ -447,13 +447,12 @@ class ChatGPT(BasePlatform):
         #   in the iframe. Polling the iframe here defers completion until DR is ready.
         #   Fallback: 60 polls (~10 min) without ever seeing a populated iframe.
         if self._mode == "DEEP":
-            # Check newest DR iframe content — mirrors _try_extract step 1 + 2
+            # Check newest DR iframe content — mirrors _try_extract step 1 + 2.
+            # Scan non-main frames: first by known URL patterns, then all non-main frames.
             _DR_PAT = ["web-sandbox", "deep_research", "oaiusercontent.com", "blob:"]
             dr_frame_len = 0
             for _frame in reversed(page.frames):
-                if _frame.parent_frame is None:
-                    continue
-                if _frame.url.startswith("https://chatgpt.com") or _frame.url in ("", "about:blank"):
+                if _frame == page.main_frame or _frame.url in ("", "about:blank"):
                     continue
                 if any(pat in _frame.url for pat in _DR_PAT):
                     try:
@@ -462,15 +461,14 @@ class ChatGPT(BasePlatform):
                         pass
                     break
             if dr_frame_len == 0:
-                # fallback: any cross-origin child frame with content
+                # fallback: any non-main frame with substantial content
+                # (including about:blank or about:srcdoc iframes used for DR panel)
                 for _frame in reversed(page.frames):
-                    if _frame.parent_frame is None:
-                        continue
-                    if _frame.url.startswith("https://chatgpt.com") or _frame.url in ("", "about:blank"):
+                    if _frame == page.main_frame:
                         continue
                     try:
                         l = await _frame.evaluate("document.body.innerText.length")
-                        if l > 1000:
+                        if l > 2000:
                             dr_frame_len = l
                             break
                     except Exception:
@@ -642,12 +640,41 @@ class ChatGPT(BasePlatform):
         # If body is short but NOT an echo, there might be a brief response — use it.
         # If body is long but contains prompt section headers, the AI was
         # instructed to use those headers — not a real echo.
-        if self._mode == "DEEP" and len(text) < 15000 and is_prompt_echo(text, self.prompt_sigs):
-            log.warning(
-                f"[ChatGPT] DEEP mode: DR panel + blob interceptor both failed. "
-                f"body {len(text)} chars is short + prompt echo — returning empty to trigger Agent fallback."
-            )
-            return ""
+        if self._mode == "DEEP":
+            if len(text) > 15000 and not is_prompt_echo(text, self.prompt_sigs):
+                # Body contains a large non-echo response (DR rendered in main DOM)
+                log.info(f"[ChatGPT] DEEP: using body.innerText ({len(text)} chars)")
+            elif len(text) > 15000:
+                # Large body but looks like echo — try to extract text AFTER the prompt
+                # by scanning for a "Gemini said:" / "ChatGPT said:" style marker
+                for marker in ("\nChatGPT said:\n", "\nChatGPT said:", "ChatGPT said:\n"):
+                    idx = text.find(marker)
+                    if idx != -1:
+                        rest = text[idx + len(marker):].strip()
+                        if len(rest) > 5000:
+                            log.info(f"[ChatGPT] DEEP: stripped prompt prefix — {len(rest)} chars remain")
+                            return rest
+                # Try last occurrence of "## " or "# " not in prompt echo
+                for marker in ["# ", "## "]:
+                    positions = []
+                    start = 0
+                    while True:
+                        idx = text.find(marker, start)
+                        if idx < 0:
+                            break
+                        positions.append(idx)
+                        start = idx + 1
+                    for idx in reversed(positions):
+                        candidate = text[idx:]
+                        if not is_prompt_echo(candidate, self.prompt_sigs) and len(candidate) > 3000:
+                            log.info(f"[ChatGPT] DEEP: extracted {len(candidate)} chars via last marker")
+                            return candidate
+            elif is_prompt_echo(text, self.prompt_sigs):
+                log.warning(
+                    f"[ChatGPT] DEEP mode: DR panel + blob interceptor both failed. "
+                    f"body {len(text)} chars is short + prompt echo — returning empty."
+                )
+                return ""
 
         # REGULAR mode guard: body.innerText includes the full page — "You said: [prompt]"
         # followed by "ChatGPT said: [response]". Strip the sent-prompt preamble so
