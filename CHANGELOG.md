@@ -6,6 +6,23 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040613 Alpha — ChatGPT DR: include all non-main frames + body fallback
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP still 0c (iter 10)**: The child-frame fallback was filtering out
+  `about:blank` / `about:srcdoc` frames — exactly the type ChatGPT may use for the DR panel
+  via `srcdoc=` attribute. Also filtering chatgpt.com-origin sub-path frames. Fix: in both
+  `completion_check` and `_extract_deep_research_panel`, scan ALL non-main frames (only skip
+  `page.main_frame`); threshold raised to 2000c.
+- **ChatGPT DEEP body.innerText fallback improved**: when body > 15000c but still fails,
+  try "ChatGPT said:" marker stripping and last-`#`-marker scan (same approach as Gemini
+  and Perplexity) to recover DR content from the main page DOM.
+
+---
+
 ## 0.2.26040612 Alpha — ChatGPT DR iframe URL pattern expansion + child-frame fallback
 
 **Date:** 2026-04-06
