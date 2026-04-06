@@ -52,6 +52,9 @@ class ChatGPT(BasePlatform):
         self._seen_stop: bool = False  # True once a stop/progress button was visible
         self._mode: str = ""          # Stored in configure_mode; used by extract_response
         self._conversation_id: str = ""  # Captured from page URL after prompt submit
+        # Force full page reload before each run to clear stale DR iframes from
+        # previous SPA navigations (ChatGPT keeps old DR panels in memory).
+        self._force_full_reload: bool = True
 
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for ChatGPT-specific rate limit indicators.

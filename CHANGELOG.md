@@ -6,6 +6,22 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040615 Alpha — ChatGPT force full page reload to clear stale DR iframes
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP still 0c (iter 12)**: Root cause is ChatGPT's SPA navigation keeps old DR
+  iframes in `page.frames` across multiple chat sessions. These stale iframes (with content
+  from previous DR runs) confuse both `completion_check` (declares complete based on old
+  iframe > 5000c) and `_try_extract` (isolation returns "" because newest frame is empty,
+  blocking fallback). Fix: `_force_full_reload = True` in chatgpt.py triggers a
+  `page.goto("about:blank")` before each ChatGPT navigation in `base.py`, forcing a full
+  page unload and reload that clears all stale DR sub-frames.
+
+---
+
 ## 0.2.26040614 Alpha — ChatGPT DEEP: allow large responses that reuse prompt headers
 
 **Date:** 2026-04-06
