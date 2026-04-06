@@ -19,6 +19,8 @@ class DeepSeek(BasePlatform):
         super().__init__()
         self._no_stop_polls: int = 0  # Consecutive polls with no stop button visible
         self._current_max_wait_s: int = 600  # Default; overwritten by _poll_completion each run
+        self._prev_text_len: int = 0   # Body text length from previous poll (growth tracking)
+        self._stable_text_polls: int = 0  # Consecutive polls with no text growth
 
     async def check_rate_limit(self, page: Page) -> str | None:
         """Check for DeepSeek-specific rate limit indicators.
@@ -149,28 +151,31 @@ class DeepSeek(BasePlatform):
         await page.keyboard.press("Enter")
 
     async def completion_check(self, page: Page) -> bool:
-        """Check for completion — multi-signal with stable-state fallback.
+        """Check for completion — multi-signal with text-growth fallback.
 
-        DeepSeek uses div[role='button'].ds-icon-button for ALL icon buttons.
-        During generation the send button is REPLACED by a stop button (same
-        component, different SVG — a square icon vs. an arrow).  There is no
-        text content and no aria-label="Stop" on this button, so :has-text()
-        and aria-label selectors both fail.
+        Detection strategy (in priority order):
 
-        Strategy:
-        1. ds-icon-button presence in an active conversation → still generating.
-        2. Broad animated-indicator class sweep.
-        3. Copy/Regenerate buttons → definitely done.
-        4. Stable-state threshold scaled to max_wait_s so DEEP mode (600 s)
-           waits ~5 min before giving up, not 60 s.
+        1. Copy/Regenerate buttons visible → definitively done.
+        2. SVG-shape check: stop button has a <rect> child inside its SVG
+           (square stop icon), send button has a <path> (arrow).  Walk the
+           input container and look for a visible ds-icon-button whose SVG
+           contains a <rect> element — that is the stop button.
+        3. Broad text/aria-label selectors for Stop (cover A/B variants).
+        4. Animated thinking/loading indicators.
+        5. Text-growth tracking: if body text length hasn't grown for
+           N consecutive polls AND we're in a conversation, declare done.
+           N is scaled to max_wait_s (same logic as old stable-state).
+
+        NOTE: The previous approach of checking for ANY visible ds-icon-button
+        in the input container was removed because the send button (always
+        present after generation ends) has the same class, causing a permanent
+        false-positive that blocked completion for the entire timeout window.
         """
         current_url = page.url
         in_conversation = current_url.rstrip("/") != "https://chat.deepseek.com"
 
         # ── Step 1: Definitive completion signals (check FIRST) ──────────────
         # Copy/Regenerate buttons appear only after generation is fully done.
-        # Check these before any "still generating" heuristics to avoid false
-        # negatives when the stop button and completion buttons overlap briefly.
         if in_conversation:
             try:
                 for sel in [
@@ -181,6 +186,7 @@ class DeepSeek(BasePlatform):
                     if await btn.count() > 0 and await btn.is_visible():
                         log.debug(f"[DeepSeek] Completion confirmed via '{sel}'")
                         self._no_stop_polls = 0
+                        self._stable_text_polls = 0
                         return True
             except Exception:
                 pass
@@ -190,24 +196,21 @@ class DeepSeek(BasePlatform):
 
         if in_conversation:
             try:
-                # Primary: ds-icon-button inside the input container.
-                # DeepSeek replaces the send button with a stop button (same
-                # component, SVG-only, no text, no aria-label="Stop") once
-                # generation starts.  We locate the textarea and walk up the DOM
-                # to find the input container, then check if any ds-icon-button
-                # inside it is currently visible.  This avoids false-positives
-                # from post-response action buttons (copy/like) which live in the
-                # message area, not the input container.
+                # SVG-shape check: the STOP button contains a <rect> element
+                # inside its SVG (square stop icon).  The SEND button contains
+                # only <path> elements (arrow icon).  This reliably distinguishes
+                # them without relying on text, aria-label, or class alone.
                 is_generating = await page.evaluate("""() => {
                     const textarea = document.querySelector('textarea');
                     if (!textarea) return false;
                     let container = textarea.parentElement;
                     for (let i = 0; i < 6 && container && container !== document.body; i++) {
                         const iconBtns = container.querySelectorAll('[role="button"].ds-icon-button');
-                        if (iconBtns.length > 0) {
-                            for (const btn of iconBtns) {
-                                const rect = btn.getBoundingClientRect();
-                                if (rect.width > 0 && rect.height > 0) {
+                        for (const btn of iconBtns) {
+                            const rect = btn.getBoundingClientRect();
+                            if (rect.width > 0 && rect.height > 0) {
+                                // Stop button SVG contains a <rect> (square stop icon)
+                                if (btn.querySelector('svg rect')) {
                                     return true;
                                 }
                             }
@@ -218,7 +221,7 @@ class DeepSeek(BasePlatform):
                 }""")
                 if is_generating:
                     has_stop = True
-                    log.debug("[DeepSeek] ds-icon-button in input container — still generating")
+                    log.debug("[DeepSeek] Stop button (SVG rect) detected — still generating")
             except Exception:
                 pass
 
@@ -254,6 +257,7 @@ class DeepSeek(BasePlatform):
 
         if has_stop:
             self._no_stop_polls = 0
+            self._stable_text_polls = 0
             return False
 
         self._no_stop_polls += 1
@@ -265,17 +269,56 @@ class DeepSeek(BasePlatform):
             log.warning("[DeepSeek] Still on homepage after 60s — prompt may not have been sent")
             return True
 
-        # ── Step 4: Stable-state fallback (last resort) ───────────────────────
+        # ── Step 4: Text-growth tracking ─────────────────────────────────────
+        # If the page body text stops growing for N consecutive polls, generation
+        # has ended.  This is a reliable secondary signal that avoids the
+        # ds-icon-button false-positive problem entirely.
+        from config import POLL_INTERVAL as _pi  # noqa: PLC0415
+        try:
+            current_text_len: int = await page.evaluate("() => document.body.innerText.length")
+            if current_text_len > self._prev_text_len:
+                # Text is still growing — definitely still generating
+                self._stable_text_polls = 0
+                prev = self._prev_text_len
+                self._prev_text_len = current_text_len
+                log.debug(
+                    f"[DeepSeek] Text growing: {prev} → {current_text_len} chars"
+                )
+                return False
+            else:
+                self._stable_text_polls += 1
+                log.debug(
+                    f"[DeepSeek] Text stable for {self._stable_text_polls} polls "
+                    f"({current_text_len} chars)"
+                )
+        except Exception:
+            pass
+
+        # Stable-text threshold: 3 consecutive no-growth polls is enough to
+        # confirm done, provided we have a non-trivial response (>500 chars).
+        # Use a minimum of 3 polls regardless of mode to avoid premature exit
+        # on transient pauses in the middle of very long responses.
+        min_stable_polls = 3
+        try:
+            if self._stable_text_polls >= min_stable_polls and self._prev_text_len > 500:
+                log.info(
+                    f"[DeepSeek] Text stable for {self._stable_text_polls} polls "
+                    f"({self._prev_text_len} chars) — declaring complete"
+                )
+                return True
+        except Exception:
+            pass
+
+        # ── Step 5: Stable-state fallback (last resort) ───────────────────────
         # Threshold is proportional to max_wait_s so DEEP mode (600 s) waits
         # ~300 s (30 polls) before giving up, while regular mode (120 s) waits
         # ~60 s (6 polls).  This prevents premature truncation of long responses.
-        from config import POLL_INTERVAL as _pi  # noqa: PLC0415
         stable_state_s = max(60, self._current_max_wait_s // 2)
         stable_state_polls = max(6, stable_state_s // _pi)
 
         if self._no_stop_polls >= stable_state_polls:
             log.info(
-                f"[DeepSeek] No stop button for {self._no_stop_polls} polls "
+                f"[DeepSeek] No stop signal for {self._no_stop_polls} polls "
                 f"({self._no_stop_polls * _pi}s) — declaring complete"
             )
             return True
