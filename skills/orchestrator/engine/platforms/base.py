@@ -108,6 +108,15 @@ class BasePlatform:
                 # 1. Navigate to new conversation — retry once on transient errors
                 # (e.g. ERR_ABORTED from in-flight Chrome window operations)
                 log.info(f"[{self.display_name}] Navigating to {self.url}")
+                # Some SPA platforms (ChatGPT) accumulate stale iframes across client-
+                # side navigations.  Navigating to about:blank first forces a full page
+                # unload and reload, clearing all old sub-frames.
+                if getattr(self, "_force_full_reload", False):
+                    try:
+                        await page.goto("about:blank", wait_until="commit", timeout=5000)
+                        await page.wait_for_timeout(300)
+                    except Exception:
+                        pass  # Non-critical; proceed with main navigation
                 nav_exc: Exception | None = None
                 for nav_attempt in range(2):
                     try:
