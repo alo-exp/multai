@@ -343,10 +343,12 @@ class Gemini(BasePlatform):
         # 4. Stable-state: no stop/cancel/thinking for N consecutive polls.
         #    REQUIRES _seen_stop — i.e. the stop button was previously visible,
         #    meaning research actually started and finished.
-        #    DR mode needs a MUCH longer stable window (30 polls = 5 min) because
-        #    Gemini briefly hides the Thinking indicator between research phases.
+        #    DR mode: 90 polls (15 min) — Gemini briefly hides progress indicators
+        #    between research phases; a 5-min window (30 polls) fires too early.
+        #    Only declare via this path if body text is substantial (> 30k) OR
+        #    after a very long wait — the body > 50k check (#3) handles early completion.
         #    Non-DR mode: 3 polls (30s) is sufficient (regular responses finish quickly).
-        stable_threshold = 30 if self._deep_mode else 3
+        stable_threshold = 90 if self._deep_mode else 3
         if self._no_stop_polls >= stable_threshold and self._seen_stop:
             log.info(f"[Gemini] No stop button for {stable_threshold} polls after research started — declaring complete")
             return True
