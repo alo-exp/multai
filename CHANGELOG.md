@@ -6,6 +6,28 @@ Versioning scheme: `Major.Minor.YYMMDDX Phase` — see [CI/CD Strategy](docs/CIC
 
 ---
 
+## 0.2.26040609 Alpha — ChatGPT DEEP body-threshold stability guard
+
+**Date:** 2026-04-06
+
+### Fixes
+
+- **ChatGPT DEEP mode extracting old DR documents (iter 6)**: Root cause: `body > 50000`
+  completion check fired at ~139s while DR was still running (ChatGPT renders source citations
+  in the page body during research, pushing body > 50k mid-research). The extraction was then
+  called before the new DR iframe was populated, so reversed-frame iteration fell through to
+  the old stored "CLAUDE.md" DR document. Fix: in DEEP mode, `body > 50k` now requires
+  `_seen_stop AND _no_stop_polls >= 3` (research started AND stable for ≥30s). This ensures
+  completion only fires after the stop button has been gone for 30s, by which time the final
+  DR report is in the iframe.
+- **ChatGPT conversation ID URL filter removed**: The previously added `conv_id not in
+  frame.url` filter was filtering out ALL DR frames because ChatGPT DR iframe URLs (matching
+  `web-sandbox` / `deep_research`) do not contain the conversation ID. This caused the
+  extraction to fall back to clipboard methods that still found old DR content. Removed; the
+  reversed-frame iteration + stability guard is sufficient.
+
+---
+
 ## 0.2.26040608 Alpha — Gemini DR Thinking Detection, ChatGPT Conversation ID Filter
 
 **Date:** 2026-04-06

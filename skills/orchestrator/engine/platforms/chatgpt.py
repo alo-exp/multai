@@ -202,17 +202,10 @@ class ChatGPT(BasePlatform):
             # Iterate REVERSED so we get the MOST RECENTLY added DR iframe first.
             # ChatGPT keeps old DR panels in memory when navigating to a new chat,
             # so forward iteration would return stale content from a previous run.
-            #
-            # If we captured a conversation ID in post_send, ONLY accept frames
-            # whose URL contains that ID (current conversation's DR only).
-            # This prevents extracting DR documents from previous conversations.
-            conv_id = self._conversation_id  # "" if not captured
+            # Reversed iteration gives us the newest DR iframe (current conversation)
+            # before older stale ones.
             for frame in reversed(page.frames):
                 if not any(pat in frame.url for pat in _DR_PATTERNS):
-                    continue
-                # Skip frames from other conversations if we have a conv ID
-                if conv_id and conv_id not in frame.url:
-                    log.debug(f"[ChatGPT] Skipping DR frame not in current conv ({conv_id[:8]}...): {frame.url[:60]}")
                     continue
                 try:
                     text = await frame.evaluate("document.body.innerText")
@@ -405,13 +398,22 @@ class ChatGPT(BasePlatform):
         # 3. Body text threshold → immediate complete.
         # DEEP mode: use a much higher threshold (50000) because the echoed prompt
         # (~5000+ chars) + research UI can push the page well past 15000 before done.
+        # DEEP mode additionally requires _seen_stop AND _no_stop_polls >= 3 so this
+        # does NOT fire during active research (ChatGPT shows citations/sources in the
+        # page body while DR is still running, which can push body > 50k mid-research).
         # Regular mode: 15000 chars is enough (page chrome ≈ 7-8k).
         try:
             body_len = await page.evaluate("document.body.innerText.length")
             threshold = 50000 if self._mode == "DEEP" else 15000
             if body_len > threshold:
-                log.info(f"[ChatGPT] Body text {body_len} > {threshold} — declaring complete")
-                return True
+                if self._mode == "DEEP":
+                    # Only fire when research has started AND been stable for ≥30s
+                    if self._seen_stop and self._no_stop_polls >= 3:
+                        log.info(f"[ChatGPT] DEEP body text {body_len} > {threshold} and stable — declaring complete")
+                        return True
+                else:
+                    log.info(f"[ChatGPT] Body text {body_len} > {threshold} — declaring complete")
+                    return True
         except Exception:
             pass
 
