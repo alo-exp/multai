@@ -71,7 +71,14 @@ class ClaudeAI(BasePlatform):
         except Exception as exc:
             log.warning(f"[Claude.ai] Model selection failed: {exc}")
 
-        # DEEP mode: enable Research + Web search
+        # DEEP mode: enable Web search only.
+        # Research mode is intentionally disabled: it triggers a mandatory connector
+        # selection dialog that cannot be reliably auto-dismissed (the dialog lacks a
+        # standard "proceed" button; the only matching element is a connector chip toggle
+        # that deselects connectors rather than confirming the dialog). Research then
+        # starts with no connectors and consistently fails ~4.5 min later with
+        # "Stopped: No response on which connectors to enable during research."
+        # Web search alone provides sufficient grounding for DEEP mode responses.
         if mode == "DEEP":
             try:
                 # Click + button in composer
@@ -82,42 +89,15 @@ class ClaudeAI(BasePlatform):
                     await plus_btn.click()
                     await page.wait_for_timeout(500)
 
-                    # Enable Research
-                    research = page.get_by_text("Research", exact=False).first
-                    if await research.count() > 0:
-                        await research.click()
-                        await page.wait_for_timeout(300)
-                        log.info("[Claude.ai] Enabled Research mode")
-                        label_parts.append("Research")
-
-                    # Enable Web search
+                    # Enable Web search (Research intentionally skipped — see comment above)
                     websearch = page.get_by_text("Web search", exact=False).first
                     if await websearch.count() > 0:
                         await websearch.click()
                         await page.wait_for_timeout(300)
                         log.info("[Claude.ai] Enabled Web search")
                         label_parts.append("Web search")
-
-                    # Dismiss connector selection dialog if it appears after enabling Research.
-                    # Claude.ai may prompt the user to choose connectors — auto-dismiss so the
-                    # prompt can proceed without a human response blocking Research mode.
-                    await page.wait_for_timeout(3000)
-                    for conn_sel in [
-                        'button:has-text("Enable")',
-                        'button:has-text("Start research")',
-                        'button:has-text("Continue")',
-                        '[aria-label*="connector"]',
-                    ]:
-                        try:
-                            btn = page.locator(conn_sel).first
-                            if await btn.count() > 0 and await btn.is_visible():
-                                await btn.evaluate("el => el.dispatchEvent(new MouseEvent('click', {bubbles:true}))")
-                                log.info(f"[Claude.ai] Dismissed connector dialog via {conn_sel!r}")
-                                break
-                        except Exception:
-                            pass
             except Exception as exc:
-                log.warning(f"[Claude.ai] Research/Web search enablement failed: {exc}")
+                log.warning(f"[Claude.ai] Web search enablement failed: {exc}")
 
         return " + ".join(label_parts)
 
