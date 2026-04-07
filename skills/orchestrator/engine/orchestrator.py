@@ -8,6 +8,8 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import os
+import tempfile
 import json
 import logging
 import subprocess
@@ -252,11 +254,10 @@ async def orchestrate(args, effective_output_dir: str) -> list[dict]:
             prefs = json.loads(prefs_path.read_text(encoding="utf-8"))
             if prefs.get("profile", {}).get("exit_type") != "Normal":
                 prefs.setdefault("profile", {})["exit_type"] = "Normal"
-                import tempfile, os as _os
                 with tempfile.NamedTemporaryFile('w', dir=prefs_path.parent, delete=False, suffix='.tmp') as _f:
                     _f.write(json.dumps(prefs, indent=2, ensure_ascii=False))
                     _tmp = _f.name
-                _os.replace(_tmp, prefs_path)
+                os.replace(_tmp, prefs_path)
         except Exception as exc:
             log.warning(f"Could not fix Chrome exit_type: {exc}")
 
