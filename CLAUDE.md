@@ -85,6 +85,7 @@ GSD steps MUST be invoked as slash commands in the correct phase order.
 - Always use `/forensics` for root-cause investigation of completed sessions, abandoned sessions, or verification failures
 - CI must be green before deployment. Do NOT proceed with `/deploy-checklist` or `/gsd:ship` while CI is failing. Fix, re-push, re-check until green.
 - `README.md` MUST be updated to reflect current version, features, and changes before release. `/release-notes` will block if README is stale.
+- **Pre-release quality gate is MANDATORY** — see `docs/pre-release-quality-gate.md`. All four stages MUST pass (with `/superpowers:verification-before-completion` invoked per stage and markers recorded) before `/create-release` is invoked. No exceptions.
 - Always strictly adhere to this CLAUDE.md 100%
 
 ## 3a. Review Loop Enforcement

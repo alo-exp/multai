@@ -280,6 +280,23 @@ Write results to `## Skills flagged at discovery` in the session log. **Do not i
 
 ---
 
+## PRE-RELEASE QUALITY GATE
+
+**MANDATORY before `/release-notes`** — all four stages in `docs/pre-release-quality-gate.md` must pass in order:
+
+1. **Stage 1 — Code Review Triad**: `/code-review` → `/requesting-code-review` → `/receiving-code-review` → fix all accepted issues → repeat until zero items → `/superpowers:verification-before-completion` → record marker
+2. **Stage 2 — Big-Picture Consistency Audit**: parallel Explore agents across 5 dimensions → fix issues → repeat until two clean passes → `/superpowers:verification-before-completion` → record marker
+3. **Stage 3 — Public-Facing Content Refresh**: audit README, CHANGELOG, docs for accuracy → fix → `/superpowers:verification-before-completion` → push → CI green → record marker
+4. **Stage 4 — Security Audit (SENTINEL)**: `/anthropic-skills:audit-security-of-skill` → fix all Critical/High/Medium → repeat until two clean passes → `/superpowers:verification-before-completion` → record marker
+
+Each stage requires explicit `/superpowers:verification-before-completion` invocation AND the marker recorded:
+```bash
+echo "quality-gate-stage-N" >> ~/.claude/.silver-bullet/state
+```
+Do NOT invoke `/release-notes` until all four markers are present.
+
+---
+
 ## RELEASE
 
 20. `/release-notes` — Generate release notes and create GitHub Release.              **REQUIRED** ← DO NOT SKIP
