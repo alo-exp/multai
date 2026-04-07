@@ -207,6 +207,29 @@ any structural issues encountered, and any improvements worth capturing.
 
 <!-- Append new entries at the top of this section after each run -->
 
+### 2026-04-06 (run 2) — Content Messaging Framework (DEEP mode, iter 24 results)
+- Mode: AI-Responses, no consolidation guide
+- Source archive: `reports/Content-Messaging-Framework/Content-Messaging-Framework - Raw AI Responses.md`
+- Sources used: 4 — Gemini DR (65,098c, full report), Copilot (22,699c full), Claude.ai (16,737c full via DOCX), DeepSeek (11,161c full); Perplexity excluded (prompt echo only, no content); ChatGPT/Grok excluded (quota)
+- CIR quality: High — Gemini DR + Claude.ai both produced full 12–16 component frameworks with strong academic sourcing. Synthesised to 13 canonical components. DeepSeek contributed unique post-purchase module and traffic-source adaptation. Copilot contributed MECLABS heuristic.
+- Guide used: none — CIR-style (6 sections: Executive Summary, Consensus, Disagreements, Canonical CMF, Unique Insights, Gaps, Source Assessment)
+- Output: `reports/Content-Messaging-Framework/Content Messaging Framework - Consolidated Intelligence Report.md`
+- Structural observations: Gemini DR (65k chars) was the richest single source but included full prompt echo; actual report begins at line ~1267. Perplexity returned only prompt echo + metadata — no content usable. Claude.ai extracted via DOCX download (16,737c) — clean, well-structured.
+- Source reliability insight: For analytical/strategy research, Gemini Deep Research + Claude.ai (web search) + DeepSeek are the primary synthesis group. Gemini DR provides strongest neurobiological depth; Claude.ai provides strongest academic citation rigour; DeepSeek provides best conflict-resolution analysis and unique secondary insights.
+- Conflict resolution performed: (1) Qualifier-first vs. Hook-first — resolved as combined: qualifier phrase + disruption headline; (2) Component count 12/13/16 — synthesised to 13 canonical; (3) Belief Installation as required vs. optional — resolved as conditional on competitive context
+
+### 2026-04-06 — Content Messaging Framework (DEEP mode, generic research)
+- Mode: AI-Responses, no consolidation guide
+- Source archive: `reports/Content-Messaging-Framework/Content-Messaging-Framework - Raw AI Responses.md`
+- Sources used: 5 — Claude.ai (26,474 chars full), Copilot (11,302 chars full), Grok (11,624 chars full), DeepSeek (3,188 chars partial — Section A only), Perplexity (1,281 chars partial); Gemini excluded (Deep Research policy refusal); ChatGPT excluded (DR panel extraction failure)
+- CIR quality: High — Claude.ai + Grok + Copilot all independently produced full Sections A–E with different component counts (14/8/16). Synthesized to 13 canonical components. DeepSeek contributed high-value unique academic sources (Dijksterhuis, Damasio, Zajonc, Peak-End Rule, Conscious Competence model). Perplexity contributed specific quantitative data points.
+- Guide used: none — default CIR-style synthesis applied; extended with Section F (Gaps/Emerging Practices) and Section G (Source Reliability Assessment)
+- Output: `reports/Content-Messaging-Framework/Content Messaging Framework - Consolidated Intelligence Report.md`
+- Structural observations: Gemini Deep Research returned policy refusal on marketing strategy prompt — this category appears flagged. Claude.ai DOCX extraction lost Section B component table formatting (details extracted as "Component N of 14" placeholders); evidence and ranking sections fully preserved. Perplexity truncated mid-Section B (~1,281 chars) — `.prose` selector partial render issue in DEEP mode.
+- Source reliability insight: For analytical/strategy research (non-product), Claude.ai Sonnet + Grok DeepThink + Copilot are the primary 3-source synthesis group. DeepSeek contributes academic depth even in partial responses. Gemini Deep Research unreliable for marketing strategy prompts.
+- Conflict resolution performed: (1) Hook vs. Agitation as #1 conversion component — resolved in favor of Hook (gatekeeping function); (2) Component count 8/14/16 — synthesized to 13 canonical; (3) Urgency/scarcity placement — resolved as conditional last component
+- Changes made: run log entry updated with accurate stats from this run
+
 ### 2026-03-18 — Northflank (IT-SC-03 / E2E-05 pipeline)
 - Mode: AI-Responses
 - Source archive: `reports/e2e05-solution-research/e2e05-solution-research - Raw AI Responses.md` (~67 KB)
