@@ -27,3 +27,11 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Fix:** Replace generic ds-icon-button JS walk with SVG-shape discriminator: stop button SVG contains a rect element (square icon), send button contains only path elements (arrow). JS checks btn.querySelector('svg rect') — only true during generation. Added text-growth tracking (3 stable polls + >500 chars) as secondary completion signal.
 - **Files changed:** skills/orchestrator/engine/platforms/deepseek.py
 ---
+
+## gemini-dr-not-activating — Gemini Deep Research falls back to regular response (9,867c) in 7-platform parallel run
+- **Date:** 2026-04-08
+- **Error patterns:** no DR indicators seen, body stable for 6 polls, quick/regular response, declaring complete, Start research button, _seen_stop, body 9867c, prompt echo, 52s
+- **Root cause:** In a 7-platform parallel run Gemini's tab is backgrounded during post_send(). Angular renders the DR Stop/Cancel button lazily. The old 5s single-check missed it, _seen_stop stayed False, and the 6-poll quick-response fallback (section 5a) in completion_check() fired after ~52s, declaring a 9,867c regular response complete.
+- **Fix:** (1) post_send(): bring_to_front() before clicking "Start research", then poll Stop/Cancel for up to 60s (12 × 5s). If not confirmed, set _dr_start_unconfirmed=True. (2) completion_check() section 5a: when _dr_start_unconfirmed=True, suppress 6-poll quick-response exit and call bring_to_front() at polls 6/12/24/48. Full 180-poll (30 min) limit applies.
+- **Files changed:** skills/orchestrator/engine/platforms/gemini.py
+---
