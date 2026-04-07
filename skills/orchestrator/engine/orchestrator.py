@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-AI Orchestrator Engine — v0.2.26040635 Alpha
+"""Multi-AI Orchestrator Engine — v0.2.26040636 Alpha
 
 Usage:
     python3 orchestrator.py --prompt-file /tmp/prompt.md --mode REGULAR

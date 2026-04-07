@@ -18,6 +18,12 @@ compile:
 	python3 -m py_compile $(ENGINE)/agent_fallback.py
 	python3 -m py_compile $(ENGINE)/rate_limiter.py
 	python3 -m py_compile $(ENGINE)/collate_responses.py
+	python3 -m py_compile $(ENGINE)/cli.py
+	python3 -m py_compile $(ENGINE)/engine_setup.py
+	python3 -m py_compile $(ENGINE)/tab_manager.py
+	python3 -m py_compile $(ENGINE)/status_writer.py
+	python3 -m py_compile $(ENGINE)/prompt_loader.py
+	python3 -m py_compile $(ENGINE)/retry_handler.py
 	@echo "=== Compile: comparator files ==="
 	python3 -m py_compile $(COMPARATOR)/matrix_ops.py
 	python3 -m py_compile $(COMPARATOR)/matrix_builder.py
@@ -32,7 +38,7 @@ compile:
 
 # ── Stage 2: Unit Tests ──────────────────────────────────────────────────────
 test:
-	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+	$(VENV_PYTHON) -m pytest skills/orchestrator/engine/tests/ -v --tb=short
 
 # ── Stage 3: Regression ──────────────────────────────────────────────────────
 regression:
@@ -41,7 +47,7 @@ regression:
 	@! grep -ri --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ "devops" $(ENGINE)/
 	@! grep -r "_PROMPT_SIGS" $(ENGINE)/platforms/*.py
 	@echo "=== Regression: 7 platforms with check_rate_limit ==="
-	@test "$$(grep -l 'check_rate_limit' $(ENGINE)/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
+	@test "$$(grep -l 'async def check_rate_limit' $(ENGINE)/platforms/*.py | grep -v base.py | wc -l | tr -d ' ')" = "7"
 	@echo "=== Regression: RATE_LIMITS config ==="
 	@python3 -c "\
 	import sys; sys.path.insert(0,'$(ENGINE)'); \
