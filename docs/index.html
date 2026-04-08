@@ -282,8 +282,9 @@ section:nth-child(even){background:var(--section-alt)}
 .feature-icon{
   width:48px;height:48px;border-radius:12px;
   display:flex;align-items:center;justify-content:center;
-  font-size:1.3rem;margin-bottom:16px;
+  font-size:0;margin-bottom:16px;
 }
+.feature-icon i[data-lucide]{width:24px;height:24px;display:block}
 .feature-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px}
 .feature-card p{font-size:.9rem;color:var(--text-secondary);line-height:1.6}
 
@@ -450,7 +451,7 @@ footer .footer-links{display:flex;gap:24px}
 <nav>
   <div class="nav-inner">
     <span class="logo">MultAI</span>
-    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')" aria-label="Toggle menu">&#9776;</button>
+    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')" aria-label="Toggle menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
     <ul class="nav-links">
       <li><a href="#features">Features</a></li>
       <li><a href="#platforms">Platforms</a></li>
@@ -537,47 +538,47 @@ footer .footer-links{display:flex;gap:24px}
     </div>
     <div class="grid grid-3 mt-6">
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#9881;</div>
+        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)"><i data-lucide="settings-2"></i></div>
         <h3>Intelligent Routing</h3>
         <p>Analyzes your intent and selects the right workflow automatically &mdash; no flags, no routing decisions, no skill names to remember.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#9889;</div>
+        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)"><i data-lucide="zap"></i></div>
         <h3>Parallel Execution</h3>
         <p>All 7 platforms run concurrently via <code>asyncio.gather()</code>. A typical REGULAR-mode run completes in under 90 seconds.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)">&#128202;</div>
+        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)"><i data-lucide="bar-chart-2"></i></div>
         <h3>DEEP Research Mode</h3>
         <p>Activates each platform's research/think mode (Deep Research, DeepThink, etc.) for comprehensive answers with citations.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(251,191,36,.12);color:var(--amber)">&#128203;</div>
+        <div class="feature-icon" style="background:rgba(251,191,36,.12);color:var(--amber)"><i data-lucide="clipboard-list"></i></div>
         <h3>Structured Reports</h3>
         <p>Raw responses from all 7 platforms are synthesized into structured deliverables &mdash; 9-section landscape reports, product intelligence reports, or free-form summaries.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)">&#128200;</div>
+        <div class="feature-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)"><i data-lucide="trending-up"></i></div>
         <h3>XLSX Comparison Matrix</h3>
         <p>Maintain a capability matrix with weighted scores, combo columns, and auto-reordering. All via Python scripts.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(167,139,250,.12);color:var(--accent2)">&#128274;</div>
+        <div class="feature-icon" style="background:rgba(167,139,250,.12);color:var(--accent2)"><i data-lucide="lock"></i></div>
         <h3>Rate Limiting</h3>
         <p>Per-platform budgets, cooldowns, and daily caps &mdash; persisted across sessions. Never get rate-limited again.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)">&#129302;</div>
+        <div class="feature-icon" style="background:rgba(244,114,182,.12);color:var(--accent3)"><i data-lucide="bot"></i></div>
         <h3>Agent Fallback</h3>
         <p>When a Playwright selector fails, a vision-based <code>browser-use</code> agent takes over &mdash; powered by Claude Sonnet or Gemini Flash.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)">&#128736;</div>
+        <div class="feature-icon" style="background:rgba(52,211,153,.12);color:var(--green)"><i data-lucide="wrench"></i></div>
         <h3>Self-Improving</h3>
         <p>A timestamped run log is appended after every execution. Templates and scripts can be updated based on learnings from each run.</p>
       </div>
       <div class="feature-card fade-in">
-        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)">&#127757;</div>
+        <div class="feature-icon" style="background:rgba(99,102,241,.12);color:var(--accent-light)"><i data-lucide="globe"></i></div>
         <h3>Shared Domain Knowledge</h3>
         <p><code>domains/{domain}.md</code> is enriched after every research run. New archetypes, terminology, and trends accumulate across sessions.</p>
       </div>
@@ -753,7 +754,7 @@ footer .footer-links{display:flex;gap:24px}
 
     <div class="mt-6">
       <div class="callout">
-        <div class="callout-icon">&#128273;</div>
+        <div class="callout-icon"><i data-lucide="key-round"></i></div>
         <p><strong>No API keys required for core functionality.</strong><br>
         The engine uses Playwright browser automation with your existing Chrome logins. Optionally add <code>GOOGLE_API_KEY</code> (free) or <code>ANTHROPIC_API_KEY</code> for vision-based agent fallback.</p>
       </div>
@@ -855,7 +856,7 @@ footer .footer-links{display:flex;gap:24px}
         <p>System topology, data flows, module design, interface contracts, design decisions.</p>
       </a>
       <a href="https://github.com/alo-exp/multai/blob/main/docs/SRS.md" target="_blank" class="feature-card fade-in" style="text-decoration:none">
-        <div style="font-size:1.5rem;margin-bottom:8px">&#128203;</div>
+        <div style="font-size:1.5rem;margin-bottom:8px"><i data-lucide="clipboard-list"></i></div>
         <h3>SRS</h3>
         <p>Software Requirements Specification: functional requirements, use cases, constraints.</p>
       </a>
@@ -922,7 +923,9 @@ footer .footer-links{display:flex;gap:24px}
 </footer>
 
 <!-- ────── SCRIPTS ────── -->
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script>
+lucide.createIcons();
 // ── Theme ──
 function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
