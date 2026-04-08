@@ -101,7 +101,9 @@ def install_stubs(platform_name, url):
     """Stub sys.modules for all heavy runtime dependencies.
 
     Called by platform driver test modules before importing any engine code.
+    Returns the config stub module so callers can add extra attributes.
     """
+    import os
     _stub_engine_setup()
 
     # playwright stubs
@@ -112,6 +114,37 @@ def install_stubs(platform_name, url):
     pw_api.BrowserContext = MagicMock
     sys.modules["playwright"] = pw
     sys.modules["playwright.async_api"] = pw_api
+
+    # config stub — returned so callers can set extra attributes
+    config = types.ModuleType("config")
+    config.PLATFORM_URLS = {platform_name: url}
+    config.PLATFORM_DISPLAY_NAMES = {platform_name: platform_name.capitalize()}
+    config.INJECTION_METHODS = {platform_name: "execCommand"}
+    config.POLL_INTERVAL = 0
+    config.TIMEOUTS = {}
+    config.STATUS_COMPLETE = "complete"
+    config.STATUS_FAILED = "failed"
+    config.STATUS_NEEDS_LOGIN = "needs_login"
+    config.STATUS_PARTIAL = "partial"
+    config.STATUS_RATE_LIMITED = "rate_limited"
+    config.STATUS_TIMEOUT = "timeout"
+    config.TimeoutConfig = type("TimeoutConfig", (), {"regular": 60, "deep": 300})
+    config.DEFAULT_TIER = "free"
+    config.STAGGER_DELAY = 0
+    config.RATE_LIMIT_STATE_DIR = "/tmp"
+    config.RATE_LIMITS = {}
+    config.PLATFORM_DISPLAY_NAMES.update({
+        "claude_ai": "Claude.ai", "chatgpt": "ChatGPT", "copilot": "Copilot",
+        "perplexity": "Perplexity", "grok": "Grok", "deepseek": "DeepSeek",
+        "gemini": "Gemini",
+    })
+    sys.modules["config"] = config
+
+    # prompt_echo stub
+    pe = types.ModuleType("prompt_echo")
+    pe.is_prompt_echo = lambda text, sigs: False
+    pe.auto_extract_prompt_sigs = lambda text: []
+    sys.modules["prompt_echo"] = pe
 
     # agent_fallback stub
     af = types.ModuleType("agent_fallback")
@@ -125,8 +158,11 @@ def install_stubs(platform_name, url):
     bu.BrowserSession = MagicMock
     sys.modules["browser_use"] = bu
 
-    # platforms stub
+    # platforms package — point __path__ at real directory so submodules load
+    platforms_path = os.path.join(ENGINE_DIR, "platforms")
     mock_platforms = types.ModuleType("platforms")
+    mock_platforms.__path__ = [platforms_path]
+    mock_platforms.__package__ = "platforms"
     mock_platforms.ALL_PLATFORMS = {
         "claude_ai": MagicMock(),
         "chatgpt": MagicMock(),
@@ -137,3 +173,5 @@ def install_stubs(platform_name, url):
         "gemini": MagicMock(),
     }
     sys.modules["platforms"] = mock_platforms
+
+    return config
