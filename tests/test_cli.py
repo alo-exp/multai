@@ -333,6 +333,28 @@ class TestResolveOutputDir:
         assert ":" not in result
         assert "!" not in result
 
+    def test_resolve_output_dir_task_name_traversal_exits(self, monkeypatch):
+        """_resolve_output_dir exits(1) when task_name resolves outside project root."""
+        import pytest
+        args = MagicMock()
+        args.task_name = "safe"
+        args.output_dir = ""
+
+        # Force resolved path to appear outside project root
+        project_root = Path(_cli._PROJECT_ROOT).resolve()
+        outside = project_root.parent / "outside"
+
+        original_resolve = Path.resolve
+
+        def fake_resolve(self):
+            if "reports" in str(self):
+                return outside
+            return original_resolve(self)
+
+        monkeypatch.setattr(Path, "resolve", fake_resolve)
+        with pytest.raises(SystemExit):
+            _cli._resolve_output_dir(args)
+
     def test_resolve_output_dir_default_within_project(self):
         """_resolve_output_dir returns output_dir when within project root."""
         args = MagicMock()

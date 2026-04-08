@@ -114,7 +114,15 @@ def _resolve_output_dir(args: argparse.Namespace) -> str:
     """Resolve the effective output directory."""
     if args.task_name:
         safe = "".join(c if c.isalnum() or c in "-_. " else "-" for c in args.task_name).strip()
-        return str(_PROJECT_ROOT / "reports" / safe)
+        resolved = (_PROJECT_ROOT / "reports" / safe).resolve()
+        try:
+            resolved.relative_to(_PROJECT_ROOT.resolve())
+        except ValueError:
+            log.error(
+                f"--task-name resolves to a path outside the project root. Got: {resolved}"
+            )
+            sys.exit(1)
+        return str(resolved)
     resolved = Path(args.output_dir).resolve()
     try:
         resolved.relative_to(_PROJECT_ROOT.resolve())
@@ -158,7 +166,8 @@ def main():
 
     if args.prompt_file:
         prompt_path = Path(args.prompt_file)
-        if prompt_path.exists() and str(prompt_path).startswith("/tmp/"):
+        _tmp = Path("/tmp").resolve()
+        if prompt_path.exists() and prompt_path.resolve().is_relative_to(_tmp):
             try:
                 prompt_path.unlink()
                 log.debug(f"Cleaned up temp prompt file: {prompt_path}")
