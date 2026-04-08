@@ -1,7 +1,7 @@
 # Architecture and Design Document
 
 **Project:** MultAI
-**Version:** 0.2.26040636 Alpha
+**Version:** 0.3.0
 **Date:** 2026-04-08
 
 | Version | Date | Summary |

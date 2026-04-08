@@ -1,7 +1,7 @@
 # Test Strategy and Plan
 
 **Project:** MultAI
-**Version:** 0.2.26040636 Alpha
+**Version:** 0.3.0
 **Date:** 2026-03-18
 
 | Version | Date | Summary |
