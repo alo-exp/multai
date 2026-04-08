@@ -38,8 +38,10 @@ sys.modules["engine_setup"] = _mock_es
 if ENGINE_DIR not in sys.path:
     sys.path.insert(0, ENGINE_DIR)
 
-# Register platforms as a package so relative imports (.base, etc.) resolve
-if "platforms" not in sys.modules:
+# Register platforms as a real package so relative imports and patch() work.
+# Always reinstall to avoid a bare mock left by test_cli.py's module-level import.
+_platforms_mod = sys.modules.get("platforms")
+if _platforms_mod is None or not hasattr(_platforms_mod, "__path__"):
     _platforms_mod = types.ModuleType("platforms")
     _platforms_mod.__path__ = [PLATFORMS_DIR]
     _platforms_mod.__package__ = "platforms"
