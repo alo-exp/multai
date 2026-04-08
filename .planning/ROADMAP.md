@@ -39,6 +39,6 @@ Plans:
 - [x] 01-02-PLAN.md — matrix_ops.py 100% coverage (493 statements, pure Python)
 - [x] 01-03-PLAN.md — Non-Playwright modules: rate_limiter, engine_setup, cli, prompt_loader, status_writer, launch_report, tab_manager
 - [x] 01-04-PLAN.md — Playwright core: base.py, browser_utils, inject_utils, agent_fallback, retry_handler
-- [ ] 01-05-PLAN.md — Platform drivers group 1: chatgpt, claude_ai, copilot, deepseek
+- [x] 01-05-PLAN.md — Platform drivers group 1: chatgpt, claude_ai, copilot, deepseek
 - [ ] 01-06-PLAN.md — Platform drivers group 2: gemini, grok, perplexity, chatgpt_extractor
 - [ ] 01-07-PLAN.md — Orchestrator async tests, config/collate gaps, CI --cov-fail-under=100 gate
