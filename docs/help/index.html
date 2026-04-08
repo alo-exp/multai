@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MultAI Help Center</title>
+<meta name="description" content="Comprehensive documentation for MultAI — submit prompts to 7 AI platforms simultaneously from Claude Code or Cowork. Learn installation, concepts, workflows, and troubleshooting.">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="shortcut icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+:root{
+  --bg-page:#f3f4f6;--bg-card:#ffffff;--bg-card-hover:#eeeff2;--bg-code:#e9eaed;
+  --bg-hero:linear-gradient(160deg,#c0c6cf 0%,#d4dae3 18%,#e8eaee 38%,#eceef2 52%,#e0e4e9 68%,#d0d5dc 84%,#c4c9d1 100%);
+  --chrome-gradient:linear-gradient(135deg,#374151 0%,#7a8ea0 28%,#d4dce6 50%,#7a8ea0 72%,#374151 100%);
+  --accent:#374151;--accent-light:#6b7280;--accent-glow:rgba(107,114,128,.1);
+  --accent2:#4b5563;--accent3:#6b7280;
+  --green:#059669;--amber:#d97706;--red:#dc2626;--cyan:#0891b2;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-dim:#94a3b8;
+  --border:#d1d5db;--border-hover:#9ca3af;
+  --radius:12px;--radius-lg:20px;--radius-sm:8px;
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.08);--shadow-glow:0 0 40px rgba(107,114,128,.07);
+  --nav-bg:rgba(243,244,246,.9);--nav-mobile-bg:rgba(243,244,246,.98);
+  --section-alt:rgba(236,238,242,.6);--table-row-hover:rgba(107,114,128,.03);
+  --skill-phase-border:rgba(209,213,219,.8);
+}
+[data-theme="dark"]{
+  --bg-page:#0c0c0e;--bg-card:#161618;--bg-card-hover:#1e1e21;--bg-code:#1a1a1d;
+  --bg-hero:linear-gradient(160deg,#060608 0%,#0a0a0e 28%,#0f1013 50%,#111316 65%,#0c0d10 82%,#070709 100%);
+  --chrome-gradient:linear-gradient(135deg,#6b7280 0%,#a4b4c2 28%,#dce6ee 50%,#a4b4c2 72%,#6b7280 100%);
+  --accent:#9ca3af;--accent-light:#c8d2da;--accent-glow:rgba(156,163,175,.15);
+  --accent2:#8fa0ad;--accent3:#b0bec8;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#22d3ee;
+  --text-primary:#e8eaed;--text-secondary:#9ca3af;--text-dim:#6b7280;
+  --border:#26262a;--border-hover:#38383e;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.5);--shadow-glow:0 0 40px rgba(156,163,175,.07);
+  --nav-bg:rgba(12,12,14,.88);--nav-mobile-bg:rgba(12,12,14,.97);
+  --section-alt:rgba(20,20,23,.5);--table-row-hover:rgba(156,163,175,.03);
+  --skill-phase-border:rgba(38,38,42,.6);
+}
+body{font-family:var(--font-sans);background:var(--bg-page);color:var(--text-primary);line-height:1.6}
+body,nav,.help-card{transition:background .25s,background-color .25s,border-color .25s,color .25s}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 24px}
+nav .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{font-weight:800;font-size:1rem;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;letter-spacing:-.02em}
+.nav-breadcrumb{font-size:.85rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px}
+.nav-breadcrumb a{color:var(--text-secondary);text-decoration:none}
+.nav-breadcrumb a:hover{color:var(--accent-light)}
+.nav-breadcrumb .sep{color:var(--text-dim)}
+.nav-right{display:flex;align-items:center;gap:16px}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text-secondary);font-size:.9rem;transition:all .2s}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent-light)}
+
+/* Hero */
+.hero{background:var(--bg-hero);padding:120px 24px 80px;text-align:center;position:relative;overflow:hidden}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(107,114,128,.1);border:1px solid var(--border);border-radius:999px;padding:6px 16px;font-size:.8rem;font-weight:600;color:var(--accent-light);margin-bottom:24px;letter-spacing:.04em}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:900;letter-spacing:-.04em;margin-bottom:20px;color:var(--text-primary)}
+.hero p{font-size:1.05rem;color:var(--text-secondary);max-width:520px;margin:0 auto 40px;line-height:1.7}
+.search-wrap{max-width:520px;margin:0 auto;position:relative}
+.search-wrap input{width:100%;padding:14px 20px 14px 48px;border-radius:999px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:.95rem;font-family:var(--font-sans);outline:none;box-shadow:var(--shadow-lg);transition:border-color .2s}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--text-dim)}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none}
+
+/* Search results */
+#search-results-section{padding:48px 0}
+.sr-heading{font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:20px}
+.sr-item{display:flex;flex-direction:column;gap:6px;padding:20px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:inherit;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
+.sr-item:hover{border-color:var(--border-hover);box-shadow:var(--shadow-lg)}
+.sr-page{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-light)}
+.sr-title{font-size:1rem;font-weight:700;color:var(--text-primary)}
+.sr-excerpt{font-size:.875rem;color:var(--text-secondary);line-height:1.6}
+.sr-none{color:var(--text-dim);font-size:.9rem}
+
+/* Sections */
+section:nth-child(even){background:var(--section-alt)}
+
+/* Quick grid */
+.quick-section{padding:40px 0}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.quick-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.quick-grid{grid-template-columns:1fr 1fr}}
+.quick-link{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--text-secondary);font-size:.85rem;font-weight:500;transition:all .2s}
+.quick-link:hover{border-color:var(--border-hover);background:var(--bg-card-hover);color:var(--text-primary)}
+.quick-link svg{color:var(--accent-light);flex-shrink:0}
+
+/* Cards section */
+.cards-section{padding:64px 0}
+.section-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent-light);margin-bottom:12px}
+.section-title{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:900;letter-spacing:-.04em;margin-bottom:12px}
+.section-desc{font-size:.95rem;color:var(--text-secondary);max-width:500px;line-height:1.7;margin-bottom:40px}
+.help-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:900px){.help-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.help-grid{grid-template-columns:1fr}}
+.help-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:16px;transition:all .25s;position:relative;overflow:hidden}
+.help-card:hover{border-color:var(--border-hover);box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.card-accent{height:3px;border-radius:999px;margin-bottom:4px}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card-icon{width:40px;height:40px;border-radius:var(--radius-sm);background:var(--bg-code);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent-light)}
+.card-badge{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.badge-green{background:rgba(5,150,105,.1);color:var(--green)}
+.badge-grey{background:rgba(107,114,128,.1);color:var(--accent-light)}
+.badge-amber{background:rgba(217,119,6,.1);color:var(--amber)}
+.badge-red{background:rgba(220,38,38,.1);color:var(--red)}
+.help-card h3{font-size:1.05rem;font-weight:800;letter-spacing:-.02em}
+.help-card p{font-size:.875rem;color:var(--text-secondary);line-height:1.7;flex:1}
+.card-topics{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border);padding-top:16px}
+.card-topics li{font-size:.8rem;color:var(--text-dim);display:flex;align-items:flex-start;gap:6px;line-height:1.5}
+.card-topics li::before{content:'·';flex-shrink:0;margin-top:0}
+.card-arrow{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:var(--accent-light);margin-top:4px}
+
+/* Callout */
+.callout{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;max-width:680px;margin:0 auto}
+.callout p{font-size:.95rem;color:var(--text-secondary);line-height:1.8}
+.callout strong{color:var(--text-primary)}
+
+/* Footer */
+footer{padding:40px 0;border-top:1px solid var(--border);margin-top:0}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.footer-links{display:flex;gap:20px}
+.footer-links a{font-size:.875rem;color:var(--text-dim);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--text-secondary)}
+
+svg.lucide{width:16px;height:16px;display:inline-block;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:16px">
+      <a href="../" class="nav-logo">MultAI</a>
+      <span class="nav-breadcrumb"><span class="sep">/</span> Help Center</span>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" aria-label="Toggle theme" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0">
+        <span id="icon-sun" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        <span id="icon-moon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge"><i data-lucide="book-open"></i> Help Center</div>
+    <h1>How Can We Help You?</h1>
+    <p>Everything you need to get productive with MultAI — from first install to running all 7 platforms simultaneously.</p>
+    <div class="search-wrap">
+      <span class="search-icon"><i data-lucide="search"></i></span>
+      <input type="text" id="search-input" placeholder="Search documentation…" autocomplete="off">
+    </div>
+  </div>
+</section>
+
+<div id="search-results-section" style="display:none">
+  <div class="container">
+    <p class="sr-heading">Search Results</p>
+    <div id="search-results-list"></div>
+  </div>
+</div>
+
+<div id="main-help-content">
+
+  <section class="quick-section">
+    <div class="container">
+      <div class="quick-grid">
+        <a href="getting-started/" class="quick-link"><i data-lucide="rocket"></i> Quick start</a>
+        <a href="concepts/#platforms" class="quick-link"><i data-lucide="puzzle"></i> Platforms &amp; modes</a>
+        <a href="running-multai/" class="quick-link"><i data-lucide="settings"></i> Running MultAI</a>
+        <a href="reference/" class="quick-link"><i data-lucide="clipboard-list"></i> Command reference</a>
+        <a href="getting-started/#install" class="quick-link"><i data-lucide="package"></i> Installation</a>
+        <a href="concepts/#session-modes" class="quick-link"><i data-lucide="sliders-horizontal"></i> Session modes</a>
+        <a href="running-multai/#output" class="quick-link"><i data-lucide="file-text"></i> Output &amp; archives</a>
+        <a href="concepts/#rate-limiting" class="quick-link"><i data-lucide="lock"></i> Rate limiting</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="cards-section">
+    <div class="container">
+      <div class="section-label">Documentation</div>
+      <h2 class="section-title">Browse by Topic</h2>
+      <p class="section-desc">Find everything you need — from first-time setup to advanced configuration and troubleshooting.</p>
+      <div class="help-grid">
+
+        <a href="getting-started/" class="help-card" data-keywords="install setup prerequisites beginner first run Chrome CDP port 9222">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--green),#059669)"></div>
+          <div class="card-header">
+            <div class="card-icon"><i data-lucide="rocket"></i></div>
+            <span class="card-badge badge-green">Start here</span>
+          </div>
+          <h3>Getting Started</h3>
+          <p>New to MultAI? Start here — from Chrome setup to your first multi-platform research run.</p>
+          <ul class="card-topics">
+            <li>Prerequisites: Python 3.11+, Playwright, Chrome</li>
+            <li>Installing MultAI</li>
+            <li>Setting up Chrome with CDP</li>
+            <li>Your first prompt run</li>
+            <li>Choosing platforms and modes</li>
+          </ul>
+          <div class="card-arrow"><i data-lucide="arrow-right"></i> Read guide</div>
+        </a>
+
+        <a href="concepts/" class="help-card" data-keywords="concepts platforms CDP Playwright DEEP REGULAR rate limit agent fallback session mode">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--accent),var(--accent2))"></div>
+          <div class="card-header">
+            <div class="card-icon"><i data-lucide="brain"></i></div>
+            <span class="card-badge badge-grey">Fundamentals</span>
+          </div>
+          <h3>Core Concepts</h3>
+          <p>Understand how MultAI works — the 7 platforms, DEEP vs REGULAR mode, rate limiting, and the agent fallback system.</p>
+          <ul class="card-topics">
+            <li>How CDP browser automation works</li>
+            <li>DEEP vs REGULAR mode</li>
+            <li>Rate limiting and fairness</li>
+            <li>Agent fallback (browser-use)</li>
+            <li>Collation and archives</li>
+          </ul>
+          <div class="card-arrow"><i data-lucide="arrow-right"></i> Read guide</div>
+        </a>
+
+        <a href="running-multai/" class="help-card" data-keywords="workflow run prompt platforms output archive synthesis research">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--accent),var(--accent2))"></div>
+          <div class="card-header">
+            <div class="card-icon"><i data-lucide="settings"></i></div>
+            <span class="card-badge badge-grey">Workflow</span>
+          </div>
+          <h3>Running MultAI</h3>
+          <p>The end-to-end workflow — how to submit a prompt, select platforms, choose a mode, and read the collated results.</p>
+          <ul class="card-topics">
+            <li>Invoking /multai from Claude Code</li>
+            <li>Cowork path (Claude-in-Chrome)</li>
+            <li>Selecting platforms with --platforms</li>
+            <li>Reading the archive</li>
+            <li>Consolidating results</li>
+          </ul>
+          <div class="card-arrow"><i data-lucide="arrow-right"></i> Read guide</div>
+        </a>
+
+        <a href="reference/" class="help-card" data-keywords="commands flags options config platforms list output-dir task-name">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--amber),#d97706)"></div>
+          <div class="card-header">
+            <div class="card-icon"><i data-lucide="clipboard-list"></i></div>
+            <span class="card-badge badge-amber">Reference</span>
+          </div>
+          <h3>Reference</h3>
+          <p>Every CLI flag, platform identifier, config option, and output file documented in one place.</p>
+          <ul class="card-topics">
+            <li>Platform identifiers</li>
+            <li>CLI flags</li>
+            <li>Config (.env options)</li>
+            <li>Output files and paths</li>
+            <li>Rate limit state</li>
+          </ul>
+          <div class="card-arrow"><i data-lucide="arrow-right"></i> Read guide</div>
+        </a>
+
+        <a href="troubleshooting/" class="help-card" data-keywords="error fix chrome cdp playwright rate limit extraction failure debug">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--red),#dc2626)"></div>
+          <div class="card-header">
+            <div class="card-icon"><i data-lucide="wrench"></i></div>
+            <span class="card-badge badge-red">6 topics</span>
+          </div>
+          <h3>Troubleshooting</h3>
+          <p>Chrome won't connect? Platform returning errors? Response not extracted? Find the fix here.</p>
+          <ul class="card-topics">
+            <li>Chrome / CDP connection issues</li>
+            <li>Platform authentication</li>
+            <li>Rate limit hit</li>
+            <li>Extraction failures</li>
+            <li>Agent fallback errors</li>
+            <li>Output and archive issues</li>
+          </ul>
+          <div class="card-arrow"><i data-lucide="arrow-right"></i> Read guide</div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<section style="padding:64px 0;background:var(--section-alt)">
+  <div class="container">
+    <div class="callout">
+      <div style="font-size:2rem;margin-bottom:12px"><i data-lucide="lightbulb"></i></div>
+      <p><strong>New to MultAI?</strong> Start with <a href="getting-started/" style="color:var(--accent-light);font-weight:600">Getting Started</a> to set up Chrome and run your first prompt, then read <a href="concepts/" style="color:var(--accent-light);font-weight:600">Core Concepts</a> to understand DEEP mode, rate limiting, and the agent fallback system.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div><span style="font-weight:700;color:var(--text-secondary)">MultAI</span> Help Center</div>
+      <div style="font-size:.9rem;color:var(--text-secondary)">
+        Innovated at <a href="https://alolabs.dev" target="_blank" style="font-weight:700;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none">&#256;lo Labs</a>
+      </div>
+      <div class="footer-links">
+        <a href="../">Home</a>
+        <a href="https://github.com/alo-exp/multai" target="_blank">GitHub</a>
+        <a href="https://github.com/alo-exp/multai/blob/main/LICENSE" target="_blank">MIT License</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="search.js"></script>
+<script>
+  lucide.createIcons();
+  function applyTheme(d){
+    document.documentElement.setAttribute('data-theme',d?'dark':'light');
+    document.getElementById('icon-sun').style.display=d?'none':'';
+    document.getElementById('icon-moon').style.display=d?'':'none';
+    localStorage.setItem('multai-theme',d?'dark':'light');
+  }
+  function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');}
+  (function(){var s=localStorage.getItem('multai-theme');applyTheme(s?s==='dark':true);})();
+</script>
+</body>
+</html>

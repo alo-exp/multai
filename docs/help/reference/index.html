@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reference — MultAI Help</title>
+<meta name="description" content="Complete reference for MultAI — platform identifiers, CLI flags, .env configuration, output files, and rate limit state.">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="shortcut icon" href="../../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+:root{
+  --bg-page:#f3f4f6;--bg-card:#ffffff;--bg-card-hover:#eeeff2;--bg-code:#e9eaed;
+  --bg-hero:linear-gradient(160deg,#c0c6cf 0%,#d4dae3 18%,#e8eaee 38%,#eceef2 52%,#e0e4e9 68%,#d0d5dc 84%,#c4c9d1 100%);
+  --chrome-gradient:linear-gradient(135deg,#374151 0%,#7a8ea0 28%,#d4dce6 50%,#7a8ea0 72%,#374151 100%);
+  --accent:#374151;--accent-light:#6b7280;--accent-glow:rgba(107,114,128,.1);
+  --accent2:#4b5563;--accent3:#6b7280;
+  --green:#059669;--amber:#d97706;--red:#dc2626;--cyan:#0891b2;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-dim:#94a3b8;
+  --border:#d1d5db;--border-hover:#9ca3af;
+  --radius:12px;--radius-lg:20px;--radius-sm:8px;
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.08);
+  --nav-bg:rgba(243,244,246,.9);--nav-mobile-bg:rgba(243,244,246,.98);
+  --section-alt:rgba(236,238,242,.6);--table-row-hover:rgba(107,114,128,.03);
+  --skill-phase-border:rgba(209,213,219,.8);
+}
+[data-theme="dark"]{
+  --bg-page:#0c0c0e;--bg-card:#161618;--bg-card-hover:#1e1e21;--bg-code:#1a1a1d;
+  --bg-hero:linear-gradient(160deg,#060608 0%,#0a0a0e 28%,#0f1013 50%,#111316 65%,#0c0d10 82%,#070709 100%);
+  --chrome-gradient:linear-gradient(135deg,#6b7280 0%,#a4b4c2 28%,#dce6ee 50%,#a4b4c2 72%,#6b7280 100%);
+  --accent:#9ca3af;--accent-light:#c8d2da;--accent-glow:rgba(156,163,175,.15);
+  --accent2:#8fa0ad;--accent3:#b0bec8;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#22d3ee;
+  --text-primary:#e8eaed;--text-secondary:#9ca3af;--text-dim:#6b7280;
+  --border:#26262a;--border-hover:#38383e;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.5);
+  --nav-bg:rgba(12,12,14,.88);--nav-mobile-bg:rgba(12,12,14,.97);
+  --section-alt:rgba(20,20,23,.5);--table-row-hover:rgba(156,163,175,.03);
+  --skill-phase-border:rgba(38,38,42,.6);
+}
+body{font-family:var(--font-sans);background:var(--bg-page);color:var(--text-primary);line-height:1.6}
+body,nav{transition:background .25s,background-color .25s,border-color .25s,color .25s}
+.container{max-width:860px;margin:0 auto;padding:0 24px}
+.container-wide{max-width:1100px;margin:0 auto;padding:0 24px}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 24px}
+nav .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{font-weight:800;font-size:1rem;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;letter-spacing:-.02em}
+.nav-breadcrumb{font-size:.85rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px}
+.nav-breadcrumb a{color:var(--text-secondary);text-decoration:none}
+.nav-breadcrumb a:hover{color:var(--accent-light)}
+.nav-breadcrumb .sep{color:var(--text-dim)}
+.nav-right{display:flex;align-items:center;gap:16px}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text-secondary);font-size:.9rem;transition:all .2s}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent-light)}
+
+.nav-search-wrap{position:relative}
+.nav-search-input{width:180px;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:var(--bg-code);color:var(--text-primary);font-size:.82rem;font-family:var(--font-sans);outline:none;transition:border-color .2s,width .2s}
+.nav-search-input:focus{border-color:var(--accent);width:240px}
+.nav-search-input::placeholder{color:var(--text-dim)}
+.nav-search-results{position:absolute;top:calc(100% + 8px);right:0;width:340px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.12);z-index:200;max-height:420px;overflow-y:auto;display:none}
+.nav-search-results.open{display:block}
+.nsr-item{display:flex;flex-direction:column;gap:3px;padding:12px 16px;text-decoration:none;border-bottom:1px solid var(--border);transition:background .15s;color:inherit}
+.nsr-item:last-child{border-bottom:none}
+.nsr-item:hover,.nsr-item.nsr-active{background:var(--bg-code)}
+.nsr-page{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-light)}
+.nsr-title{font-size:.88rem;font-weight:600;color:var(--text-primary)}
+.nsr-excerpt{font-size:.78rem;color:var(--text-dim);line-height:1.4}
+@media(max-width:768px){.nav-search-wrap{display:none}}
+
+.page-hero{background:var(--bg-hero);padding:120px 24px 64px;position:relative;overflow:hidden}
+.breadcrumb-nav{font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.breadcrumb-nav a{color:var(--text-dim);text-decoration:none}.breadcrumb-nav a:hover{color:var(--accent-light)}
+.breadcrumb-nav span{color:var(--text-dim)}
+.page-hero h1{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;letter-spacing:-.04em;margin-bottom:16px}
+.page-hero p{font-size:1rem;color:var(--text-secondary);max-width:560px;line-height:1.7}
+
+.doc-layout{display:grid;grid-template-columns:220px 1fr;gap:48px;padding:56px 0 80px}
+@media(max-width:768px){.doc-layout{grid-template-columns:1fr}.doc-sidebar{display:none}}
+.doc-sidebar{position:sticky;top:88px;height:fit-content}
+.sidebar-nav{list-style:none;padding:0;display:flex;flex-direction:column;gap:2px}
+.sidebar-section{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:16px 12px 6px;margin-top:8px}
+.sidebar-nav a{display:block;padding:7px 12px;border-radius:var(--radius-sm);font-size:.85rem;color:var(--text-secondary);text-decoration:none;transition:all .2s}
+.sidebar-nav a:hover{background:var(--bg-code);color:var(--text-primary)}
+.sidebar-nav a.active{background:var(--bg-code);color:var(--accent-light);font-weight:600}
+
+.doc-content h2{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin:48px 0 16px;padding-top:8px}
+.doc-content h2:first-child{margin-top:0}
+.doc-content h3{font-size:1.05rem;font-weight:700;margin:28px 0 10px}
+.doc-content p{font-size:.95rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px}
+.doc-content ul,.doc-content ol{padding-left:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:6px}
+.doc-content li{font-size:.9rem;color:var(--text-secondary);line-height:1.7}
+.doc-content code{font-family:var(--font-mono);font-size:.82em;background:var(--bg-code);padding:2px 6px;border-radius:4px;color:var(--text-primary)}
+
+.callout{display:flex;gap:14px;padding:18px 20px;border-radius:var(--radius);margin:20px 0;border:1px solid}
+.callout-info{background:rgba(107,114,128,.06);border-color:rgba(107,114,128,.2)}
+.callout-tip{background:rgba(5,150,105,.06);border-color:rgba(5,150,105,.2)}
+.callout-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.callout-body{font-size:.9rem;color:var(--text-secondary);line-height:1.7}
+.callout-body strong{color:var(--text-primary)}
+
+.code-block{font-family:var(--font-mono);font-size:.82rem;background:var(--bg-code);padding:20px 24px;border-radius:var(--radius);overflow-x:auto;white-space:pre-wrap;margin-bottom:20px;line-height:1.6}
+.divider{height:1px;background:var(--border);margin:36px 0}
+
+/* Reference tables */
+.ref-table{width:100%;border-collapse:collapse;font-size:.875rem;margin-bottom:24px}
+.ref-table th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;padding:10px 16px;border-bottom:1px solid var(--border)}
+.ref-table td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top}
+.ref-table tr:last-child td{border-bottom:none}
+.ref-table tr:hover td{background:var(--table-row-hover)}
+.ref-table td:first-child{font-family:var(--font-mono);font-size:.82rem;color:var(--accent-light)}
+.badge-small{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle;margin-left:4px}
+.badge-req{background:rgba(239,68,68,.1);color:var(--red)}
+.badge-opt{background:rgba(107,114,128,.1);color:var(--accent-light)}
+.deep-yes{color:var(--green);font-weight:700}
+.deep-no{color:var(--text-dim)}
+
+.page-nav-bottom{display:flex;justify-content:space-between;margin-top:56px;padding-top:32px;border-top:1px solid var(--border)}
+.page-nav-bottom a{display:flex;flex-direction:column;gap:4px;max-width:220px;text-decoration:none}
+.pnb-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)}
+.pnb-title{font-size:.95rem;font-weight:700;color:var(--accent-light)}
+
+footer{padding:40px 0;border-top:1px solid var(--border)}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.footer-links{display:flex;gap:20px}
+.footer-links a{font-size:.875rem;color:var(--text-dim);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--text-secondary)}
+
+svg.lucide{width:16px;height:16px;display:inline-block;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:16px">
+      <a href="../../" class="nav-logo">MultAI</a>
+      <span class="nav-breadcrumb"><span class="sep">/</span> <a href="../">Help</a> <span class="sep">/</span> <span>Reference</span></span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-search-wrap">
+        <input type="text" class="nav-search-input" id="nav-search-input" placeholder="Search docs…" autocomplete="off">
+        <div class="nav-search-results" id="nav-search-results"></div>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" aria-label="Toggle theme" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0">
+        <span id="icon-sun" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        <span id="icon-moon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+      <a href="../../">Home</a><span>/</span><a href="../">Help</a><span>/</span><span>Reference</span>
+    </nav>
+    <h1>Reference</h1>
+    <p>Every platform identifier, CLI flag, .env key, and output file documented in one place.</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <ul class="sidebar-nav">
+        <li class="sidebar-section">Platforms</li>
+        <li><a href="#platform-ids">Platform identifiers</a></li>
+        <li class="sidebar-section">CLI</li>
+        <li><a href="#cli-flags">CLI flags</a></li>
+        <li><a href="#env-config">.env configuration</a></li>
+        <li class="sidebar-section">Files</li>
+        <li><a href="#output-files">Output files</a></li>
+        <li><a href="#rate-limit-state">Rate limit state</a></li>
+      </ul>
+    </aside>
+
+    <article class="doc-content">
+
+      <h2 id="platform-ids">Platform Identifiers</h2>
+      <p>Use these identifiers with the <code>--platforms</code> flag. All identifiers are case-insensitive.</p>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>Identifier</th>
+            <th>Platform</th>
+            <th>URL</th>
+            <th>DEEP support</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>claude</td>
+            <td>Claude.ai</td>
+            <td>claude.ai</td>
+            <td class="deep-no">—</td>
+          </tr>
+          <tr>
+            <td>chatgpt</td>
+            <td>ChatGPT (OpenAI)</td>
+            <td>chatgpt.com</td>
+            <td class="deep-yes">✓ Deep Research</td>
+          </tr>
+          <tr>
+            <td>gemini</td>
+            <td>Google Gemini</td>
+            <td>gemini.google.com</td>
+            <td class="deep-yes">✓ Deep Research</td>
+          </tr>
+          <tr>
+            <td>grok</td>
+            <td>Grok (xAI)</td>
+            <td>grok.com</td>
+            <td class="deep-no">—</td>
+          </tr>
+          <tr>
+            <td>deepseek</td>
+            <td>DeepSeek</td>
+            <td>chat.deepseek.com</td>
+            <td class="deep-yes">✓ DeepThink</td>
+          </tr>
+          <tr>
+            <td>perplexity</td>
+            <td>Perplexity</td>
+            <td>perplexity.ai</td>
+            <td class="deep-no">—</td>
+          </tr>
+          <tr>
+            <td>copilot</td>
+            <td>Microsoft Copilot</td>
+            <td>copilot.microsoft.com</td>
+            <td class="deep-no">—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <h2 id="cli-flags">CLI Flags</h2>
+      <p>All flags can be passed when invoking <code>/multai</code> from Claude Code, or when running the orchestrator directly from the terminal.</p>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>--prompt</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Inline prompt text to send to all platforms</td>
+          </tr>
+          <tr>
+            <td>--prompt-file</td>
+            <td>path</td>
+            <td>—</td>
+            <td>Path to a text file containing the prompt. Mutually exclusive with <code>--prompt</code></td>
+          </tr>
+          <tr>
+            <td>--platforms</td>
+            <td>list</td>
+            <td>all 7</td>
+            <td>Space-separated list of platform identifiers to run. Omit to run all 7</td>
+          </tr>
+          <tr>
+            <td>--mode</td>
+            <td>enum</td>
+            <td>REGULAR</td>
+            <td><code>REGULAR</code> or <code>DEEP</code>. DEEP activates Deep Research / DeepThink on supported platforms</td>
+          </tr>
+          <tr>
+            <td>--task-name</td>
+            <td>string</td>
+            <td>auto</td>
+            <td>Slug used in output filenames. Use alphanumeric characters and hyphens. Auto-derived from prompt if omitted</td>
+          </tr>
+          <tr>
+            <td>--output-dir</td>
+            <td>path</td>
+            <td>output/</td>
+            <td>Directory where per-platform response files are written</td>
+          </tr>
+          <tr>
+            <td>--fresh</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Force a new browser state. Closes and reopens all platform tabs before the run</td>
+          </tr>
+          <tr>
+            <td>--with-fallback</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Enable browser-use agent fallback if Playwright automation fails for a platform. Requires API key in .env</td>
+          </tr>
+          <tr>
+            <td>--max-steps</td>
+            <td>int</td>
+            <td>50</td>
+            <td>Maximum steps for the browser-use agent during fallback. Increase for complex pages</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <h2 id="env-config">.env Configuration</h2>
+      <p>Create a <code>.env</code> file in the MultAI project root to configure optional features. MultAI loads this file automatically on startup.</p>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ANTHROPIC_API_KEY</td>
+            <td><span class="badge-small badge-opt">Optional</span></td>
+            <td>Anthropic Claude API key. Enables Claude-powered browser-use agent fallback when Playwright fails</td>
+          </tr>
+          <tr>
+            <td>GOOGLE_API_KEY</td>
+            <td><span class="badge-small badge-opt">Optional</span></td>
+            <td>Google Gemini API key. Enables Gemini-powered browser-use agent fallback</td>
+          </tr>
+          <tr>
+            <td>CDP_PORT</td>
+            <td><span class="badge-small badge-opt">Optional</span></td>
+            <td>Chrome DevTools Protocol port. Default: <code>9222</code>. Change if port is occupied</td>
+          </tr>
+          <tr>
+            <td>CDP_HOST</td>
+            <td><span class="badge-small badge-opt">Optional</span></td>
+            <td>CDP host address. Default: <code>127.0.0.1</code>. Do not change to <code>0.0.0.0</code> in production</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout callout-tip">
+        <span class="callout-icon"><i data-lucide="lightbulb"></i></span>
+        <div class="callout-body">None of these keys are required for standard MultAI operation. The platform web UIs are accessed via your existing browser sessions — no API keys needed for Claude.ai, ChatGPT, Gemini, etc.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h2 id="output-files">Output Files</h2>
+      <p>MultAI writes to two directories relative to the project root:</p>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>File / Path</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>output/YYYY-MM-DD-task-platform.md</td>
+            <td>Per-platform response file. One file per platform per run. Contains the full response wrapped in <code>&lt;untrusted_platform_response&gt;</code> tags</td>
+          </tr>
+          <tr>
+            <td>archive/YYYY-MM-DD-task-archive.md</td>
+            <td>Collated archive containing all platform responses for a run. Primary artifact for review and consolidation</td>
+          </tr>
+          <tr>
+            <td>output/status.json</td>
+            <td>Current run status. Updated in real time as each platform completes. Contains per-platform status, error messages, and timing data</td>
+          </tr>
+          <tr>
+            <td>output/agent-fallback-log.json</td>
+            <td>Log of all browser-use agent fallback events. Includes platform, error reason, steps taken, and outcome</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <h2 id="rate-limit-state">Rate Limit State</h2>
+      <p>MultAI persists rate limit tracking to disk so limits are respected across sessions:</p>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>File / Path</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>~/.chrome-playwright/rate-limit-state.json</td>
+            <td>Per-platform rate limit state. Records hit timestamp and cooldown expiry for each platform. Updated automatically after every run</td>
+          </tr>
+          <tr>
+            <td>~/.chrome-playwright/tab-state.json</td>
+            <td>Tracks the CDP tab IDs for each open platform tab. Used to reuse tabs between runs rather than opening new ones</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>To reset all rate limits and force MultAI to treat all platforms as available:</p>
+      <div class="code-block">rm ~/.chrome-playwright/rate-limit-state.json</div>
+      <p>To reset tab state (forces new tabs to be opened on next run):</p>
+      <div class="code-block">rm ~/.chrome-playwright/tab-state.json</div>
+      <p>Or use the <code>--fresh</code> flag at runtime to reset browser state without deleting files manually.</p>
+
+      <div class="page-nav-bottom">
+        <a href="../running-multai/">
+          <span class="pnb-label">Previous</span>
+          <span class="pnb-title">← Running MultAI</span>
+        </a>
+        <a href="../troubleshooting/" style="text-align:right">
+          <span class="pnb-label">Next</span>
+          <span class="pnb-title">Troubleshooting →</span>
+        </a>
+      </div>
+
+    </article>
+  </div>
+</div>
+
+<footer>
+  <div class="container-wide">
+    <div class="footer-inner">
+      <div><span style="font-weight:700;color:var(--text-secondary)">MultAI</span> Help Center</div>
+      <div style="font-size:.9rem;color:var(--text-secondary)">
+        Innovated at <a href="https://alolabs.dev" target="_blank" style="font-weight:700;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none">&#256;lo Labs</a>
+      </div>
+      <div class="footer-links">
+        <a href="../../">Home</a>
+        <a href="https://github.com/alo-exp/multai" target="_blank">GitHub</a>
+        <a href="https://github.com/alo-exp/multai/blob/main/LICENSE" target="_blank">MIT License</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="../search.js"></script>
+<script>
+  lucide.createIcons();
+  function applyTheme(d){
+    document.documentElement.setAttribute('data-theme',d?'dark':'light');
+    document.getElementById('icon-sun').style.display=d?'none':'';
+    document.getElementById('icon-moon').style.display=d?'':'none';
+    localStorage.setItem('multai-theme',d?'dark':'light');
+  }
+  function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');}
+  (function(){var s=localStorage.getItem('multai-theme');applyTheme(s?s==='dark':true);})();
+
+  (function(){
+    var links = document.querySelectorAll('.sidebar-nav a');
+    var sections = [];
+    links.forEach(function(l){
+      var id = l.getAttribute('href').replace('#','');
+      var el = document.getElementById(id);
+      if(el) sections.push({el:el,link:l});
+    });
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          links.forEach(function(l){l.classList.remove('active')});
+          sections.forEach(function(s){if(s.el===e.target) s.link.classList.add('active')});
+        }
+      });
+    },{rootMargin:'-64px 0px -60% 0px'});
+    sections.forEach(function(s){obs.observe(s.el)});
+  })();
+</script>
+</body>
+</html>
