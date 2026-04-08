@@ -35,9 +35,9 @@ Core engine: parallel 7-platform orchestration, rate limiting, agent fallback, X
 **Plans:** 7 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Test infrastructure: conftest.py MockPage, pytest/coverage config, pragma annotations
-- [ ] 01-02-PLAN.md — matrix_ops.py 100% coverage (493 statements, pure Python)
-- [ ] 01-03-PLAN.md — Non-Playwright modules: rate_limiter, engine_setup, cli, prompt_loader, status_writer, launch_report, tab_manager
+- [x] 01-01-PLAN.md — Test infrastructure: conftest.py MockPage, pytest/coverage config, pragma annotations
+- [x] 01-02-PLAN.md — matrix_ops.py 100% coverage (493 statements, pure Python)
+- [x] 01-03-PLAN.md — Non-Playwright modules: rate_limiter, engine_setup, cli, prompt_loader, status_writer, launch_report, tab_manager
 - [ ] 01-04-PLAN.md — Playwright core: base.py, browser_utils, inject_utils, agent_fallback, retry_handler
 - [ ] 01-05-PLAN.md — Platform drivers group 1: chatgpt, claude_ai, copilot, deepseek
 - [ ] 01-06-PLAN.md — Platform drivers group 2: gemini, grok, perplexity, chatgpt_extractor
