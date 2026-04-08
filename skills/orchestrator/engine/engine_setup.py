@@ -47,7 +47,7 @@ def _ensure_venv() -> None:
         return  # Already inside a venv — nothing to do
 
     venv_dir = Path(__file__).parent / ".venv"
-    if sys.platform == "win32":
+    if sys.platform == "win32":  # pragma: no cover
         venv_python = venv_dir / "Scripts" / "python.exe"
     else:
         venv_python = venv_dir / "bin" / "python3"
