@@ -1,10 +1,11 @@
 """Unit tests for config module.
 
-Tests UT-CF-01 through UT-CF-10.
+Tests UT-CF-01 through UT-CF-10 plus detect_chrome_* function coverage.
 """
 
 import sys
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 # Add engine directory to sys.path for bare imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "skills" / "orchestrator" / "engine"))
@@ -20,6 +21,8 @@ from config import (
     STATUS_NEEDS_LOGIN,
     STATUS_ICONS,
     RateLimitConfig,
+    detect_chrome_executable,
+    detect_chrome_user_data_dir,
 )
 
 
@@ -98,3 +101,88 @@ class TestConfigValues:
         assert STATUS_NEEDS_LOGIN in STATUS_ICONS, (
             "STATUS_NEEDS_LOGIN must have an icon in STATUS_ICONS"
         )
+
+
+def _load_real_config():
+    """Load the real config module directly by file path, bypassing sys.modules stubs."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_real_config",
+        str(Path(__file__).parent.parent / "skills" / "orchestrator" / "engine" / "config.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestDetectChromeFunctions:
+    """Tests for detect_chrome_executable and detect_chrome_user_data_dir (lines 12-22, 29-37)."""
+
+    def test_detect_chrome_executable_darwin(self):
+        """Returns macOS Chrome path on Darwin."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Darwin"):
+            result = _cfg_mod.detect_chrome_executable()
+        assert "Google Chrome" in result
+        assert result.endswith("Google Chrome")
+
+    def test_detect_chrome_executable_linux_found(self):
+        """Returns first found Linux Chrome binary."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Linux"), \
+             patch.object(_cfg_mod.Path, "exists", return_value=True):
+            result = _cfg_mod.detect_chrome_executable()
+        assert "google-chrome" in result or "chromium" in result
+
+    def test_detect_chrome_executable_linux_not_found(self):
+        """Falls back to 'google-chrome' when no binary found on Linux."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Linux"), \
+             patch.object(_cfg_mod.Path, "exists", return_value=False):
+            result = _cfg_mod.detect_chrome_executable()
+        assert result == "google-chrome"
+
+    def test_detect_chrome_executable_windows(self):
+        """Returns Windows Chrome path on Windows."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Windows"):
+            result = _cfg_mod.detect_chrome_executable()
+        assert "chrome.exe" in result
+
+    def test_detect_chrome_executable_unknown(self):
+        """Falls back to 'google-chrome' on unknown platform."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="FreeBSD"):
+            result = _cfg_mod.detect_chrome_executable()
+        assert result == "google-chrome"
+
+    def test_detect_chrome_user_data_dir_darwin(self):
+        """Returns macOS Chrome user data dir on Darwin."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Darwin"):
+            result = _cfg_mod.detect_chrome_user_data_dir()
+        assert "Library" in result
+        assert "Google" in result
+        assert "Chrome" in result
+
+    def test_detect_chrome_user_data_dir_linux(self):
+        """Returns Linux Chrome user data dir."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Linux"):
+            result = _cfg_mod.detect_chrome_user_data_dir()
+        assert "google-chrome" in result
+
+    def test_detect_chrome_user_data_dir_windows(self):
+        """Returns Windows Chrome user data dir."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="Windows"):
+            result = _cfg_mod.detect_chrome_user_data_dir()
+        assert "Chrome" in result
+        assert "User Data" in result
+
+    def test_detect_chrome_user_data_dir_unknown(self):
+        """Falls back to ~/.config/google-chrome on unknown platform."""
+        _cfg_mod = _load_real_config()
+        with patch.object(_cfg_mod._platform, "system", return_value="FreeBSD"):
+            result = _cfg_mod.detect_chrome_user_data_dir()
+        assert "google-chrome" in result

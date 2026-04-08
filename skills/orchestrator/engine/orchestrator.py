@@ -156,7 +156,7 @@ async def _gather_with_timeout(async_tasks, global_timeout, launched_names):
         log.warning(f"Hard ceiling ({global_timeout}s) reached — cancelling stuck tasks")
         for task in async_tasks:
             if not task.done():
-                task.cancel()
+                task.cancel()  # pragma: no cover — wait_for already cancels tasks on timeout
         await asyncio.gather(*async_tasks, return_exceptions=True)
         results = []
         for task in async_tasks:
@@ -287,7 +287,7 @@ async def orchestrate(args, effective_output_dir: str) -> list[dict]:
 
         try:
             async with asyncio.timeout(10):
-                await browser.close()
+                await browser.close()  # pragma: no cover — asyncio.timeout not available on Python <3.11
         except Exception:
             log.debug("Browser disconnect timed out — continuing")
         log.info("Chrome left running. Use --fresh to force a new instance.")

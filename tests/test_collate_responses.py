@@ -9,6 +9,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 # Add engine directory to sys.path for bare imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "skills" / "orchestrator" / "engine"))
 
@@ -120,3 +122,93 @@ class TestCollate:
         assert "2026-03-15 21:28" in content, (
             "Timestamp from status.json should be formatted in archive header"
         )
+
+    def test_ut_cr_10_invalid_status_json_graceful(self):
+        """Lines 72-73: Invalid status.json is handled gracefully — archive still created."""
+        tmpdir = _setup_tmpdir_with_fixtures()
+        # Overwrite status.json with invalid content
+        (Path(tmpdir) / "status.json").write_text("NOT VALID JSON {{{", encoding="utf-8")
+        result = collate(tmpdir, "Test Task")
+        assert result is not None, "Should still create archive even with corrupt status.json"
+        assert result.exists()
+
+    def test_ut_cr_11_invalid_timestamp_falls_back(self):
+        """Lines 79-80: Non-ISO timestamp in status.json falls back to raw string."""
+        tmpdir = _setup_tmpdir_with_fixtures()
+        import json as _json
+        status = _json.loads((Path(tmpdir) / "status.json").read_text())
+        status["timestamp"] = "NOT_A_TIMESTAMP"
+        (Path(tmpdir) / "status.json").write_text(_json.dumps(status))
+        result = collate(tmpdir, "Test Task")
+        content = result.read_text(encoding="utf-8")
+        assert "NOT_A_TIMESTAMP" in content
+
+    def test_ut_cr_12_file_read_error_shown_in_archive(self):
+        """Lines 111-112: Unreadable response file — error message appears in archive."""
+        tmpdir = _setup_tmpdir_with_fixtures()
+        # Patch Path.read_text to raise only for raw-response.md files
+        from unittest.mock import patch
+        original_read = Path.read_text
+
+        def patched_read(self, *args, **kw):
+            if "raw-response" in str(self):
+                raise OSError("permission denied")
+            return original_read(self, *args, **kw)
+
+        with patch.object(Path, "read_text", patched_read):
+            result = collate(tmpdir, "Test Task")
+
+        content = result.read_text(encoding="utf-8")
+        assert "ERROR reading file" in content
+
+    def test_ut_cr_13_non_complete_status_shown_in_meta(self):
+        """Line 126: Platform with non-complete status shows status in metadata."""
+        import json as _json
+        tmpdir = _setup_tmpdir_with_fixtures()
+        status = _json.loads((Path(tmpdir) / "status.json").read_text())
+        # Set Claude.ai status to "timeout"
+        for plat in status.get("platforms", []):
+            if "Claude.ai" in plat.get("file", ""):
+                plat["status"] = "timeout"
+                break
+        (Path(tmpdir) / "status.json").write_text(_json.dumps(status))
+        result = collate(tmpdir, "Test Task")
+        content = result.read_text(encoding="utf-8")
+        assert "status: timeout" in content
+
+
+class TestCollateMain:
+    """Tests for collate_responses.main() — lines 173-181."""
+
+    def test_main_no_args_exits_1(self):
+        """Lines 173-175: main() with no args prints usage and exits 1."""
+        import sys
+        from unittest.mock import patch
+        from collate_responses import main
+        with patch.object(sys, "argv", ["collate_responses.py"]), \
+             pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+    def test_main_with_empty_dir_exits_1(self, tmp_path):
+        """Lines 176-181: main() with empty dir exits 1 (no raw files)."""
+        import sys
+        from unittest.mock import patch
+        from collate_responses import main
+        with patch.object(sys, "argv", ["collate_responses.py", str(tmp_path)]), \
+             pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+    def test_main_with_valid_dir_exits_0(self, tmp_path):
+        """Lines 176-181: main() with valid dir exits 0."""
+        import sys, shutil
+        from unittest.mock import patch
+        from collate_responses import main
+        # Set up a valid directory
+        for fname in _RAW_FILES:
+            shutil.copy2(str(FIXTURES / fname), str(tmp_path / fname))
+        with patch.object(sys, "argv", ["collate_responses.py", str(tmp_path), "My Task"]), \
+             pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0

@@ -58,7 +58,8 @@ jobs:
             --cov=skills/orchestrator/engine \
             --cov=skills/comparator \
             --cov=skills/landscape-researcher \
-            --cov-report=term-missing
+            --cov-report=term-missing \
+            --cov-fail-under=100
 
       - name: Regression checks
         run: |

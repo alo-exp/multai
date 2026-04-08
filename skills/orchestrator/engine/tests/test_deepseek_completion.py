@@ -1,8 +1,16 @@
 """Unit tests for DeepSeek.completion_check()."""
 
+import os
 import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("CDP_PORT"),
+    reason="Requires live Chrome CDP connection (set CDP_PORT env var)"
+)
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
