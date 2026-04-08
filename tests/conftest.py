@@ -158,11 +158,17 @@ def install_stubs(platform_name, url):
     bu.BrowserSession = MagicMock
     sys.modules["browser_use"] = bu
 
-    # platforms package — point __path__ at real directory so submodules load
+    # platforms package — reuse existing if already a real package (has __path__)
+    # to preserve submodule attributes already set (e.g. platforms.chatgpt_extractor).
     platforms_path = os.path.join(ENGINE_DIR, "platforms")
-    mock_platforms = types.ModuleType("platforms")
-    mock_platforms.__path__ = [platforms_path]
-    mock_platforms.__package__ = "platforms"
+    existing_platforms = sys.modules.get("platforms")
+    if existing_platforms is not None and hasattr(existing_platforms, "__path__"):
+        mock_platforms = existing_platforms
+    else:
+        mock_platforms = types.ModuleType("platforms")
+        mock_platforms.__path__ = [platforms_path]
+        mock_platforms.__package__ = "platforms"
+        sys.modules["platforms"] = mock_platforms
     mock_platforms.ALL_PLATFORMS = {
         "claude_ai": MagicMock(),
         "chatgpt": MagicMock(),
@@ -172,6 +178,5 @@ def install_stubs(platform_name, url):
         "deepseek": MagicMock(),
         "gemini": MagicMock(),
     }
-    sys.modules["platforms"] = mock_platforms
 
     return config

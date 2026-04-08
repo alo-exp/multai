@@ -39,7 +39,17 @@ def _import_cli():
         if mod_name not in sys.modules:
             sys.modules[mod_name] = types.ModuleType(mod_name)
 
-    mock_platforms = types.ModuleType("platforms")
+    import os
+    # Reuse existing platforms package if it already has __path__ to avoid
+    # breaking submodule attribute lookups in concurrent test files.
+    existing_platforms = sys.modules.get("platforms")
+    if existing_platforms is None or not hasattr(existing_platforms, "__path__"):
+        mock_platforms = types.ModuleType("platforms")
+        mock_platforms.__path__ = [os.path.join(ENGINE_DIR, "platforms")]
+        mock_platforms.__package__ = "platforms"
+        sys.modules["platforms"] = mock_platforms
+    else:
+        mock_platforms = existing_platforms
     mock_platforms.ALL_PLATFORMS = {
         "claude_ai": unittest.mock.MagicMock(),
         "chatgpt": unittest.mock.MagicMock(),
@@ -49,7 +59,6 @@ def _import_cli():
         "deepseek": unittest.mock.MagicMock(),
         "gemini": unittest.mock.MagicMock(),
     }
-    sys.modules["platforms"] = mock_platforms
 
     # config.py, rate_limiter, prompt_loader are real modules in ENGINE_DIR —
     # don't stub them; sys.path already points there so they import fine.
