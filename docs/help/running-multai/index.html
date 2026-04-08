@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Running MultAI — MultAI Help</title>
+<meta name="description" content="The end-to-end workflow for running MultAI — invoke /multai, select platforms and mode, read the collated archive, and consolidate results.">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="shortcut icon" href="../../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+:root{
+  --bg-page:#f3f4f6;--bg-card:#ffffff;--bg-card-hover:#eeeff2;--bg-code:#e9eaed;
+  --bg-hero:linear-gradient(160deg,#c0c6cf 0%,#d4dae3 18%,#e8eaee 38%,#eceef2 52%,#e0e4e9 68%,#d0d5dc 84%,#c4c9d1 100%);
+  --chrome-gradient:linear-gradient(135deg,#374151 0%,#7a8ea0 28%,#d4dce6 50%,#7a8ea0 72%,#374151 100%);
+  --accent:#374151;--accent-light:#6b7280;--accent-glow:rgba(107,114,128,.1);
+  --accent2:#4b5563;--accent3:#6b7280;
+  --green:#059669;--amber:#d97706;--red:#dc2626;--cyan:#0891b2;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-dim:#94a3b8;
+  --border:#d1d5db;--border-hover:#9ca3af;
+  --radius:12px;--radius-lg:20px;--radius-sm:8px;
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.08);
+  --nav-bg:rgba(243,244,246,.9);--nav-mobile-bg:rgba(243,244,246,.98);
+  --section-alt:rgba(236,238,242,.6);--table-row-hover:rgba(107,114,128,.03);
+  --skill-phase-border:rgba(209,213,219,.8);
+}
+[data-theme="dark"]{
+  --bg-page:#0c0c0e;--bg-card:#161618;--bg-card-hover:#1e1e21;--bg-code:#1a1a1d;
+  --bg-hero:linear-gradient(160deg,#060608 0%,#0a0a0e 28%,#0f1013 50%,#111316 65%,#0c0d10 82%,#070709 100%);
+  --chrome-gradient:linear-gradient(135deg,#6b7280 0%,#a4b4c2 28%,#dce6ee 50%,#a4b4c2 72%,#6b7280 100%);
+  --accent:#9ca3af;--accent-light:#c8d2da;--accent-glow:rgba(156,163,175,.15);
+  --accent2:#8fa0ad;--accent3:#b0bec8;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#22d3ee;
+  --text-primary:#e8eaed;--text-secondary:#9ca3af;--text-dim:#6b7280;
+  --border:#26262a;--border-hover:#38383e;
+  --shadow-lg:0 20px 60px rgba(0,0,0,.5);
+  --nav-bg:rgba(12,12,14,.88);--nav-mobile-bg:rgba(12,12,14,.97);
+  --section-alt:rgba(20,20,23,.5);--table-row-hover:rgba(156,163,175,.03);
+  --skill-phase-border:rgba(38,38,42,.6);
+}
+body{font-family:var(--font-sans);background:var(--bg-page);color:var(--text-primary);line-height:1.6}
+body,nav{transition:background .25s,background-color .25s,border-color .25s,color .25s}
+.container{max-width:860px;margin:0 auto;padding:0 24px}
+.container-wide{max-width:1100px;margin:0 auto;padding:0 24px}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 24px}
+nav .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{font-weight:800;font-size:1rem;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;letter-spacing:-.02em}
+.nav-breadcrumb{font-size:.85rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px}
+.nav-breadcrumb a{color:var(--text-secondary);text-decoration:none}
+.nav-breadcrumb a:hover{color:var(--accent-light)}
+.nav-breadcrumb .sep{color:var(--text-dim)}
+.nav-right{display:flex;align-items:center;gap:16px}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text-secondary);font-size:.9rem;transition:all .2s}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent-light)}
+
+.nav-search-wrap{position:relative}
+.nav-search-input{width:180px;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:var(--bg-code);color:var(--text-primary);font-size:.82rem;font-family:var(--font-sans);outline:none;transition:border-color .2s,width .2s}
+.nav-search-input:focus{border-color:var(--accent);width:240px}
+.nav-search-input::placeholder{color:var(--text-dim)}
+.nav-search-results{position:absolute;top:calc(100% + 8px);right:0;width:340px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.12);z-index:200;max-height:420px;overflow-y:auto;display:none}
+.nav-search-results.open{display:block}
+.nsr-item{display:flex;flex-direction:column;gap:3px;padding:12px 16px;text-decoration:none;border-bottom:1px solid var(--border);transition:background .15s;color:inherit}
+.nsr-item:last-child{border-bottom:none}
+.nsr-item:hover,.nsr-item.nsr-active{background:var(--bg-code)}
+.nsr-page{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-light)}
+.nsr-title{font-size:.88rem;font-weight:600;color:var(--text-primary)}
+.nsr-excerpt{font-size:.78rem;color:var(--text-dim);line-height:1.4}
+@media(max-width:768px){.nav-search-wrap{display:none}}
+
+.page-hero{background:var(--bg-hero);padding:120px 24px 64px;position:relative;overflow:hidden}
+.breadcrumb-nav{font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.breadcrumb-nav a{color:var(--text-dim);text-decoration:none}.breadcrumb-nav a:hover{color:var(--accent-light)}
+.breadcrumb-nav span{color:var(--text-dim)}
+.page-hero h1{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;letter-spacing:-.04em;margin-bottom:16px}
+.page-hero p{font-size:1rem;color:var(--text-secondary);max-width:560px;line-height:1.7}
+
+.doc-layout{display:grid;grid-template-columns:220px 1fr;gap:48px;padding:56px 0 80px}
+@media(max-width:768px){.doc-layout{grid-template-columns:1fr}.doc-sidebar{display:none}}
+.doc-sidebar{position:sticky;top:88px;height:fit-content}
+.sidebar-nav{list-style:none;padding:0;display:flex;flex-direction:column;gap:2px}
+.sidebar-section{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:16px 12px 6px;margin-top:8px}
+.sidebar-nav a{display:block;padding:7px 12px;border-radius:var(--radius-sm);font-size:.85rem;color:var(--text-secondary);text-decoration:none;transition:all .2s}
+.sidebar-nav a:hover{background:var(--bg-code);color:var(--text-primary)}
+.sidebar-nav a.active{background:var(--bg-code);color:var(--accent-light);font-weight:600}
+
+.doc-content h2{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin:48px 0 16px;padding-top:8px}
+.doc-content h2:first-child{margin-top:0}
+.doc-content h3{font-size:1.05rem;font-weight:700;margin:28px 0 10px}
+.doc-content p{font-size:.95rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px}
+.doc-content ul,.doc-content ol{padding-left:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:6px}
+.doc-content li{font-size:.9rem;color:var(--text-secondary);line-height:1.7}
+.doc-content code{font-family:var(--font-mono);font-size:.82em;background:var(--bg-code);padding:2px 6px;border-radius:4px;color:var(--text-primary)}
+
+.callout{display:flex;gap:14px;padding:18px 20px;border-radius:var(--radius);margin:20px 0;border:1px solid}
+.callout-info{background:rgba(107,114,128,.06);border-color:rgba(107,114,128,.2)}
+.callout-tip{background:rgba(5,150,105,.06);border-color:rgba(5,150,105,.2)}
+.callout-warn{background:rgba(220,38,38,.05);border-color:rgba(220,38,38,.18)}
+.callout-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.callout-body{font-size:.9rem;color:var(--text-secondary);line-height:1.7}
+.callout-body strong{color:var(--text-primary)}
+
+.code-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:6px}
+.code-block{font-family:var(--font-mono);font-size:.82rem;background:var(--bg-code);padding:20px 24px;border-radius:var(--radius);overflow-x:auto;white-space:pre-wrap;margin-bottom:20px;line-height:1.6}
+.divider{height:1px;background:var(--border);margin:36px 0}
+
+.step-list{list-style:none;padding:0;display:flex;flex-direction:column;gap:20px;margin-bottom:24px}
+.step-list li{display:flex;gap:16px;align-items:flex-start}
+.step-num{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+[data-theme="dark"] .step-num{background:var(--accent-light);color:var(--bg-page)}
+.step-body{font-size:.9rem;color:var(--text-secondary);line-height:1.7;padding-top:4px}
+.step-body strong{color:var(--text-primary)}
+
+.page-nav-bottom{display:flex;justify-content:space-between;margin-top:56px;padding-top:32px;border-top:1px solid var(--border)}
+.page-nav-bottom a{display:flex;flex-direction:column;gap:4px;max-width:220px;text-decoration:none}
+.pnb-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)}
+.pnb-title{font-size:.95rem;font-weight:700;color:var(--accent-light)}
+
+footer{padding:40px 0;border-top:1px solid var(--border)}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.footer-links{display:flex;gap:20px}
+.footer-links a{font-size:.875rem;color:var(--text-dim);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--text-secondary)}
+
+svg.lucide{width:16px;height:16px;display:inline-block;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:16px">
+      <a href="../../" class="nav-logo">MultAI</a>
+      <span class="nav-breadcrumb"><span class="sep">/</span> <a href="../">Help</a> <span class="sep">/</span> <span>Running MultAI</span></span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-search-wrap">
+        <input type="text" class="nav-search-input" id="nav-search-input" placeholder="Search docs…" autocomplete="off">
+        <div class="nav-search-results" id="nav-search-results"></div>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" aria-label="Toggle theme" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0">
+        <span id="icon-sun" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        <span id="icon-moon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+      <a href="../../">Home</a><span>/</span><a href="../">Help</a><span>/</span><span>Running MultAI</span>
+    </nav>
+    <h1>Running MultAI</h1>
+    <p>The end-to-end workflow — how to invoke <code>/multai</code>, select platforms, choose a mode, and make sense of the collated output.</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <ul class="sidebar-nav">
+        <li class="sidebar-section">Workflow</li>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#invoke">Invoking /multai</a></li>
+        <li class="sidebar-section">Options</li>
+        <li><a href="#platforms-flag">Platform selection</a></li>
+        <li><a href="#mode-flag">Choosing a mode</a></li>
+        <li class="sidebar-section">Output</li>
+        <li><a href="#output">Reading the output</a></li>
+        <li><a href="#cowork">Cowork path</a></li>
+        <li><a href="#consolidator">Consolidating results</a></li>
+      </ul>
+    </aside>
+
+    <article class="doc-content">
+
+      <h2 id="overview">Overview</h2>
+      <p>A MultAI run has three phases:</p>
+      <ol>
+        <li><strong>Invoke</strong> — type <code>/multai</code> in Claude Code, provide your prompt, select platforms and mode</li>
+        <li><strong>Execute</strong> — the orchestrator submits your prompt to each selected platform and waits for responses</li>
+        <li><strong>Review</strong> — read the collated archive, optionally run <code>/consolidator</code> to synthesize findings</li>
+      </ol>
+      <p>There are two execution paths depending on where you invoke MultAI. In the <strong>Claude Code tab</strong> all platforms run in parallel via the Python orchestrator. In the <strong>Cowork tab</strong> platforms run sequentially via Claude-in-Chrome browser tools.</p>
+      <p>A typical REGULAR-mode run takes 2–5 minutes. A DEEP-mode run with all platforms can take 15–30 minutes for the platforms that support Deep Research.</p>
+
+      <div class="divider"></div>
+
+      <h2 id="invoke">Invoking /multai</h2>
+      <p>Type <code>/multai</code> in the Claude Code chat input. The skill automatically detects which runtime you're in (Code tab or Cowork tab) and routes accordingly.</p>
+      <p>You can pass your prompt inline or from a file:</p>
+      <div class="code-label">Inline prompt</div>
+      <div class="code-block">/multai --prompt "What are the key differences between RAG and fine-tuning?"</div>
+      <div class="code-label">Prompt from file</div>
+      <div class="code-block">/multai --prompt-file ./my-research-question.txt</div>
+      <p>If you invoke <code>/multai</code> without arguments, the skill will prompt you interactively for the query, mode, and platform selection.</p>
+      <div class="callout callout-info">
+        <span class="callout-icon"><i data-lucide="info"></i></span>
+        <div class="callout-body"><strong>Phase 0 detection:</strong> MultAI reads the Claude Code runtime environment to determine whether it's running in the Code tab (Playwright path) or Cowork tab (MCP path). You don't need to specify which — it detects automatically.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h2 id="platforms-flag">Platform Selection</h2>
+      <p>By default MultAI runs all 7 platforms. Use <code>--platforms</code> to run a subset:</p>
+      <div class="code-label">Run three platforms</div>
+      <div class="code-block">/multai --platforms claude chatgpt gemini --prompt "Explain transformer attention"</div>
+      <div class="code-label">Run a single platform</div>
+      <div class="code-block">/multai --platforms deepseek --prompt "Explain transformer attention"</div>
+      <p>Platform identifiers (case-insensitive):</p>
+      <ul>
+        <li><code>claude</code> — Claude.ai</li>
+        <li><code>chatgpt</code> — ChatGPT</li>
+        <li><code>gemini</code> — Google Gemini</li>
+        <li><code>grok</code> — Grok (xAI)</li>
+        <li><code>deepseek</code> — DeepSeek</li>
+        <li><code>perplexity</code> — Perplexity</li>
+        <li><code>copilot</code> — Microsoft Copilot</li>
+      </ul>
+      <p>Multiple identifiers are space-separated. Omit the flag entirely to run all 7.</p>
+
+      <div class="divider"></div>
+
+      <h2 id="mode-flag">Choosing a Mode</h2>
+      <p>Pass <code>--mode REGULAR</code> (default) or <code>--mode DEEP</code>:</p>
+      <div class="code-label">DEEP mode</div>
+      <div class="code-block">/multai --mode DEEP --prompt "Analyze the state of quantum computing in 2026"</div>
+      <h3>REGULAR mode (default)</h3>
+      <p>Submits the prompt as a standard chat message. Fast — typical response time is 30 seconds to 3 minutes per platform. Runs all 7 platforms in parallel (Code tab) in under 5 minutes total.</p>
+      <h3>DEEP mode</h3>
+      <p>Activates extended research features on supported platforms:</p>
+      <ul>
+        <li><strong>ChatGPT</strong> — Deep Research (web search + synthesis, 5–20 min)</li>
+        <li><strong>Gemini</strong> — Deep Research (Google Search + synthesis, 5–15 min)</li>
+        <li><strong>DeepSeek</strong> — DeepThink extended reasoning</li>
+        <li>Other platforms — receive REGULAR mode prompt (no DEEP support)</li>
+      </ul>
+      <div class="callout callout-warn">
+        <span class="callout-icon"><i data-lucide="alert-triangle"></i></span>
+        <div class="callout-body"><strong>DEEP mode quotas:</strong> ChatGPT Deep Research has a daily usage limit. Gemini Deep Research has a monthly cap. If your quota is exhausted, those platforms are automatically skipped. Use REGULAR mode to avoid consuming quota.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h2 id="output">Reading the Output</h2>
+      <p>MultAI writes output to two locations in your project directory:</p>
+      <h3>Per-platform files — <code>output/</code></h3>
+      <p>One markdown file per platform, named <code>YYYY-MM-DD-task-name-platform.md</code>. Each file contains the full platform response wrapped in <code>&lt;untrusted_platform_response&gt;</code> XML tags.</p>
+      <h3>Collated archive — <code>archive/</code></h3>
+      <p>After all platforms complete, all per-platform files are merged into a single archive file: <code>YYYY-MM-DD-task-name-archive.md</code>. This is the primary file to read — it contains all 7 responses in order.</p>
+      <p>The task name comes from the <code>--task-name</code> flag, or is derived from the first few words of your prompt if not specified:</p>
+      <div class="code-label">Custom task name</div>
+      <div class="code-block">/multai --task-name "quantum-computing-2026" --prompt "Analyze quantum computing..."</div>
+
+      <div class="divider"></div>
+
+      <h2 id="cowork">Cowork Path</h2>
+      <p>When MultAI is invoked from a Claude Cowork tab, it uses a completely different execution path — instead of Playwright, it uses <strong>Claude-in-Chrome MCP browser tools</strong> to navigate each platform's UI.</p>
+      <p>Key differences in Cowork mode:</p>
+      <ul>
+        <li>Platforms run <strong>sequentially</strong> — one at a time, in order</li>
+        <li>No Python or Playwright required on the local machine</li>
+        <li>Requires the <strong>Claude-in-Chrome browser extension</strong> installed and connected</li>
+        <li>Slower overall — sequential means total time = sum of all platform times</li>
+        <li>More resilient — Claude reads the screen directly, not CSS selectors</li>
+      </ul>
+      <div class="callout callout-tip">
+        <span class="callout-icon"><i data-lucide="lightbulb"></i></span>
+        <div class="callout-body">Cowork mode is the easiest way to use MultAI if you don't want to set up the Python environment. Install the Claude-in-Chrome extension, open a Cowork tab, and run <code>/multai</code>.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h2 id="consolidator">Consolidating Results</h2>
+      <p>After MultAI finishes, invoke <code>/consolidator</code> to synthesize all platform responses into a single structured intelligence report:</p>
+      <div class="code-block">/consolidator</div>
+      <p>The consolidator reads the archive file and produces a report that:</p>
+      <ul>
+        <li>Identifies points of consensus across platforms</li>
+        <li>Highlights divergences and platform-specific insights</li>
+        <li>Surfaces unique information that only one or two platforms provided</li>
+        <li>Assigns confidence levels based on cross-platform agreement</li>
+      </ul>
+      <p>The consolidated report is the recommended end artifact for research tasks — it distills 7 responses into one authoritative synthesis.</p>
+
+      <div class="page-nav-bottom">
+        <a href="../concepts/">
+          <span class="pnb-label">Previous</span>
+          <span class="pnb-title">← Core Concepts</span>
+        </a>
+        <a href="../reference/" style="text-align:right">
+          <span class="pnb-label">Next</span>
+          <span class="pnb-title">Reference →</span>
+        </a>
+      </div>
+
+    </article>
+  </div>
+</div>
+
+<footer>
+  <div class="container-wide">
+    <div class="footer-inner">
+      <div><span style="font-weight:700;color:var(--text-secondary)">MultAI</span> Help Center</div>
+      <div style="font-size:.9rem;color:var(--text-secondary)">
+        Innovated at <a href="https://alolabs.dev" target="_blank" style="font-weight:700;background:var(--chrome-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none">&#256;lo Labs</a>
+      </div>
+      <div class="footer-links">
+        <a href="../../">Home</a>
+        <a href="https://github.com/alo-exp/multai" target="_blank">GitHub</a>
+        <a href="https://github.com/alo-exp/multai/blob/main/LICENSE" target="_blank">MIT License</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="../search.js"></script>
+<script>
+  lucide.createIcons();
+  function applyTheme(d){
+    document.documentElement.setAttribute('data-theme',d?'dark':'light');
+    document.getElementById('icon-sun').style.display=d?'none':'';
+    document.getElementById('icon-moon').style.display=d?'':'none';
+    localStorage.setItem('multai-theme',d?'dark':'light');
+  }
+  function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');}
+  (function(){var s=localStorage.getItem('multai-theme');applyTheme(s?s==='dark':true);})();
+
+  (function(){
+    var links = document.querySelectorAll('.sidebar-nav a');
+    var sections = [];
+    links.forEach(function(l){
+      var id = l.getAttribute('href').replace('#','');
+      var el = document.getElementById(id);
+      if(el) sections.push({el:el,link:l});
+    });
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          links.forEach(function(l){l.classList.remove('active')});
+          sections.forEach(function(s){if(s.el===e.target) s.link.classList.add('active')});
+        }
+      });
+    },{rootMargin:'-64px 0px -60% 0px'});
+    sections.forEach(function(s){obs.observe(s.el)});
+  })();
+</script>
+</body>
+</html>
