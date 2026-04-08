@@ -496,8 +496,8 @@ class TestRunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             result = await platform.run(page, "prompt", "REGULAR", tmp)
-        # [RATE LIMITED] is treated as a valid response (not FAILED)
-        self.assertNotEqual(result.status, "failed")
+        # [RATE LIMITED] passes the length check → stored as complete
+        self.assertEqual(result.status, "complete")
 
 
 class TestPollCompletion(unittest.IsolatedAsyncioTestCase):

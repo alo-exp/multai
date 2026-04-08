@@ -286,8 +286,7 @@ async def orchestrate(args, effective_output_dir: str) -> list[dict]:
         )
 
         try:
-            async with asyncio.timeout(10):
-                await browser.close()  # pragma: no cover — asyncio.timeout not available on Python <3.11
+            await asyncio.wait_for(browser.close(), timeout=10)
         except Exception:
             log.debug("Browser disconnect timed out — continuing")
         log.info("Chrome left running. Use --fresh to force a new instance.")

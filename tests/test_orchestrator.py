@@ -418,7 +418,10 @@ class TestOrchestrate:
 
         fake_results = [{"platform": "claude_ai", "status": "complete"}, {"platform": "chatgpt", "status": "complete"}]
 
-        with patch("orchestrator._launch_chrome", new=AsyncMock(return_value=(MagicMock(), MagicMock(), None))), \
+        browser_mock = MagicMock()
+        browser_mock.close = AsyncMock()
+
+        with patch("orchestrator._launch_chrome", new=AsyncMock(return_value=(browser_mock, MagicMock(), None))), \
              patch("orchestrator._run_all_platforms", new=AsyncMock(return_value=fake_results)), \
              patch("orchestrator._ensure_playwright_data_dir", return_value="/tmp/pw-data"), \
              patch("orchestrator.async_playwright") as mock_apw, \
@@ -429,15 +432,7 @@ class TestOrchestrate:
             cm.__aexit__ = AsyncMock(return_value=False)
             mock_apw.return_value = cm
 
-            browser_mock = MagicMock()
-            browser_mock.close = AsyncMock()
-
-            async def fake_run_all(*a, **kw):
-                return fake_results
-
-            with patch("orchestrator._launch_chrome", new=AsyncMock(return_value=(browser_mock, MagicMock(), None))), \
-                 patch("orchestrator._run_all_platforms", new=AsyncMock(return_value=fake_results)):
-                results = await orch.orchestrate(args, "/tmp/test-out")
+            results = await orch.orchestrate(args, "/tmp/test-out")
 
         assert len(results) == 2
 
