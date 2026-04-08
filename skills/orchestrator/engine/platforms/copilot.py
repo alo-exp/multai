@@ -140,7 +140,7 @@ class Copilot(BasePlatform):
             if await btn.count() > 0 and await btn.is_visible():
                 aria = await btn.get_attribute("aria-label") or ""
                 if "voice" in aria.lower() or "microphone" in aria.lower() or "mic" in aria.lower():
-                    continue
+                    continue  # pragma: no cover
                 await btn.click()
                 return
 

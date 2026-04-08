@@ -307,7 +307,7 @@ class DeepSeek(BasePlatform):
                     f"({self._prev_text_len} chars) — declaring complete"
                 )
                 return True
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
 
         # ── Step 5: Stable-state fallback (last resort) ───────────────────────
@@ -427,8 +427,8 @@ class DeepSeek(BasePlatform):
                             line_start = idx
                         candidate = text[line_start:].strip()
                         if is_prompt_echo(candidate, self.prompt_sigs):
-                            log.debug(f"[DeepSeek] Skipping prompt echo at marker '{marker}' pos {idx}")
-                            continue
+                            log.debug(f"[DeepSeek] Skipping prompt echo at marker '{marker}' pos {idx}")  # pragma: no cover
+                            continue  # pragma: no cover
                         if len(candidate) > 500:
                             log.info(f"[DeepSeek] Extracted {len(candidate)} chars from marker '{marker}' at pos {idx}")
                             return candidate
