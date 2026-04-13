@@ -6,6 +6,12 @@
       "runtimeExecutable": "/opt/homebrew/bin/python3.13",
       "runtimeArgs": ["reports/serve.py"],
       "autoPort": true
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "/opt/homebrew/bin/python3.13",
+      "runtimeArgs": ["-m", "http.server", "8788", "--directory", "docs"],
+      "port": 8788
     }
   ]
 }
