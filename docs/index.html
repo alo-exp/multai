@@ -21,7 +21,7 @@
 <meta name="twitter:image" content="https://multai.alolabs.dev/assets/og/og-main.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ───── RESET ───── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -54,7 +54,7 @@ html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
   --font-heading:'Space Grotesk',system-ui,sans-serif;
   --font-body:'Plus Jakarta Sans',system-ui,sans-serif;
   --font-sans:var(--font-body);
-  --font-mono:'Fira Code',monospace;
+  --font-mono:'Roboto Mono',monospace;
   --shadow-lg:0 20px 60px rgba(0,0,0,.08);
   --shadow-glow:0 0 40px rgba(99,102,241,.06);
   --nav-bg:rgba(248,249,252,.9);
@@ -153,7 +153,7 @@ nav .nav-links a{
 nav .nav-links a:hover{color:var(--text-primary)}
 nav .nav-cta{
   background:var(--accent);color:#fff;padding:8px 20px;border-radius:999px;
-  font-size:.8rem;font-weight:600;text-decoration:none;
+  font-size:.9rem;font-weight:600;text-decoration:none;
   transition:all .2s;border:none;cursor:pointer;
 }
 nav .nav-cta:hover{background:var(--accent-light);box-shadow:0 0 20px rgba(99,102,241,.3)}
@@ -189,7 +189,7 @@ nav .nav-cta:hover{background:var(--accent-light);box-shadow:0 0 20px rgba(99,10
 .hero .version-badge{
   display:inline-flex;align-items:center;gap:8px;
   background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);
-  border-radius:999px;padding:6px 16px;font-size:.8rem;
+  border-radius:999px;padding:6px 16px;font-size:.9rem;
   color:var(--accent-light);font-weight:500;margin-bottom:24px;
 }
 .hero .version-badge .dot{
@@ -234,7 +234,7 @@ nav .nav-cta:hover{background:var(--accent-light);box-shadow:0 0 20px rgba(99,10
 .arch-diagram{
   background:var(--bg-code);border:1px solid var(--border);
   border-radius:var(--radius);padding:32px;
-  font-family:var(--font-mono);font-size:.8rem;
+  font-family:var(--font-mono);font-size:.9rem;
   line-height:1.8;color:var(--text-secondary);
   overflow-x:auto;white-space:pre;
   max-width:700px;margin:0 auto;
@@ -332,7 +332,7 @@ section:nth-child(even){background:var(--section-alt)}
   display:flex;align-items:center;justify-content:center;
   font-family:var(--font-mono);
 }
-.phase-text{font-size:.8rem;color:var(--text-secondary);padding-top:3px}
+.phase-text{font-size:.9rem;color:var(--text-secondary);padding-top:3px}
 
 /* ───── INSTALL SECTION ───── */
 .install-block{
@@ -345,7 +345,7 @@ section:nth-child(even){background:var(--section-alt)}
 }
 .install-tab{
   flex:1;padding:12px 20px;text-align:center;
-  font-size:.8rem;font-weight:600;color:var(--text-dim);
+  font-size:.9rem;font-weight:600;color:var(--text-dim);
   background:none;border:none;cursor:pointer;
   transition:all .2s;position:relative;
 }
@@ -355,7 +355,7 @@ section:nth-child(even){background:var(--section-alt)}
   height:2px;background:var(--accent);border-radius:2px;
 }
 .install-code{
-  padding:24px;font-family:var(--font-mono);font-size:.82rem;
+  padding:24px;font-family:var(--font-mono);font-size:.9rem;
   line-height:2;color:var(--text-secondary);display:none;
 }
 .install-code.active{display:block}
@@ -387,7 +387,7 @@ section:nth-child(even){background:var(--section-alt)}
   display:flex;align-items:center;justify-content:center;
 }
 .flow-step h4{font-size:.95rem;font-weight:700;margin-bottom:6px}
-.flow-step p{font-size:.8rem;color:var(--text-secondary)}
+.flow-step p{font-size:.9rem;color:var(--text-secondary)}
 
 /* ───── COMPARISON TABLE ───── */
 .comparison-table{width:100%;border-collapse:collapse;margin-top:32px}
@@ -418,13 +418,13 @@ section:nth-child(even){background:var(--section-alt)}
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   letter-spacing:-.03em;
 }
-.stat .stat-label{font-size:.8rem;color:var(--text-dim);margin-top:4px;font-weight:500}
+.stat .stat-label{font-size:.9rem;color:var(--text-dim);margin-top:4px;font-weight:500}
 
 /* ───── CODE BLOCKS ───── */
 .code-block{
   background:var(--bg-code);border:1px solid var(--border);
   border-radius:var(--radius-sm);padding:20px 24px;
-  font-family:var(--font-mono);font-size:.82rem;
+  font-family:var(--font-mono);font-size:.9rem;
   line-height:1.8;color:var(--text-secondary);
   overflow-x:auto;
 }
@@ -478,7 +478,7 @@ footer .footer-links{display:flex;gap:24px}
   .container{padding:0 16px}
   .arch-diagram{padding:16px;font-size:.75rem}
   .install-block{overflow-x:auto}
-  .install-code{font-size:.78rem;padding:16px}
+  .install-code{font-size:.87rem;padding:16px}
   .comparison-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .comparison-table{min-width:480px}
   .callout{padding:20px 16px}
@@ -828,7 +828,7 @@ footer .footer-links{display:flex;gap:24px}
     <div class="grid grid-2 mt-6">
       <div class="feature-card fade-in">
         <span class="tag tag-pink mb-2">Landscape Research</span>
-        <div class="code-block mt-2" style="font-size:.82rem">
+        <div class="code-block mt-2" style="font-size:.9rem">
 <span class="string">"Run a market landscape analysis of Internal Developer Platforms for platform engineering teams"</span>
 
 <span class="comment">&#8594; 9-section report + Top 20 vendors</span>
@@ -837,7 +837,7 @@ footer .footer-links{display:flex;gap:24px}
       </div>
       <div class="feature-card fade-in">
         <span class="tag tag-cyan mb-2">Solution Research</span>
-        <div class="code-block mt-2" style="font-size:.82rem">
+        <div class="code-block mt-2" style="font-size:.9rem">
 <span class="string">"Research Humanitec.com &#8212; I want a Competitive Intelligence Report covering their IDP capabilities"</span>
 
 <span class="comment">&#8594; Competitive Intelligence Report</span>
@@ -846,7 +846,7 @@ footer .footer-links{display:flex;gap:24px}
       </div>
       <div class="feature-card fade-in">
         <span class="tag tag-amber mb-2">Comparator</span>
-        <div class="code-block mt-2" style="font-size:.82rem">
+        <div class="code-block mt-2" style="font-size:.9rem">
 <span class="string">"Add Spinnaker to the comparison matrix based on the latest CIR"</span>
 
 <span class="comment">&#8594; Extracts capabilities from CIR</span>
@@ -855,7 +855,7 @@ footer .footer-links{display:flex;gap:24px}
       </div>
       <div class="feature-card fade-in">
         <span class="tag tag-green mb-2">Direct Multi-AI</span>
-        <div class="code-block mt-2" style="font-size:.82rem">
+        <div class="code-block mt-2" style="font-size:.9rem">
 <span class="string">"What are the main trade-offs between microservices and monoliths?"</span>
 
 <span class="comment">&#8594; All 7 platforms queried in parallel</span>
