@@ -5,11 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Troubleshooting — MultAI Help</title>
 <meta name="description" content="Troubleshoot MultAI — fix Chrome CDP connection issues, platform authentication, rate limits, extraction failures, agent fallback errors, and output problems.">
+<!-- OpenGraph -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://multai.alolabs.dev/help/troubleshooting/">
+<meta property="og:title" content="Troubleshooting — MultAI Help">
+<meta property="og:description" content="Fix Chrome CDP connection issues, platform authentication, rate limits, extraction failures, agent fallback errors, and output problems.">
+<meta property="og:image" content="https://multai.alolabs.dev/assets/og/og-help.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:site_name" content="MultAI">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Troubleshooting — MultAI Help">
+<meta name="twitter:description" content="Fix Chrome CDP connection issues, platform authentication, rate limits, extraction failures, agent fallback errors, and output problems.">
+<meta name="twitter:image" content="https://multai.alolabs.dev/assets/og/og-help.png">
 <link rel="icon" type="image/png" href="../../favicon.png">
 <link rel="shortcut icon" href="../../favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
@@ -36,8 +50,10 @@ html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
   --radius:12px;
   --radius-lg:20px;
   --radius-sm:8px;
-  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
+  --font-heading:'Space Grotesk',system-ui,sans-serif;
+  --font-body:'Plus Jakarta Sans',system-ui,sans-serif;
+  --font-sans:var(--font-body);
+  --font-mono:'Fira Code',monospace;
   --shadow-lg:0 20px 60px rgba(0,0,0,.08);
   --shadow-glow:0 0 40px rgba(99,102,241,.06);
   --nav-bg:rgba(248,249,252,.9);
@@ -75,6 +91,7 @@ html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
   --skill-phase-border:rgba(30,30,56,.8);
 }
 body{font-family:var(--font-sans);background:var(--bg-page);color:var(--text-primary);line-height:1.6}
+h1,h2,h3,h4,h5,h6,.logo,.section-title,.section-label,.tagline,.btn,.tag,.nav-cta,.hero-tagline-caps,.version-badge{font-family:var(--font-heading)}
 body,nav{transition:background .25s,background-color .25s,border-color .25s,color .25s}
 .container{max-width:860px;margin:0 auto;padding:0 24px}
 .container-wide{max-width:1100px;margin:0 auto;padding:0 24px}
@@ -110,6 +127,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--nav-bg);bac
 .page-hero p{font-size:1rem;color:var(--text-secondary);max-width:560px;line-height:1.7}
 
 .doc-layout{display:grid;grid-template-columns:220px 1fr;gap:48px;padding:56px 0 80px}
+.doc-content{min-width:0}
 @media(max-width:768px){.doc-layout{grid-template-columns:1fr}.doc-sidebar{display:none}}
 .doc-sidebar{position:sticky;top:88px;height:fit-content}
 .sidebar-nav{list-style:none;padding:0;display:flex;flex-direction:column;gap:2px}
@@ -162,6 +180,27 @@ footer a:hover{color:var(--accent-light)}
 footer .footer-links{display:flex;gap:24px}
 
 svg.lucide{width:16px;height:16px;display:inline-block;vertical-align:middle}
+
+@media(max-width:768px){
+  .container,.container-wide{padding:0 16px}
+  footer .footer-inner{flex-direction:column;align-items:flex-start;gap:12px}
+  footer .footer-links{flex-wrap:wrap;gap:12px}
+  .page-nav-bottom{flex-direction:column;gap:20px}
+}
+@media(max-width:480px){
+  .page-hero{padding:90px 16px 48px}
+  .page-hero h1{font-size:clamp(1.6rem,6vw,2.4rem)}
+  .container,.container-wide{padding:0 16px}
+  .code-block{font-size:.78rem;padding:14px 16px}
+  .doc-layout{padding:32px 0 48px}
+  .callout{padding:14px 14px;gap:10px}
+  .issue-block{padding:20px 16px}
+}
+@media(max-width:420px){
+  .page-hero{padding:84px 12px 40px}
+  .container,.container-wide{padding:0 12px}
+  .step-list li{gap:10px}
+}
 </style>
 </head>
 <body>
