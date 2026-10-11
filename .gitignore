@@ -20,7 +20,6 @@ env/
 .DS_Store
 
 # IDE
-.vscode/
 .idea/
 
 # Temp test output
